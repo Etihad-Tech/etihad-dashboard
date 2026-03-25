@@ -110,13 +110,24 @@
         <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 90ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Postlar ({{ postsStore.items.length }})</h3>
-            <button
-              @click="$router.push(`/team/trips/${tripId}/posts/new`)"
-              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-            >
-              <font-awesome-icon icon="plus" class="w-3 h-3" />
-              Yangi post
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="hasNowPosts"
+                @click="handleSendNowPosts"
+                :disabled="sendingNow"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-lg transition-colors"
+              >
+                <font-awesome-icon icon="paper-plane" class="w-3 h-3" />
+                {{ sendingNow ? 'Jo\'natilmoqda...' : 'Hozir jo\'natish' }}
+              </button>
+              <button
+                @click="$router.push(`/team/trips/${tripId}/posts/new`)"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+              >
+                <font-awesome-icon icon="plus" class="w-3 h-3" />
+                Yangi post
+              </button>
+            </div>
           </div>
           <div v-if="postsStore.items.length === 0" class="py-12 text-center">
             <p class="text-gray-400 text-sm">Postlar yo'q</p>
@@ -134,6 +145,12 @@
                 <p class="text-sm text-gray-900 truncate">{{ post.message_text }}</p>
                 <p class="text-xs text-gray-400">{{ post.scheduled_time }} · {{ post.media_type || 'matn' }}</p>
               </div>
+              <span
+                v-if="post.send_mode === 'now'"
+                class="inline-block px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 bg-blue-50 text-blue-600"
+              >
+                Hoziroq
+              </span>
               <span
                 class="inline-block px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
                 :class="post.is_sent ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
@@ -157,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/AppLayout.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
@@ -173,6 +190,11 @@ const tripId = route.params.id as string
 const trip = ref(tripsStore.current)
 const loading = ref(true)
 const confirmDeleteTrip = ref(false)
+const sendingNow = ref(false)
+
+const hasNowPosts = computed(() =>
+  postsStore.items.some(p => p.send_mode === 'now' && !p.is_sent)
+)
 
 async function loadData() {
   loading.value = true
@@ -202,6 +224,15 @@ async function toggleStatus() {
 async function deleteTrip() {
   await tripsStore.deleteTrip(tripId)
   router.push('/team/trips')
+}
+
+async function handleSendNowPosts() {
+  sendingNow.value = true
+  try {
+    await postsStore.sendNowPosts(tripId)
+  } finally {
+    sendingNow.value = false
+  }
 }
 
 onMounted(loadData)

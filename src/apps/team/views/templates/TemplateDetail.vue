@@ -45,7 +45,15 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm text-gray-900 whitespace-pre-wrap line-clamp-3">{{ post.message_text }}</p>
-              <p class="text-xs text-gray-400 mt-2">{{ post.scheduled_time }} · {{ post.media_type || 'matn' }}</p>
+              <div class="flex items-center gap-2 mt-2">
+                <p class="text-xs text-gray-400">{{ post.scheduled_time }} · {{ post.media_type || 'matn' }}</p>
+                <span
+                  class="inline-block px-1.5 py-0.5 rounded-full text-xs font-medium"
+                  :class="post.send_mode === 'now' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'"
+                >
+                  {{ post.send_mode === 'now' ? 'Hoziroq' : 'Vaqtida' }}
+                </span>
+              </div>
             </div>
             <button
               @click="deletePostId = post.id"

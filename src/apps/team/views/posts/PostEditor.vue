@@ -12,7 +12,7 @@
       </div>
 
       <form @submit.prevent="savePost" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 animate-fade-up" style="animation-delay: 30ms">
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Kun raqami</label>
             <input v-model.number="form.day_number" type="number" min="1" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="1" />
@@ -20,6 +20,13 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Vaqt</label>
             <input v-model="form.scheduled_time" type="time" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Jo'natish rejimi</label>
+            <select v-model="form.send_mode" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm">
+              <option value="scheduled">Vaqtida</option>
+              <option value="now">Hoziroq</option>
+            </select>
           </div>
         </div>
 
@@ -85,6 +92,7 @@ const form = reactive({
   message_text: '',
   media_path: '',
   media_type: '',
+  send_mode: 'scheduled' as 'scheduled' | 'now',
 })
 
 async function loadPost() {
@@ -96,6 +104,7 @@ async function loadPost() {
     message_text: post.message_text,
     media_path: post.media_path || '',
     media_type: post.media_type || '',
+    send_mode: post.send_mode || 'scheduled',
   })
 }
 

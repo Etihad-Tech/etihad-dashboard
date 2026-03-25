@@ -10,6 +10,7 @@ export interface TemplatePost {
   media_path: string | null
   media_type: string | null
   scheduled_time: string
+  send_mode: 'scheduled' | 'now'
   created_at: string
 }
 

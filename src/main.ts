@@ -29,13 +29,14 @@ import {
   faFileExport,
   faChartPie,
   faHome,
+  faPaperPlane,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
   faChartLine, faComments, faGear, faRightFromBracket, faXmark, faBars,
   faEye, faDatabase, faCircle, faArrowLeft, faFileLines, faPlus, faPen,
   faTrash, faToggleOn, faToggleOff, faUsers, faPlane, faCalendar,
-  faFileExport, faChartPie, faHome,
+  faFileExport, faChartPie, faHome, faPaperPlane,
 )
 
 const app = createApp(App)

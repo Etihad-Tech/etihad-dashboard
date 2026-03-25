@@ -20,6 +20,7 @@ export interface ScheduledPost {
   scheduled_time: string
   is_sent: boolean
   delay_minutes: number
+  send_mode: 'scheduled' | 'now'
   created_at: string
   buttons?: PostButton[]
 }
@@ -70,6 +71,12 @@ export const usePostsStore = defineStore('team-posts', () => {
     if (idx !== -1) items.value[idx].is_sent = true
   }
 
+  async function sendNowPosts(tripId: string) {
+    const { data } = await api.post(`/api/trips/${tripId}/send-now-posts`)
+    await fetchByTrip(tripId)
+    return data as { detail: string; sent_count: number }
+  }
+
   async function delayPost(postId: number, minutes: number) {
     const { data } = await api.put(`/api/posts/${postId}/delay`, { delay_minutes: minutes })
     const idx = items.value.findIndex(p => p.id === postId)
@@ -92,6 +99,6 @@ export const usePostsStore = defineStore('team-posts', () => {
   return {
     items, current, loading,
     fetchByTrip, fetchPost, createPost, updatePost, deletePost,
-    sendNow, delayPost, fetchButtons, saveButtons, deleteButtons,
+    sendNow, sendNowPosts, delayPost, fetchButtons, saveButtons, deleteButtons,
   }
 })

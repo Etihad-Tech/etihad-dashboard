@@ -23,4 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-PLAN.md
+.env
+.claude
+.vscode
