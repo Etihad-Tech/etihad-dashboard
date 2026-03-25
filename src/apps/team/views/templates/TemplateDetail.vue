@@ -22,7 +22,7 @@
           :disabled="!importTripId || importing"
           class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
         >
-          {{ importing ? 'Import...' : 'Safargg import' }}
+          {{ importing ? 'Import...' : 'Safarga import' }}
         </button>
         <p v-if="importMsg" class="text-sm text-emerald-600">{{ importMsg }}</p>
       </div>

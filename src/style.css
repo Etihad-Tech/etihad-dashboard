@@ -14,3 +14,10 @@
 .animate-fade-up {
   animation: fade-up 0.25s ease-out both;
 }
+
+button,
+a,
+[role="button"],
+select {
+  cursor: pointer;
+}
