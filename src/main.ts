@@ -30,13 +30,15 @@ import {
   faChartPie,
   faHome,
   faPaperPlane,
+  faArrowsRotate,
+  faLock,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
   faChartLine, faComments, faGear, faRightFromBracket, faXmark, faBars,
   faEye, faDatabase, faCircle, faArrowLeft, faFileLines, faPlus, faPen,
   faTrash, faToggleOn, faToggleOff, faUsers, faPlane, faCalendar,
-  faFileExport, faChartPie, faHome, faPaperPlane,
+  faFileExport, faChartPie, faHome, faPaperPlane, faArrowsRotate, faLock,
 )
 
 const app = createApp(App)
