@@ -186,7 +186,7 @@ async function saveQuestion() {
   try {
     const payload = {
       question_text: form.question_text,
-      question_type: form.question_type,
+      question_type: form.question_type as PollQuestion['question_type'],
       options: form.options || null,
       order_index: form.order_index,
     }
