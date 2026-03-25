@@ -1,1 +1,6 @@
+# API proxy
+/proxy/ai/*  http://46.101.252.166:8000/:splat  200
+/proxy/team/*  http://46.101.252.166:8001/:splat  200
+
+# SPA fallback
 /* /index.html 200
