@@ -1,7 +1,6 @@
 <template>
    <AppLayout>
       <div class="space-y-6">
-         <!-- Header -->
          <div class="flex items-center justify-between animate-fade-up">
             <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
             <div class="flex items-center gap-2">
@@ -14,9 +13,7 @@
             </div>
          </div>
 
-         <!-- Stats cards + Activity chart -->
          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4" v-if="stats.data">
-            <!-- Stat cards column -->
             <div class="lg:col-span-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
                <div v-for="(card, i) in statCards" :key="card.label"
                   class="bg-white rounded-2xl p-4 border border-gray-200 animate-fade-up"
@@ -33,7 +30,6 @@
                </div>
             </div>
 
-            <!-- Activity chart -->
             <div class="lg:col-span-7 bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up"
                style="animation-delay: 90ms">
                <div class="flex items-center justify-between mb-4">
@@ -47,9 +43,7 @@
             </div>
          </div>
 
-         <!-- Category breakdown -->
          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" v-if="stats.data">
-            <!-- Kategoriyalar -->
             <div class="bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 240ms">
                <h3 class="text-sm font-semibold text-gray-900 mb-4">Kategoriyalar bo'yicha</h3>
                <div class="space-y-4">
@@ -68,7 +62,6 @@
                </div>
             </div>
 
-            <!-- Guruhlar bo'yicha leaderboard -->
             <div class="bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 270ms">
                <h3 class="text-sm font-semibold text-gray-900 mb-4">Guruhlar reytingi</h3>
                <div class="space-y-3">
@@ -93,7 +86,6 @@
             </div>
          </div>
 
-         <!-- Loading -->
          <div v-if="stats.loading" class="flex justify-center py-12">
             <div class="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
          </div>

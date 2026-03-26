@@ -3,7 +3,6 @@
     <div class="space-y-6">
       <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">Google Sheets Export</h2>
 
-      <!-- Trip selector -->
       <div class="animate-fade-up" style="animation-delay: 30ms">
         <label class="block text-sm font-medium text-gray-700 mb-2">Safarni tanlang</label>
         <select
@@ -15,7 +14,6 @@
         </select>
       </div>
 
-      <!-- Export buttons -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-up" style="animation-delay: 60ms">
         <button
           v-for="action in exportActions"

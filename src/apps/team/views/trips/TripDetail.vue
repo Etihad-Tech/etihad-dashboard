@@ -1,7 +1,6 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <!-- Back + Title -->
       <div class="flex items-center gap-4 animate-fade-up">
         <router-link
           to="/team/trips"
@@ -17,7 +16,6 @@
       </div>
 
       <template v-if="trip">
-        <!-- Trip info card -->
         <div class="bg-white rounded-2xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 30ms">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
@@ -46,7 +44,6 @@
             </div>
           </div>
 
-          <!-- Actions -->
           <div class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-100">
             <button
               @click="toggleRegistration"
@@ -76,7 +73,6 @@
           </div>
         </div>
 
-        <!-- Users -->
         <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 60ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Ishtirokchilar ({{ tripsStore.users.length }})</h3>
@@ -106,7 +102,6 @@
           </div>
         </div>
 
-        <!-- Scheduled Posts -->
         <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 90ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Postlar ({{ postsStore.items.length }})</h3>

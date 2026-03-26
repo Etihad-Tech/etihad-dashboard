@@ -6,7 +6,6 @@
       @click.self="$emit('close')"
     >
       <div class="bg-white rounded-3xl w-full max-w-lg max-h-[80vh] flex flex-col border border-gray-200 shadow-xl mx-4">
-        <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <h3 class="font-semibold text-gray-900">Suhbat ko'rish</h3>
@@ -20,7 +19,6 @@
           </button>
         </div>
 
-        <!-- Messages -->
         <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" v-if="preview">
           <div
             v-for="(ctx, i) in preview.context"
@@ -43,7 +41,6 @@
           <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
 
-        <!-- Footer info -->
         <div v-if="preview" class="px-6 py-3 border-t border-gray-100 text-xs text-gray-400 flex justify-between">
           <span>{{ categoryLabel(preview.category) }}</span>
           <span>{{ formatDate(preview.created_at) }}</span>

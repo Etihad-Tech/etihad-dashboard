@@ -16,7 +16,6 @@
         </div>
       </div>
 
-      <!-- Chat list -->
       <div v-if="!selectedChat" class="space-y-3">
         <div v-if="loading" class="flex justify-center py-12">
           <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -48,7 +47,6 @@
         </div>
       </div>
 
-      <!-- Chat messages -->
       <div v-if="selectedChat" class="space-y-4 animate-fade-up" style="animation-delay: 30ms">
         <div class="flex items-center justify-between">
           <p class="text-sm text-gray-500">

@@ -75,7 +75,6 @@
       </div>
     </div>
 
-    <!-- Create/Edit modal -->
     <Transition name="modal">
       <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
         <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">

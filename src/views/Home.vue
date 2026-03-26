@@ -12,19 +12,16 @@
         </button>
       </div>
 
-      <!-- Loading -->
       <div v-if="groupsStore.loading" class="flex justify-center py-12">
         <div class="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <!-- Empty -->
       <div v-else-if="groupsStore.items.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
         <font-awesome-icon icon="users" class="w-10 h-10 text-gray-300 mb-4" />
         <p class="text-gray-400">Guruhlar topilmadi</p>
         <p class="text-xs text-gray-300 mt-1">Botlarni guruhlarga qo'shing</p>
       </div>
 
-      <!-- Groups grid -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <div
           v-for="(group, i) in groupsStore.items"
@@ -32,7 +29,6 @@
           class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
         >
-          <!-- Title -->
           <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
               <font-awesome-icon icon="users" class="w-4 h-4 text-amber-600" />
@@ -43,7 +39,6 @@
             </div>
           </div>
 
-          <!-- Bot statuses -->
           <div class="space-y-2 mb-4">
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-500">AI Support Bot</span>
@@ -67,7 +62,6 @@
             </div>
           </div>
 
-          <!-- Trip info -->
           <div v-if="group.trip_name" class="mb-4 px-3 py-2 bg-blue-50 rounded-xl">
             <p class="text-xs text-blue-600 font-medium">
               <font-awesome-icon icon="plane" class="w-3 h-3 mr-1" />
@@ -78,7 +72,6 @@
             <p class="text-xs text-gray-400">Safar biriktirilmagan</p>
           </div>
 
-          <!-- Action button -->
           <button
             v-if="group.is_activated"
             disabled

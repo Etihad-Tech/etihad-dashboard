@@ -16,7 +16,6 @@ const router = createRouter({
       component: () => import('../views/Home.vue'),
     },
 
-    // — Etihad AI Support —
     {
       path: '/ai',
       name: 'AiDashboard',
@@ -43,7 +42,6 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Redis.vue'),
     },
 
-    // — Etihad Jamoasi —
     {
       path: '/team',
       name: 'TeamDashboard',

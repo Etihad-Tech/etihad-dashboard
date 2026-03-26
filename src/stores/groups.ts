@@ -15,19 +15,17 @@ export interface GroupInfo {
 export const useGroupsStore = defineStore('groups', () => {
   const items = ref<GroupInfo[]>([])
   const loading = ref(false)
-  const sending = ref<string | null>(null) // chat_id of group being sent
+  const sending = ref<string | null>(null)
 
   async function fetchGroups() {
     loading.value = true
     try {
-      // Parallel fetch: trips (asosiy manba), turon bot guruhlar, ai bot guruhlar
       const [tripsResult, teamGroupsResult, aiGroupsResult] = await Promise.allSettled([
         teamApi.get('/api/trips'),
         teamApi.get('/api/group-chats'),
         aiApi.get('/messages/groups'),
       ])
 
-      // Turon bot guruhlar (chat_id → true)
       const turonGroupIds = new Set<string>()
       if (teamGroupsResult.status === 'fulfilled') {
         for (const g of teamGroupsResult.value.data) {
@@ -35,7 +33,6 @@ export const useGroupsStore = defineStore('groups', () => {
         }
       }
 
-      // AI bot guruhlar (telegram_id → true)
       const aiGroupIds = new Set<string>()
       if (aiGroupsResult.status === 'fulfilled') {
         for (const g of aiGroupsResult.value.data) {
@@ -43,11 +40,10 @@ export const useGroupsStore = defineStore('groups', () => {
         }
       }
 
-      // Faqat trip larga biriktirilgan guruhlarni ko'rsatish
       const merged: GroupInfo[] = []
       if (tripsResult.status === 'fulfilled') {
         for (const trip of tripsResult.value.data) {
-          if (!trip.group_chat_id) continue // guruh biriktirilmagan trip ni o'tkazib yuborish
+          if (!trip.group_chat_id) continue
           const chatId = String(trip.group_chat_id)
           merged.push({
             chat_id: chatId,
@@ -71,7 +67,6 @@ export const useGroupsStore = defineStore('groups', () => {
     sending.value = chatId
     try {
       const { data } = await teamApi.post(`/api/trips/${tripId}/send-now-posts`)
-      // Update local state
       const idx = items.value.findIndex(g => g.chat_id === chatId)
       if (idx !== -1) items.value[idx].is_activated = true
       return data

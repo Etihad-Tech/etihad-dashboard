@@ -1,13 +1,11 @@
 <template>
   <div class="min-h-screen bg-gray-50 text-gray-900">
-    <!-- Mobile overlay -->
     <div
       v-if="sidebarOpen"
       class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
       @click="sidebarOpen = false"
     ></div>
 
-    <!-- Sidebar -->
     <aside
       class="fixed inset-y-0 left-0 z-50 w-60 bg-white border-r border-gray-200 flex flex-col transition-transform duration-200"
       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
@@ -79,7 +77,6 @@
       </div>
     </aside>
 
-    <!-- Mobile header -->
     <div class="sticky top-0 z-30 flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3 lg:hidden">
       <div class="flex items-center gap-3">
         <img src="/logo.svg" alt="Etihad" class="w-6 h-6 rounded-full border border-amber-300/60 p-0.5" />
@@ -96,7 +93,6 @@
       </button>
     </div>
 
-    <!-- Main content -->
     <main class="lg:ml-60 p-4 sm:p-6 lg:p-8">
       <slot />
     </main>

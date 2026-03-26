@@ -3,7 +3,6 @@
     <div class="space-y-6">
       <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">So'rovnoma javoblari</h2>
 
-      <!-- Tabs -->
       <div class="flex gap-2 animate-fade-up" style="animation-delay: 30ms">
         <router-link
           to="/team/polls"
@@ -19,7 +18,6 @@
         </router-link>
       </div>
 
-      <!-- Trip selector -->
       <div class="flex items-center gap-3 animate-fade-up" style="animation-delay: 60ms">
         <select
           v-model="selectedTrip"
@@ -49,8 +47,7 @@
       <div v-else-if="store.responses.length === 0" class="bg-white rounded-2xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 90ms">
         <p class="text-gray-400">Javoblar topilmadi</p>
       </div>
-
-      <!-- Responses table -->
+   
       <div v-else class="bg-white rounded-2xl border border-gray-200 overflow-x-auto animate-fade-up" style="animation-delay: 90ms">
         <table class="w-full text-sm min-w-[600px]">
           <thead>

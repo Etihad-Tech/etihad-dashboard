@@ -12,7 +12,6 @@
         </button>
       </div>
 
-      <!-- Tabs -->
       <div class="flex gap-2 animate-fade-up" style="animation-delay: 30ms">
         <button
           v-for="tab in tabs"
@@ -27,7 +26,6 @@
         </button>
       </div>
 
-      <!-- Search -->
       <div class="animate-fade-up" style="animation-delay: 60ms">
         <input
           v-model="search"
@@ -37,18 +35,15 @@
         />
       </div>
 
-      <!-- Loading -->
       <div v-if="tripsStore.loading" class="flex justify-center py-12">
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <!-- Empty -->
       <div v-else-if="filteredTrips.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 90ms">
         <font-awesome-icon icon="plane" class="w-10 h-10 text-gray-300 mb-4" />
         <p class="text-gray-400">{{ search ? 'Natija topilmadi' : 'Safarlar yo\'q' }}</p>
       </div>
 
-      <!-- Trips table -->
       <div v-else class="bg-white rounded-2xl border border-gray-200 overflow-x-auto animate-fade-up" style="animation-delay: 90ms">
         <table class="w-full text-sm min-w-[640px]">
           <thead>
@@ -100,8 +95,7 @@
         </table>
       </div>
     </div>
-
-    <!-- Create trip modal -->
+   
     <Transition name="modal">
       <div
         v-if="modalOpen"

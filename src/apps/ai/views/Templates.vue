@@ -12,18 +12,15 @@
         </button>
       </div>
 
-      <!-- Loading -->
       <div v-if="loading" class="flex justify-center py-12">
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <!-- Empty state -->
       <div v-else-if="templates.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
         <font-awesome-icon icon="file-lines" class="w-10 h-10 text-gray-300 mb-4" />
         <p class="text-gray-400">Hozircha maqtov shablonlari yo'q</p>
       </div>
 
-      <!-- Template cards -->
       <div v-else class="space-y-3">
         <div
           v-for="(tpl, i) in templates"
@@ -67,7 +64,6 @@
       </div>
     </div>
 
-    <!-- Confirm delete modal -->
     <Transition name="modal">
       <div
         v-if="confirmDeleteId"
@@ -98,7 +94,6 @@
       </div>
     </Transition>
 
-    <!-- Add/Edit modal -->
     <Transition name="modal">
       <div
         v-if="modalOpen"

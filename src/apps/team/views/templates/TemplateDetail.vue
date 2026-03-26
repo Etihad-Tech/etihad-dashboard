@@ -11,7 +11,6 @@
         <h2 class="text-2xl font-bold text-gray-900">Shablon postlari</h2>
       </div>
 
-      <!-- Import to trip -->
       <div class="flex items-center gap-3 animate-fade-up" style="animation-delay: 30ms">
         <select v-model="importTripId" class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm">
           <option value="">Safarni tanlang</option>
@@ -27,7 +26,6 @@
         <p v-if="importMsg" class="text-sm text-emerald-600">{{ importMsg }}</p>
       </div>
 
-      <!-- Posts list -->
       <div v-if="store.posts.length === 0 && !loading" class="bg-white rounded-2xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 60ms">
         <p class="text-gray-400">Postlar yo'q</p>
       </div>

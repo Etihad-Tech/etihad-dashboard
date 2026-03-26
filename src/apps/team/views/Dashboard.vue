@@ -3,7 +3,6 @@
     <div class="space-y-6">
       <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">Dashboard</h2>
 
-      <!-- Stats cards -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" v-if="stats.data">
         <div
           v-for="(card, i) in statCards"
@@ -21,7 +20,6 @@
         </div>
       </div>
 
-      <!-- Quick actions -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-up" style="animation-delay: 180ms">
         <router-link
           to="/team/trips"
@@ -76,7 +74,6 @@
         </router-link>
       </div>
 
-      <!-- Loading -->
       <div v-if="stats.loading" class="flex justify-center py-12">
         <div class="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
