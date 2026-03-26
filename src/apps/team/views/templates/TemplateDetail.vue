@@ -11,6 +11,7 @@
         <h2 class="text-2xl font-bold text-gray-900">Shablon postlari</h2>
       </div>
 
+      <!-- Import to trip -->
       <div class="flex items-center gap-3 animate-fade-up" style="animation-delay: 30ms">
         <select v-model="importTripId" class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm">
           <option value="">Safarni tanlang</option>
@@ -26,6 +27,43 @@
         <p v-if="importMsg" class="text-sm text-emerald-600">{{ importMsg }}</p>
       </div>
 
+      <!-- Roadmap -->
+      <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 45ms">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-gray-900">Roadmap reja</h3>
+          <button
+            @click="editingRoadmap = !editingRoadmap"
+            class="text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors"
+          >
+            {{ editingRoadmap ? 'Bekor qilish' : (store.roadmap ? 'Tahrirlash' : 'Qo\'shish') }}
+          </button>
+        </div>
+        <div v-if="editingRoadmap">
+          <textarea
+            v-model="roadmapText"
+            rows="10"
+            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
+            placeholder="Roadmap rejasini yozing..."
+          ></textarea>
+          <div class="flex justify-end mt-2">
+            <button
+              @click="saveRoadmap"
+              :disabled="savingRoadmap"
+              class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              {{ savingRoadmap ? 'Saqlanmoqda...' : 'Saqlash' }}
+            </button>
+          </div>
+        </div>
+        <div v-else-if="store.roadmap">
+          <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto">{{ store.roadmap.content }}</pre>
+        </div>
+        <div v-else>
+          <p class="text-sm text-gray-400">Roadmap qo'shilmagan</p>
+        </div>
+      </div>
+
+      <!-- Posts list -->
       <div v-if="store.posts.length === 0 && !loading" class="bg-white rounded-2xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 60ms">
         <p class="text-gray-400">Postlar yo'q</p>
       </div>
@@ -95,14 +133,19 @@ const deletePostId = ref<number | null>(null)
 const importTripId = ref('')
 const importing = ref(false)
 const importMsg = ref('')
+const editingRoadmap = ref(false)
+const roadmapText = ref('')
+const savingRoadmap = ref(false)
 
 async function loadData() {
   loading.value = true
   try {
     await Promise.all([
       store.fetchPosts(templateId),
+      store.fetchRoadmap(templateId),
       tripsStore.fetchTrips(),
     ])
+    roadmapText.value = store.roadmap?.content || ''
   } finally {
     loading.value = false
   }
@@ -124,6 +167,17 @@ async function importToTrip() {
     setTimeout(() => (importMsg.value = ''), 3000)
   } finally {
     importing.value = false
+  }
+}
+
+async function saveRoadmap() {
+  if (!roadmapText.value.trim()) return
+  savingRoadmap.value = true
+  try {
+    await store.saveRoadmap(templateId, roadmapText.value.trim())
+    editingRoadmap.value = false
+  } finally {
+    savingRoadmap.value = false
   }
 }
 

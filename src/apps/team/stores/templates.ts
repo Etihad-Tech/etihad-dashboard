@@ -14,10 +14,17 @@ export interface TemplatePost {
   created_at: string
 }
 
+export interface Roadmap {
+  id: number
+  content: string
+  created_at: string
+}
+
 export interface Template {
   id: number
   name: string
   description: string | null
+  roadmap_id: number | null
   created_at: string
   posts_count?: number
 }
@@ -26,6 +33,7 @@ export const useTemplatesStore = defineStore('team-templates', () => {
   const items = ref<Template[]>([])
   const current = ref<Template | null>(null)
   const posts = ref<TemplatePost[]>([])
+  const roadmap = ref<Roadmap | null>(null)
   const loading = ref(false)
 
   async function fetchAll() {
@@ -77,9 +85,32 @@ export const useTemplatesStore = defineStore('team-templates', () => {
     await api.post(`/api/templates/${templateId}/import/${tripId}`)
   }
 
+  async function fetchRoadmap(templateId: number) {
+    try {
+      const { data } = await api.get(`/api/templates/${templateId}/roadmap`)
+      roadmap.value = data
+    } catch {
+      roadmap.value = null
+    }
+    return roadmap.value
+  }
+
+  async function saveRoadmap(templateId: number, content: string) {
+    const tpl = items.value.find(t => t.id === templateId)
+    if (tpl?.roadmap_id) {
+      const { data } = await api.put(`/api/templates/${templateId}/roadmap`, { content })
+      roadmap.value = data
+    } else {
+      const { data } = await api.post(`/api/templates/${templateId}/roadmap`, { content })
+      roadmap.value = data
+    }
+    return roadmap.value
+  }
+
   return {
-    items, current, posts, loading,
+    items, current, posts, roadmap, loading,
     fetchAll, createTemplate, deleteTemplate,
     fetchPosts, addPost, updatePost, deletePost, importToTrip,
+    fetchRoadmap, saveRoadmap,
   }
 })

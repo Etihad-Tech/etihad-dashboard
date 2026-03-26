@@ -16,6 +16,7 @@
       </div>
 
       <template v-if="trip">
+        <!-- Trip info card -->
         <div class="bg-white rounded-2xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 30ms">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
@@ -44,6 +45,7 @@
             </div>
           </div>
 
+          <!-- Actions -->
           <div class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-100">
             <button
               @click="toggleRegistration"
@@ -73,6 +75,43 @@
           </div>
         </div>
 
+        <!-- Roadmap -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 50ms">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-gray-900">Roadmap reja</h3>
+            <button
+              @click="editingRoadmap = !editingRoadmap"
+              class="text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors"
+            >
+              {{ editingRoadmap ? 'Bekor qilish' : (tripsStore.roadmap ? 'Tahrirlash' : 'Qo\'shish') }}
+            </button>
+          </div>
+          <div v-if="editingRoadmap">
+            <textarea
+              v-model="roadmapText"
+              rows="10"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
+              placeholder="Roadmap rejasini yozing..."
+            ></textarea>
+            <div class="flex justify-end mt-2">
+              <button
+                @click="saveRoadmap"
+                :disabled="savingRoadmap"
+                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                {{ savingRoadmap ? 'Saqlanmoqda...' : 'Saqlash' }}
+              </button>
+            </div>
+          </div>
+          <div v-else-if="tripsStore.roadmap">
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto">{{ tripsStore.roadmap.content }}</pre>
+          </div>
+          <div v-else>
+            <p class="text-sm text-gray-400">Roadmap qo'shilmagan</p>
+          </div>
+        </div>
+
+        <!-- Users -->
         <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 60ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Ishtirokchilar ({{ tripsStore.users.length }})</h3>
@@ -102,6 +141,7 @@
           </div>
         </div>
 
+        <!-- Scheduled Posts -->
         <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 90ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Postlar ({{ postsStore.items.length }})</h3>
@@ -186,6 +226,9 @@ const trip = ref(tripsStore.current)
 const loading = ref(true)
 const confirmDeleteTrip = ref(false)
 const sendingNow = ref(false)
+const editingRoadmap = ref(false)
+const roadmapText = ref('')
+const savingRoadmap = ref(false)
 
 const hasNowPosts = computed(() =>
   postsStore.items.some(p => p.send_mode === 'now' && !p.is_sent)
@@ -197,8 +240,10 @@ async function loadData() {
     trip.value = await tripsStore.fetchTrip(tripId)
     await Promise.all([
       tripsStore.fetchUsers(tripId),
+      tripsStore.fetchRoadmap(tripId),
       postsStore.fetchByTrip(tripId),
     ])
+    roadmapText.value = tripsStore.roadmap?.content || ''
   } finally {
     loading.value = false
   }
@@ -227,6 +272,19 @@ async function handleSendNowPosts() {
     await postsStore.sendNowPosts(tripId)
   } finally {
     sendingNow.value = false
+  }
+}
+
+async function saveRoadmap() {
+  if (!roadmapText.value.trim()) return
+  savingRoadmap.value = true
+  try {
+    await tripsStore.saveRoadmap(tripId, roadmapText.value.trim())
+    editingRoadmap.value = false
+    // Refresh trip to get updated roadmap_id
+    trip.value = await tripsStore.fetchTrip(tripId)
+  } finally {
+    savingRoadmap.value = false
   }
 }
 
