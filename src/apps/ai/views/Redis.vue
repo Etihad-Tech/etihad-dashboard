@@ -10,6 +10,17 @@
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </button>
         <h2 class="text-2xl font-bold text-gray-900">Redis Monitor</h2>
+        <div v-if="!selectedChat" class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <button
+            v-for="f in filters"
+            :key="f.value"
+            @click="activeFilter = f.value; loadChats()"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            :class="activeFilter === f.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+          >
+            {{ f.label }}
+          </button>
+        </div>
         <div class="flex items-center gap-2 ml-auto">
           <font-awesome-icon icon="circle" class="w-2 h-2 text-emerald-500 animate-pulse" />
           <span class="text-xs text-gray-400">Har 30s yangilanadi</span>
@@ -35,11 +46,26 @@
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-              <font-awesome-icon icon="comments" class="w-4 h-4 text-amber-600" />
+            <div
+              class="w-10 h-10 rounded-full flex items-center justify-center"
+              :class="chat.type === 'private' ? 'bg-blue-100' : 'bg-amber-100'"
+            >
+              <font-awesome-icon
+                :icon="chat.type === 'private' ? 'user' : 'comments'"
+                class="w-4 h-4"
+                :class="chat.type === 'private' ? 'text-blue-600' : 'text-amber-600'"
+              />
             </div>
             <div>
-              <p class="text-sm font-semibold text-gray-900">{{ chat.title || chat.id }}</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-semibold text-gray-900">{{ chat.title || chat.id }}</p>
+                <span
+                  class="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  :class="chat.type === 'private' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'"
+                >
+                  {{ chat.type === 'private' ? 'Shaxsiy' : 'Guruh' }}
+                </span>
+              </div>
               <p class="text-xs text-gray-400">{{ chat.id }}</p>
             </div>
           </div>
@@ -108,7 +134,15 @@ interface RedisMessage {
 interface RedisChat {
   id: string
   title: string
+  type: 'private' | 'group'
 }
+
+const filters = [
+  { label: 'Hammasi', value: '' },
+  { label: 'Guruhlar', value: 'group' },
+  { label: 'Shaxsiy', value: 'private' },
+]
+const activeFilter = ref('')
 
 const chats = ref<RedisChat[]>([])
 const selectedChat = ref<string | null>(null)
@@ -123,7 +157,8 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 async function loadChats() {
   loading.value = true
   try {
-    const { data } = await api.get('/redis/chats')
+    const params = activeFilter.value ? { chat_type: activeFilter.value } : {}
+    const { data } = await api.get('/redis/chats', { params })
     chats.value = data.chats
   } catch {
     chats.value = []
