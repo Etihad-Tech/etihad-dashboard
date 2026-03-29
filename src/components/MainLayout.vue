@@ -33,18 +33,6 @@
         </div>
 
         <router-link
-          to="/ai"
-          @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors"
-          :class="$route.path.startsWith('/ai')
-            ? 'bg-amber-50 text-amber-700 border-amber-300'
-            : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
-        >
-          <font-awesome-icon icon="comments" class="w-4 h-4" />
-          Etihad AI Support
-        </router-link>
-
-        <router-link
           to="/team"
           @click="sidebarOpen = false"
           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors"
@@ -54,6 +42,18 @@
         >
           <font-awesome-icon icon="users" class="w-4 h-4" />
           Etihad Jamoasi
+        </router-link>
+
+        <router-link
+          to="/ai"
+          @click="sidebarOpen = false"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+          :class="$route.path.startsWith('/ai')
+            ? 'bg-amber-50 text-amber-700 border-amber-300'
+            : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
+        >
+          <font-awesome-icon icon="comments" class="w-4 h-4" />
+          Etihad AI Support
         </router-link>
       </nav>
 
