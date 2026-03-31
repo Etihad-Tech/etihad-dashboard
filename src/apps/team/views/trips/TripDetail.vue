@@ -174,7 +174,7 @@
               class="px-4 py-3 flex items-center gap-4 hover:bg-gray-50 transition-colors"
             >
               <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <span class="text-xs font-bold text-gray-500">{{ post.day_number }}-kun</span>
+                <span class="text-xs font-bold text-gray-500 text-center leading-tight">{{ post.day_number }}-kun</span>
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm text-gray-900 truncate">{{ post.message_text }}</p>

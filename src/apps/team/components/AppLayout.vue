@@ -59,22 +59,22 @@
       </nav>
 
       <div class="p-4 border-t border-gray-200">
-        <div class="flex items-center gap-3 px-2 mb-3">
-          <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center">
+        <div class="flex items-center gap-3 px-2">
+          <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
             <span class="text-sm font-semibold text-amber-700">{{ displayInitial }}</span>
           </div>
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-gray-900 truncate">{{ displayName }}</p>
             <p class="text-xs text-gray-400 truncate">{{ auth.username || '' }}</p>
           </div>
+          <button
+            @click="handleLogout"
+            class="group relative flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+          >
+            <font-awesome-icon icon="right-from-bracket" class="w-4 h-4" />
+            <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs font-medium text-white bg-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Chiqish</span>
+          </button>
         </div>
-        <button
-          @click="handleLogout"
-          class="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-        >
-          <font-awesome-icon icon="right-from-bracket" class="w-4 h-4" />
-          Chiqish
-        </button>
       </div>
     </aside>
 
