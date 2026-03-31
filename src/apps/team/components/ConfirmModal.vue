@@ -14,13 +14,13 @@
         <div class="flex justify-center gap-3">
           <button
             @click="$emit('cancel')"
-            class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+            class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors"
           >
             Bekor qilish
           </button>
           <button
             @click="$emit('confirm')"
-            class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors"
+            class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-2xl transition-colors"
           >
             {{ confirmText }}
           </button>

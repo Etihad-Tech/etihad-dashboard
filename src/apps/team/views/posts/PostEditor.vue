@@ -4,26 +4,26 @@
       <div class="flex items-center gap-4 animate-fade-up">
         <button
           @click="$router.back()"
-          class="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
+          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
         >
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </button>
         <h2 class="text-2xl font-bold text-gray-900">{{ isEdit ? 'Postni tahrirlash' : 'Yangi post' }}</h2>
       </div>
 
-      <form @submit.prevent="savePost" class="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 animate-fade-up" style="animation-delay: 30ms">
+      <form @submit.prevent="savePost" class="bg-white rounded-3xl border border-gray-200 p-6 space-y-4 animate-fade-up" style="animation-delay: 30ms">
         <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Kun raqami</label>
-            <input v-model.number="form.day_number" type="number" min="1" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="1" />
+            <input v-model.number="form.day_number" type="number" min="1" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="1" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Vaqt</label>
-            <input v-model="form.scheduled_time" type="time" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+            <input v-model="form.scheduled_time" type="time" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Jo'natish rejimi</label>
-            <select v-model="form.send_mode" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm">
+            <select v-model="form.send_mode" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm">
               <option value="scheduled">Vaqtida</option>
               <option value="now">Hoziroq</option>
             </select>
@@ -36,7 +36,7 @@
             v-model="form.message_text"
             rows="6"
             required
-            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             placeholder="Post matnini yozing..."
           ></textarea>
         </div>
@@ -44,11 +44,11 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Media path</label>
-            <input v-model="form.media_path" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Ixtiyoriy" />
+            <input v-model="form.media_path" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="Ixtiyoriy" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Media turi</label>
-            <select v-model="form.media_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm">
+            <select v-model="form.media_type" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm">
               <option value="">Yo'q</option>
               <option value="photo">Rasm</option>
               <option value="video">Video</option>
@@ -60,8 +60,8 @@
         <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
 
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" @click="$router.back()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">Bekor qilish</button>
-          <button type="submit" :disabled="saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
+          <button type="button" @click="$router.back()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
+          <button type="submit" :disabled="saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
             {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
           </button>
         </div>

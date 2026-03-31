@@ -4,7 +4,7 @@
       <div class="flex items-center gap-4 animate-fade-up">
         <router-link
           to="/team/trips"
-          class="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
+          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
         >
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </router-link>
@@ -17,7 +17,7 @@
 
       <template v-if="trip">
         <!-- Trip info card -->
-        <div class="bg-white rounded-2xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 30ms">
+        <div class="bg-white rounded-3xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 30ms">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <p class="text-xs font-medium text-gray-400 mb-1">Safar ID</p>
@@ -49,7 +49,7 @@
           <div class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-100">
             <button
               @click="toggleRegistration"
-              class="px-4 py-2 text-sm font-medium rounded-xl border transition-colors"
+              class="px-4 py-2 text-sm font-medium rounded-2xl border transition-colors"
               :class="trip.registration_open
                 ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100'
                 : 'text-gray-500 border-gray-200 bg-gray-50 hover:bg-gray-100'"
@@ -58,7 +58,7 @@
             </button>
             <button
               @click="toggleStatus"
-              class="px-4 py-2 text-sm font-medium rounded-xl border transition-colors"
+              class="px-4 py-2 text-sm font-medium rounded-2xl border transition-colors"
               :class="trip.is_active
                 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
                 : 'text-gray-500 border-gray-200 bg-gray-50 hover:bg-gray-100'"
@@ -67,7 +67,7 @@
             </button>
             <button
               @click="confirmDeleteTrip = true"
-              class="px-4 py-2 text-sm font-medium rounded-xl border border-red-200 text-red-500 bg-red-50 hover:bg-red-100 transition-colors ml-auto"
+              class="px-4 py-2 text-sm font-medium rounded-2xl border border-red-200 text-red-500 bg-red-50 hover:bg-red-100 transition-colors ml-auto"
             >
               <font-awesome-icon icon="trash" class="w-3 h-3 mr-1" />
               O'chirish
@@ -76,7 +76,7 @@
         </div>
 
         <!-- Roadmap -->
-        <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 50ms">
+        <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 50ms">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-semibold text-gray-900">Roadmap reja</h3>
             <button
@@ -90,21 +90,21 @@
             <textarea
               v-model="roadmapText"
               rows="10"
-              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
+              class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
               placeholder="Roadmap rejasini yozing..."
             ></textarea>
             <div class="flex justify-end mt-2">
               <button
                 @click="saveRoadmap"
                 :disabled="savingRoadmap"
-                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
               >
                 {{ savingRoadmap ? 'Saqlanmoqda...' : 'Saqlash' }}
               </button>
             </div>
           </div>
           <div v-else-if="tripsStore.roadmap">
-            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto">{{ tripsStore.roadmap.content }}</pre>
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-2xl p-4 max-h-64 overflow-y-auto">{{ tripsStore.roadmap.content }}</pre>
           </div>
           <div v-else>
             <p class="text-sm text-gray-400">Roadmap qo'shilmagan</p>
@@ -112,7 +112,7 @@
         </div>
 
         <!-- Users -->
-        <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 60ms">
+        <div class="bg-white rounded-3xl border border-gray-200 animate-fade-up" style="animation-delay: 60ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Ishtirokchilar ({{ tripsStore.users.length }})</h3>
           </div>
@@ -142,7 +142,7 @@
         </div>
 
         <!-- Scheduled Posts -->
-        <div class="bg-white rounded-2xl border border-gray-200 animate-fade-up" style="animation-delay: 90ms">
+        <div class="bg-white rounded-3xl border border-gray-200 animate-fade-up" style="animation-delay: 90ms">
           <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Postlar ({{ postsStore.items.length }})</h3>
             <div class="flex items-center gap-2">
@@ -150,14 +150,14 @@
                 v-if="hasNowPosts"
                 @click="handleSendNowPosts"
                 :disabled="sendingNow"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-lg transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-xl transition-colors"
               >
                 <font-awesome-icon icon="paper-plane" class="w-3 h-3" />
                 {{ sendingNow ? 'Jo\'natilmoqda...' : 'Hozir jo\'natish' }}
               </button>
               <button
                 @click="$router.push(`/team/trips/${tripId}/posts/new`)"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
               >
                 <font-awesome-icon icon="plus" class="w-3 h-3" />
                 Yangi post
@@ -173,7 +173,7 @@
               :key="post.id"
               class="px-4 py-3 flex items-center gap-4 hover:bg-gray-50 transition-colors"
             >
-              <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <span class="text-xs font-bold text-gray-500 text-center leading-tight">{{ post.day_number }}-kun</span>
               </div>
               <div class="flex-1 min-w-0">

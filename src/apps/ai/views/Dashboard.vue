@@ -5,7 +5,7 @@
             <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
             <div class="flex items-center gap-2">
                <button v-for="p in periods" :key="p.value" @click="selectedPeriod = p.value"
-                  class="px-4 py-1.5 rounded-xl text-sm font-medium transition-colors border" :class="selectedPeriod === p.value
+                  class="px-4 py-1.5 rounded-2xl text-sm font-medium transition-colors border" :class="selectedPeriod === p.value
                      ? 'bg-amber-50 text-amber-700 border-amber-200'
                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'">
                   {{ p.label }}
@@ -16,7 +16,7 @@
          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4" v-if="stats.data">
             <div class="lg:col-span-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
                <div v-for="(card, i) in statCards" :key="card.label"
-                  class="bg-white rounded-2xl p-4 border border-gray-200 animate-fade-up"
+                  class="bg-white rounded-3xl p-4 border border-gray-200 animate-fade-up"
                   :style="{ animationDelay: (i + 1) * 30 + 'ms' }">
                   <p class="text-xs font-medium text-gray-400 mb-1">{{ card.label }}</p>
                   <p class="text-2xl font-bold text-gray-900">{{ card.value }}</p>
@@ -26,7 +26,7 @@
                </div>
             </div>
 
-            <div class="lg:col-span-7 bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up"
+            <div class="lg:col-span-7 bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up"
                style="animation-delay: 90ms">
                <div class="flex items-center justify-between mb-4">
                   <h3 class="text-sm font-semibold text-gray-900">Murojaatlar dinamikasi</h3>
@@ -40,7 +40,7 @@
          </div>
 
          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" v-if="stats.data">
-            <div class="bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 240ms">
+            <div class="bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 240ms">
                <h3 class="text-sm font-semibold text-gray-900 mb-4">Kategoriyalar bo'yicha</h3>
                <div class="space-y-4">
                   <div v-for="(count, cat) in stats.data.categories" :key="cat" class="flex items-center gap-3">
@@ -58,11 +58,11 @@
                </div>
             </div>
 
-            <div class="bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 270ms">
+            <div class="bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 270ms">
                <h3 class="text-sm font-semibold text-gray-900 mb-4">Guruhlar reytingi</h3>
                <div class="space-y-3">
                   <div v-for="(count, name, idx) in stats.data.groups" :key="name" class="flex items-center gap-3">
-                     <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                     <div class="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
                         <span class="text-xs font-bold text-gray-500">{{ (idx as number) + 1 }}</span>
                      </div>
                      <div class="flex-1 min-w-0">

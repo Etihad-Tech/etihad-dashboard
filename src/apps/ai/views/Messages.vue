@@ -5,7 +5,7 @@
 
          <div class="flex flex-wrap items-center gap-3 animate-fade-up" style="animation-delay: 30ms">
             <select v-model="filters.category"
-               class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                <option value="">Barcha kategoriyalar</option>
                <option value="sorov">So'rov</option>
                <option value="muammo">Muammo</option>
@@ -13,7 +13,7 @@
             </select>
 
             <select v-model="filters.group"
-               class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                <option value="">Barcha guruhlar</option>
                <option v-for="g in messagesStore.groups" :key="g.id" :value="g.id">
                   {{ g.title }}
@@ -23,21 +23,21 @@
             <div class="w-px h-7 bg-gray-200"></div>
 
             <flat-pickr v-model="filters.date_from" :config="dateFromConfig" placeholder="Boshlanish sanasi"
-               class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 w-40" />
+               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 w-40" />
             <flat-pickr v-model="filters.date_to" :config="dateToConfig" placeholder="Tugash sanasi"
-               class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 w-40" />
+               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 w-40" />
 
             <div class="w-px h-7 bg-gray-200"></div>
 
             <select v-model="pageSizeStr"
-               class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                <option value="25">Sahifada: 25</option>
                <option value="50">Sahifada: 50</option>
                <option value="100">Sahifada: 100</option>
             </select>
          </div>
 
-         <div class="bg-white rounded-2xl border border-gray-200 overflow-x-auto animate-fade-up"
+         <div class="bg-white rounded-3xl border border-gray-200 overflow-x-auto animate-fade-up"
             style="animation-delay: 60ms">
             <table class="w-full text-sm min-w-[640px]">
                <thead>
@@ -94,20 +94,20 @@
             </p>
             <div class="flex items-center gap-2">
                <button @click="goToPage(1)" :disabled="page <= 1"
-                  class="px-3 py-1.5 rounded-xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
                   &laquo;
                </button>
                <button @click="goToPage(page - 1)" :disabled="page <= 1"
-                  class="px-3 py-1.5 rounded-xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
                   Oldingi
                </button>
                <span class="px-3 py-1.5 text-sm text-gray-500">{{ page }} / {{ totalPages }}</span>
                <button @click="goToPage(page + 1)" :disabled="page >= totalPages"
-                  class="px-3 py-1.5 rounded-xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
                   Keyingi
                </button>
                <button @click="goToPage(totalPages)" :disabled="page >= totalPages"
-                  class="px-3 py-1.5 rounded-xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
                   &raquo;
                </button>
             </div>

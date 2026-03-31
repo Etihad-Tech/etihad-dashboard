@@ -3,7 +3,7 @@
     <div class="space-y-6">
       <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">Sozlamalar</h2>
 
-      <div class="bg-white rounded-2xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 30ms">
+      <div class="bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 30ms">
         <h3 class="text-base font-semibold text-gray-900 mb-1">System Prompt</h3>
         <p class="text-sm text-gray-500 mb-4">
           AI bot javob berishda foydalaniladigan system prompt. O'zgartirish darhol amal qiladi.
@@ -12,7 +12,7 @@
         <textarea
           v-model="promptContent"
           rows="8"
-          class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
+          class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
           placeholder="System prompt yozing..."
         ></textarea>
 
@@ -27,7 +27,7 @@
             <button
               @click="savePrompt"
               :disabled="saving"
-              class="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+              class="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
             >
               {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
             </button>

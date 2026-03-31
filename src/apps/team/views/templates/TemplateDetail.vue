@@ -4,7 +4,7 @@
       <div class="flex items-center gap-4 animate-fade-up">
         <router-link
           to="/team/templates"
-          class="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
+          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
         >
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </router-link>
@@ -13,14 +13,14 @@
 
       <!-- Import to trip -->
       <div class="flex items-center gap-3 animate-fade-up" style="animation-delay: 30ms">
-        <select v-model="importTripId" class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm">
+        <select v-model="importTripId" class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm">
           <option value="">Safarni tanlang</option>
           <option v-for="t in tripsStore.items" :key="t.trip_id" :value="t.trip_id">{{ t.name }}</option>
         </select>
         <button
           @click="importToTrip"
           :disabled="!importTripId || importing"
-          class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+          class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
         >
           {{ importing ? 'Import...' : 'Safarga import' }}
         </button>
@@ -28,7 +28,7 @@
       </div>
 
       <!-- Roadmap -->
-      <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 45ms">
+      <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 45ms">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold text-gray-900">Roadmap reja</h3>
           <button
@@ -42,21 +42,21 @@
           <textarea
             v-model="roadmapText"
             rows="10"
-            class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
+            class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
             placeholder="Roadmap rejasini yozing..."
           ></textarea>
           <div class="flex justify-end mt-2">
             <button
               @click="saveRoadmap"
               :disabled="savingRoadmap"
-              class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+              class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
             >
               {{ savingRoadmap ? 'Saqlanmoqda...' : 'Saqlash' }}
             </button>
           </div>
         </div>
         <div v-else-if="store.roadmap">
-          <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto">{{ store.roadmap.content }}</pre>
+          <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-2xl p-4 max-h-64 overflow-y-auto">{{ store.roadmap.content }}</pre>
         </div>
         <div v-else>
           <p class="text-sm text-gray-400">Roadmap qo'shilmagan</p>
@@ -64,7 +64,7 @@
       </div>
 
       <!-- Posts list -->
-      <div v-if="store.posts.length === 0 && !loading" class="bg-white rounded-2xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 60ms">
+      <div v-if="store.posts.length === 0 && !loading" class="bg-white rounded-3xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 60ms">
         <p class="text-gray-400">Postlar yo'q</p>
       </div>
 
@@ -72,11 +72,11 @@
         <div
           v-for="(post, i) in store.posts"
           :key="post.id"
-          class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up"
+          class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
         >
           <div class="flex items-start gap-4">
-            <div class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
               <span class="text-xs font-bold text-gray-500 text-center leading-tight">{{ post.day_number }}-kun</span>
             </div>
             <div class="flex-1 min-w-0">
@@ -93,7 +93,7 @@
             </div>
             <button
               @click="deletePostId = post.id"
-              class="flex-shrink-0 px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+              class="flex-shrink-0 px-2 py-1.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
             >
               <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
             </button>

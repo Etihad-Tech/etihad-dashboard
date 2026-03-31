@@ -5,7 +5,7 @@
         <h2 class="text-2xl font-bold text-gray-900">Maqtov shablonlari</h2>
         <button
           @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-xl transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
         >
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
           Yangi shablon
@@ -16,7 +16,7 @@
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <div v-else-if="templates.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
+      <div v-else-if="templates.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
         <font-awesome-icon icon="file-lines" class="w-10 h-10 text-gray-300 mb-4" />
         <p class="text-gray-400">Hozircha maqtov shablonlari yo'q</p>
       </div>
@@ -25,7 +25,7 @@
         <div
           v-for="(tpl, i) in templates"
           :key="tpl.id"
-          class="bg-white rounded-2xl border p-5 transition-all animate-fade-up"
+          class="bg-white rounded-3xl border p-5 transition-all animate-fade-up"
           :class="tpl.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
         >
@@ -34,7 +34,7 @@
             <div class="flex items-center gap-1">
               <button
                 @click="toggleActive(tpl)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
                 :class="tpl.is_active
                   ? 'text-emerald-600 hover:bg-emerald-50'
                   : 'text-gray-400 hover:bg-gray-50'"
@@ -46,14 +46,14 @@
             <div class="flex items-center gap-1">
               <button
                 @click="openEdit(tpl)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 <font-awesome-icon icon="pen" class="w-3 h-3" />
                 Tahrirlash
               </button>
               <button
                 @click="askDelete(tpl.id)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
               >
                 <font-awesome-icon icon="trash" class="w-3 h-3" />
                 O'chirish
@@ -79,13 +79,13 @@
           <div class="flex justify-center gap-3">
             <button
               @click="cancelDelete"
-              class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+              class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors"
             >
               Bekor qilish
             </button>
             <button
               @click="confirmDelete"
-              class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors"
+              class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-2xl transition-colors"
             >
               O'chirish
             </button>
@@ -108,21 +108,21 @@
             <textarea
               v-model="modalText"
               rows="4"
-              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
+              class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
               placeholder="Shablon matnini yozing..."
             ></textarea>
           </div>
           <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
             <button
               @click="closeModal"
-              class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+              class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors"
             >
               Bekor qilish
             </button>
             <button
               @click="saveModal"
               :disabled="!modalText.trim() || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
             >
               {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
             </button>

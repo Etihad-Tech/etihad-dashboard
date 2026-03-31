@@ -27,10 +27,10 @@
             :class="ctx.role === 'user' ? 'justify-end' : 'justify-start'"
           >
             <div
-              class="max-w-[80%] px-4 py-2.5 rounded-2xl text-sm"
+              class="max-w-[80%] px-4 py-2.5 rounded-3xl text-sm"
               :class="ctx.role === 'user'
-                ? 'bg-amber-600 text-white rounded-br-md'
-                : 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'"
+                ? 'bg-amber-600 text-white rounded-br-lg'
+                : 'bg-white text-gray-700 border border-gray-200 rounded-bl-lg shadow-sm'"
             >
               {{ ctx.content }}
             </div>

@@ -13,7 +13,7 @@
             v-model="username"
             type="text"
             required
-            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             placeholder="Foydalanuvchi nomi"
           />
         </div>
@@ -23,7 +23,7 @@
             v-model="password"
             type="password"
             required
-            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             placeholder="Parol"
           />
         </div>
@@ -33,7 +33,7 @@
         <button
           type="submit"
           :disabled="loading"
-          class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-medium rounded-xl transition-colors"
+          class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-medium rounded-2xl transition-colors"
         >
           {{ loading ? 'Kirish...' : 'Kirish' }}
         </button>

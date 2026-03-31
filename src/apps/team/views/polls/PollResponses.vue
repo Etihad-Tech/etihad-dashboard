@@ -6,13 +6,13 @@
       <div class="flex gap-2 animate-fade-up" style="animation-delay: 30ms">
         <router-link
           to="/team/polls"
-          class="px-4 py-1.5 rounded-xl text-sm font-medium border bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+          class="px-4 py-1.5 rounded-2xl text-sm font-medium border bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
         >
           Savollar
         </router-link>
         <router-link
           to="/team/polls/responses"
-          class="px-4 py-1.5 rounded-xl text-sm font-medium border bg-amber-50 text-amber-700 border-amber-200"
+          class="px-4 py-1.5 rounded-2xl text-sm font-medium border bg-amber-50 text-amber-700 border-amber-200"
         >
           Javoblar
         </router-link>
@@ -21,7 +21,7 @@
       <div class="flex items-center gap-3 animate-fade-up" style="animation-delay: 60ms">
         <select
           v-model="selectedTrip"
-          class="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm"
+          class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm"
         >
           <option value="">Safarni tanlang</option>
           <option v-for="t in tripsStore.items" :key="t.trip_id" :value="t.trip_id">{{ t.name }}</option>
@@ -30,7 +30,7 @@
           v-if="selectedTrip"
           @click="sendPoll"
           :disabled="sending"
-          class="px-4 py-2 text-sm font-medium text-amber-600 border border-amber-200 rounded-xl hover:bg-amber-50 transition-colors"
+          class="px-4 py-2 text-sm font-medium text-amber-600 border border-amber-200 rounded-2xl hover:bg-amber-50 transition-colors"
         >
           {{ sending ? 'Yuborilmoqda...' : 'Poll yuborish' }}
         </button>
@@ -40,15 +40,15 @@
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <div v-else-if="!selectedTrip" class="bg-white rounded-2xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 90ms">
+      <div v-else-if="!selectedTrip" class="bg-white rounded-3xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 90ms">
         <p class="text-gray-400">Javoblarni ko'rish uchun safarni tanlang</p>
       </div>
 
-      <div v-else-if="store.responses.length === 0" class="bg-white rounded-2xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 90ms">
+      <div v-else-if="store.responses.length === 0" class="bg-white rounded-3xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 90ms">
         <p class="text-gray-400">Javoblar topilmadi</p>
       </div>
    
-      <div v-else class="bg-white rounded-2xl border border-gray-200 overflow-x-auto animate-fade-up" style="animation-delay: 90ms">
+      <div v-else class="bg-white rounded-3xl border border-gray-200 overflow-x-auto animate-fade-up" style="animation-delay: 90ms">
         <table class="w-full text-sm min-w-[600px]">
           <thead>
             <tr class="text-gray-500 border-b border-gray-100 bg-gray-50/50">

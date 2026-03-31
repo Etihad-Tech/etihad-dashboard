@@ -7,7 +7,7 @@
         <div
           v-for="(card, i) in statCards"
           :key="card.label"
-          class="bg-white rounded-2xl p-4 border border-gray-200 animate-fade-up"
+          class="bg-white rounded-3xl p-4 border border-gray-200 animate-fade-up"
           :style="{ animationDelay: (i + 1) * 30 + 'ms' }"
         >
           <p class="text-xs font-medium text-gray-400 mb-1">{{ card.label }}</p>
@@ -21,7 +21,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-up" style="animation-delay: 180ms">
         <router-link
           to="/team/trips"
-          class="bg-white rounded-2xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
+          class="bg-white rounded-3xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
         >
           <div class="flex items-center justify-between">
             <div>
@@ -34,7 +34,7 @@
 
         <router-link
           to="/team/templates"
-          class="bg-white rounded-2xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
+          class="bg-white rounded-3xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
         >
           <div class="flex items-center justify-between">
             <div>
@@ -47,7 +47,7 @@
 
         <router-link
           to="/team/polls"
-          class="bg-white rounded-2xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
+          class="bg-white rounded-3xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
         >
           <div class="flex items-center justify-between">
             <div>
@@ -60,7 +60,7 @@
 
         <router-link
           to="/team/export"
-          class="bg-white rounded-2xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
+          class="bg-white rounded-3xl border border-gray-200 p-5 hover:border-amber-300 transition-all group"
         >
           <div class="flex items-center justify-between">
             <div>

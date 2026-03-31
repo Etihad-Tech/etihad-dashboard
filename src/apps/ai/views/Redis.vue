@@ -5,17 +5,17 @@
         <button
           v-if="selectedChat"
           @click="selectedChat = null; selectedTitle = ''"
-          class="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
+          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
         >
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </button>
         <h2 class="text-2xl font-bold text-gray-900">Redis Monitor</h2>
-        <div v-if="!selectedChat" class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+        <div v-if="!selectedChat" class="flex items-center gap-1 bg-gray-100 rounded-2xl p-1">
           <button
             v-for="f in filters"
             :key="f.value"
             @click="activeFilter = f.value; loadChats()"
-            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            class="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
             :class="activeFilter === f.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
           >
             {{ f.label }}
@@ -32,7 +32,7 @@
           <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
 
-        <div v-else-if="chats.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
+        <div v-else-if="chats.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
           <font-awesome-icon icon="database" class="w-10 h-10 text-gray-300 mb-4" />
           <p class="text-gray-400">Redis'da hozircha xabarlar yo'q</p>
         </div>
@@ -42,7 +42,7 @@
           v-for="(chat, i) in chats"
           :key="chat.id"
           @click="selectChat(chat)"
-          class="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between cursor-pointer hover:border-amber-300 hover:bg-amber-50/30 transition-all animate-fade-up"
+          class="bg-white rounded-3xl border border-gray-200 p-4 flex items-center justify-between cursor-pointer hover:border-amber-300 hover:bg-amber-50/30 transition-all animate-fade-up"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
         >
           <div class="flex items-center gap-3">
@@ -93,11 +93,11 @@
           <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
 
-        <div v-else-if="messages.length === 0" class="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div v-else-if="messages.length === 0" class="bg-white rounded-3xl border border-gray-200 p-8 text-center">
           <p class="text-gray-400">Xabarlar topilmadi</p>
         </div>
 
-        <div v-else class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+        <div v-else class="bg-white rounded-3xl border border-gray-200 divide-y divide-gray-100">
           <div
             v-for="(msg, i) in messages"
             :key="i"

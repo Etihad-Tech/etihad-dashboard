@@ -5,7 +5,7 @@
         <h2 class="text-2xl font-bold text-gray-900">So'rovnoma savollari</h2>
         <button
           @click="modalOpen = true"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-xl transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
         >
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
           Yangi savol
@@ -15,14 +15,14 @@
       <div class="flex gap-2 animate-fade-up" style="animation-delay: 30ms">
         <router-link
           to="/team/polls"
-          class="px-4 py-1.5 rounded-xl text-sm font-medium border"
+          class="px-4 py-1.5 rounded-2xl text-sm font-medium border"
           :class="!isResponses ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'"
         >
           Savollar
         </router-link>
         <router-link
           to="/team/polls/responses"
-          class="px-4 py-1.5 rounded-xl text-sm font-medium border"
+          class="px-4 py-1.5 rounded-2xl text-sm font-medium border"
           :class="isResponses ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'"
         >
           Javoblar
@@ -33,7 +33,7 @@
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <div v-else-if="store.questions.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 60ms">
+      <div v-else-if="store.questions.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 60ms">
         <font-awesome-icon icon="chart-pie" class="w-10 h-10 text-gray-300 mb-4" />
         <p class="text-gray-400">Savollar yo'q</p>
       </div>
@@ -42,7 +42,7 @@
         <div
           v-for="(q, i) in store.questions"
           :key="q.id"
-          class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up"
+          class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
         >
           <div class="flex items-start justify-between gap-4">
@@ -59,13 +59,13 @@
             <div class="flex items-center gap-1 flex-shrink-0">
               <button
                 @click="startEdit(q)"
-                class="px-2 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                class="px-2 py-1.5 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 <font-awesome-icon icon="pen" class="w-3.5 h-3.5" />
               </button>
               <button
                 @click="deleteId = q.id"
-                class="px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                class="px-2 py-1.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
               >
                 <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
               </button>
@@ -84,11 +84,11 @@
           <form @submit.prevent="saveQuestion" class="p-6 space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Savol matni</label>
-              <textarea v-model="form.question_text" rows="3" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+              <textarea v-model="form.question_text" rows="3" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Savol turi</label>
-              <select v-model="form.question_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm">
+              <select v-model="form.question_type" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm">
                 <option value="rating">Baho (1-5)</option>
                 <option value="text">Matn</option>
                 <option value="choice">Tanlov</option>
@@ -97,16 +97,16 @@
             </div>
             <div v-if="form.question_type === 'choice' || form.question_type === 'multiple_choice'">
               <label class="block text-sm font-medium text-gray-700 mb-1">Variantlar (JSON massiv)</label>
-              <input v-model="form.options" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder='["Variant 1", "Variant 2"]' />
+              <input v-model="form.options" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder='["Variant 1", "Variant 2"]' />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tartib raqami</label>
-              <input v-model.number="form.order_index" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+              <input v-model.number="form.order_index" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" />
             </div>
           </form>
           <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl">Bekor qilish</button>
-            <button @click="saveQuestion" :disabled="!form.question_text || saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl">
+            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl">Bekor qilish</button>
+            <button @click="saveQuestion" :disabled="!form.question_text || saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl">
               {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
             </button>
           </div>

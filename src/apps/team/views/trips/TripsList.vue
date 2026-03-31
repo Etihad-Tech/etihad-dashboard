@@ -5,7 +5,7 @@
         <h2 class="text-2xl font-bold text-gray-900">Safarlar</h2>
         <button
           @click="modalOpen = true"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-xl transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
         >
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
           Yangi safar
@@ -17,7 +17,7 @@
           v-for="tab in tabs"
           :key="tab.value"
           @click="activeTab = tab.value"
-          class="px-4 py-1.5 rounded-xl text-sm font-medium transition-colors border"
+          class="px-4 py-1.5 rounded-2xl text-sm font-medium transition-colors border"
           :class="activeTab === tab.value
             ? 'bg-amber-50 text-amber-700 border-amber-200'
             : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'"
@@ -31,7 +31,7 @@
           v-model="search"
           type="text"
           placeholder="Safar qidirish..."
-          class="w-full max-w-sm bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+          class="w-full max-w-sm bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
         />
       </div>
 
@@ -39,12 +39,12 @@
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <div v-else-if="filteredTrips.length === 0" class="bg-white rounded-2xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 90ms">
+      <div v-else-if="filteredTrips.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 90ms">
         <font-awesome-icon icon="plane" class="w-10 h-10 text-gray-300 mb-4" />
         <p class="text-gray-400">{{ search ? 'Natija topilmadi' : 'Safarlar yo\'q' }}</p>
       </div>
 
-      <div v-else class="bg-white rounded-2xl border border-gray-200 overflow-x-auto animate-fade-up" style="animation-delay: 90ms">
+      <div v-else class="bg-white rounded-3xl border border-gray-200 overflow-x-auto animate-fade-up" style="animation-delay: 90ms">
         <table class="w-full text-sm min-w-[640px]">
           <thead>
             <tr class="text-gray-500 border-b border-gray-100 bg-gray-50/50">
@@ -109,35 +109,35 @@
           <form @submit.prevent="createTrip" class="p-6 space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Safar ID</label>
-              <input v-model="form.trip_id" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="masalan: dubai-2026" />
+              <input v-model="form.trip_id" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="masalan: dubai-2026" />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Nomi</label>
-              <input v-model="form.name" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dubai safari 2026" />
+              <input v-model="form.name" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="Dubai safari 2026" />
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Boshlanish sanasi</label>
-                <input v-model="form.start_date" type="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+                <input v-model="form.start_date" type="date" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tugash sanasi</label>
-                <input v-model="form.end_date" type="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+                <input v-model="form.end_date" type="date" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" />
               </div>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Guruh invite link</label>
-              <input v-model="form.group_invite_link" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="https://t.me/..." />
+              <input v-model="form.group_invite_link" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="https://t.me/..." />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Guruh chat ID</label>
-              <input v-model="form.group_chat_id" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="-100..." />
+              <input v-model="form.group_chat_id" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="-100..." />
             </div>
             <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
           </form>
           <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">Bekor qilish</button>
-            <button @click="createTrip" :disabled="saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors">
+            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
+            <button @click="createTrip" :disabled="saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
               {{ saving ? 'Yaratilmoqda...' : 'Yaratish' }}
             </button>
           </div>

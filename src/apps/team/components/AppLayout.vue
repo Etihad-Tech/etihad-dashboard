@@ -19,7 +19,7 @@
         <router-link
           to="/"
           @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors mb-2"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors mb-2"
         >
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
           Bosh sahifa
@@ -30,7 +30,7 @@
           :key="item.to"
           :to="item.to"
           @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border transition-colors"
           :class="$route.path === item.to
             ? 'bg-amber-50 text-amber-700 border-amber-300'
             : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
@@ -48,7 +48,7 @@
           :key="item.to"
           :to="item.to"
           @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border transition-colors"
           :class="$route.path === item.to
             ? 'bg-amber-50 text-amber-700 border-amber-300'
             : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
@@ -69,10 +69,10 @@
           </div>
           <button
             @click="handleLogout"
-            class="group relative flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            class="group relative flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
           >
             <font-awesome-icon icon="right-from-bracket" class="w-4 h-4" />
-            <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs font-medium text-white bg-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Chiqish</span>
+            <span class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2 py-1 text-xs font-medium text-white bg-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Chiqish</span>
           </button>
         </div>
       </div>
@@ -85,7 +85,7 @@
       </div>
       <button
         @click="sidebarOpen = !sidebarOpen"
-        class="relative w-8 h-8 flex items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
+        class="relative w-8 h-8 flex items-center justify-center rounded-2xl text-gray-600 hover:bg-gray-100 transition-colors"
       >
         <span class="sr-only">Menu</span>
         <span

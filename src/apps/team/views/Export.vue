@@ -7,7 +7,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Safarni tanlang</label>
         <select
           v-model="selectedTrip"
-          class="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm w-full max-w-sm"
+          class="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm w-full max-w-sm"
         >
           <option value="">Tanlang...</option>
           <option v-for="t in tripsStore.items" :key="t.trip_id" :value="t.trip_id">{{ t.name }}</option>
@@ -20,10 +20,10 @@
           :key="action.key"
           @click="doExport(action.key)"
           :disabled="!selectedTrip || exporting === action.key"
-          class="bg-white rounded-2xl border border-gray-200 p-5 text-left hover:border-amber-300 disabled:opacity-50 transition-all group"
+          class="bg-white rounded-3xl border border-gray-200 p-5 text-left hover:border-amber-300 disabled:opacity-50 transition-all group"
         >
           <div class="flex items-center gap-3 mb-2">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center" :class="action.bg">
+            <div class="w-10 h-10 rounded-2xl flex items-center justify-center" :class="action.bg">
               <font-awesome-icon :icon="action.icon" class="w-4 h-4" :class="action.iconColor" />
             </div>
             <h3 class="text-sm font-semibold text-gray-900">{{ action.label }}</h3>
