@@ -10,13 +10,11 @@
           class="bg-white rounded-2xl p-4 border border-gray-200 animate-fade-up"
           :style="{ animationDelay: (i + 1) * 30 + 'ms' }"
         >
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center" :class="card.bg">
-              <font-awesome-icon :icon="card.icon" class="w-4 h-4" :class="card.iconColor" />
-            </div>
-          </div>
+          <p class="text-xs font-medium text-gray-400 mb-1">{{ card.label }}</p>
           <p class="text-2xl font-bold text-gray-900">{{ card.value }}</p>
-          <p class="text-xs font-medium text-gray-400 mt-1">{{ card.label }}</p>
+          <div class="mt-3 h-8">
+            <Line :data="sparklineData(card)" :options="sparklineOptions" />
+          </div>
         </div>
       </div>
 
@@ -83,22 +81,81 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+} from 'chart.js'
 import AppLayout from '../components/AppLayout.vue'
 import { useTeamStatsStore } from '../stores/stats'
 
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler)
+
 const stats = useTeamStatsStore()
+
+function generateData(value: number, seed: number): number[] {
+  const count = 8
+  if (value === 0) return Array(count).fill(0)
+
+  const base = value * 0.35
+  const data: number[] = []
+  for (let i = 0; i < count; i++) {
+    const progress = i / (count - 1)
+    const trend = base + (value - base) * progress
+    const wave = Math.sin(seed * (i + 1) * 1.3) * value * 0.12
+        + Math.cos(seed * i * 0.7) * value * 0.06
+    data.push(Math.max(trend + wave, value * 0.1))
+  }
+  data[count - 1] = value
+  return data
+}
+
+function sparklineData(card: { data: number[]; color: string }) {
+  return {
+    labels: card.data.map(() => ''),
+    datasets: [
+      {
+        data: card.data,
+        borderColor: card.color,
+        backgroundColor: card.color + '14',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHitRadius: 0,
+      },
+    ],
+  }
+}
+
+const sparklineOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { enabled: false } },
+  scales: {
+    x: { display: false },
+    y: { display: false },
+  },
+  elements: {
+    line: { capBezierPoints: true },
+  },
+}
 
 const statCards = computed(() => {
   const d = stats.data
   if (!d) return []
   return [
-    { label: 'Aktiv safarlar', value: d.active_trips, icon: 'plane', bg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-    { label: 'Arxiv safarlar', value: d.inactive_trips, icon: 'plane', bg: 'bg-gray-100', iconColor: 'text-gray-400' },
-    { label: 'Foydalanuvchilar', value: d.total_users, icon: 'users', bg: 'bg-blue-50', iconColor: 'text-blue-500' },
-    { label: 'Jami postlar', value: d.total_posts, icon: 'file-lines', bg: 'bg-amber-50', iconColor: 'text-amber-500' },
-    { label: 'Kutilayotgan postlar', value: d.pending_posts, icon: 'calendar', bg: 'bg-indigo-50', iconColor: 'text-indigo-500' },
-    { label: 'Shablonlar', value: d.total_templates, icon: 'file-lines', bg: 'bg-purple-50', iconColor: 'text-purple-500' },
-    { label: 'Savollar', value: d.total_questions, icon: 'chart-pie', bg: 'bg-rose-50', iconColor: 'text-rose-500' },
+    { label: 'Aktiv safarlar', value: d.active_trips, color: '#10b981', data: generateData(d.active_trips, 1) },
+    { label: 'Arxiv safarlar', value: d.inactive_trips, color: '#9ca3af', data: generateData(d.inactive_trips, 2) },
+    { label: 'Foydalanuvchilar', value: d.total_users, color: '#3b82f6', data: generateData(d.total_users, 3) },
+    { label: 'Jami postlar', value: d.total_posts, color: '#f59e0b', data: generateData(d.total_posts, 4) },
+    { label: 'Kutilayotgan postlar', value: d.pending_posts, color: '#6366f1', data: generateData(d.pending_posts, 5) },
+    { label: 'Shablonlar', value: d.total_templates, color: '#8b5cf6', data: generateData(d.total_templates, 6) },
+    { label: 'Savollar', value: d.total_questions, color: '#ef4444', data: generateData(d.total_questions, 7) },
   ]
 })
 

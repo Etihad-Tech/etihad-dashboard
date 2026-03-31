@@ -21,11 +21,7 @@
                   <p class="text-xs font-medium text-gray-400 mb-1">{{ card.label }}</p>
                   <p class="text-2xl font-bold text-gray-900">{{ card.value }}</p>
                   <div class="mt-3 h-8">
-                     <svg viewBox="0 0 100 32" class="w-full h-full" preserveAspectRatio="none">
-                        <path :d="sparklineFill(card.points)" :fill="card.color" opacity="0.08" />
-                        <path :d="sparklinePath(card.points)" fill="none" :stroke="card.color" stroke-width="2"
-                           stroke-linecap="round" stroke-linejoin="round" />
-                     </svg>
+                     <Line :data="sparklineData(card)" :options="sparklineOptions" />
                   </div>
                </div>
             </div>
@@ -95,7 +91,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, watch, ref } from 'vue'
-import { Bar } from 'vue-chartjs'
+import { Bar, Line } from 'vue-chartjs'
 import {
    Chart as ChartJS,
    CategoryScale,
@@ -129,14 +125,42 @@ const statCards = computed(() => {
    const d = stats.data
    if (!d) return []
    return [
-      { label: 'Jami murojaatlar', value: d.total, color: '#6366f1', points: timelinePoints.value },
-      { label: "So'rovlar", value: d.categories?.sorov || 0, color: '#3b82f6', points: categoryPoints('sorov') },
-      { label: 'Muammolar', value: d.categories?.muammo || 0, color: '#f59e0b', points: categoryPoints('muammo') },
-      { label: "E'tirozlar", value: d.categories?.etiroz || 0, color: '#ef4444', points: categoryPoints('etiroz') },
-      { label: 'Boshqa', value: d.categories?.uncategorized || 0, color: '#9ca3af', points: categoryPoints('uncategorized') },
-      { label: 'Guruhlar soni', value: Object.keys(d.groups || {}).length, color: '#10b981', points: timelinePoints.value },
+      { label: 'Jami murojaatlar', value: d.total, color: '#6366f1', data: timelineData.value },
+      { label: "So'rovlar", value: d.categories?.sorov || 0, color: '#3b82f6', data: categoryData('sorov') },
+      { label: 'Muammolar', value: d.categories?.muammo || 0, color: '#f59e0b', data: categoryData('muammo') },
+      { label: "E'tirozlar", value: d.categories?.etiroz || 0, color: '#ef4444', data: categoryData('etiroz') },
+      { label: 'Boshqa', value: d.categories?.uncategorized || 0, color: '#9ca3af', data: categoryData('uncategorized') },
+      { label: 'Guruhlar soni', value: Object.keys(d.groups || {}).length, color: '#10b981', data: timelineData.value },
    ]
 })
+
+function sparklineData(card: { data: number[]; color: string }) {
+   return {
+      labels: card.data.map(() => ''),
+      datasets: [
+         {
+            data: card.data,
+            borderColor: card.color,
+            backgroundColor: card.color + '14',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHitRadius: 0,
+         },
+      ],
+   }
+}
+
+const sparklineOptions = {
+   responsive: true,
+   maintainAspectRatio: false,
+   plugins: { legend: { display: false }, tooltip: { enabled: false } },
+   scales: {
+      x: { display: false },
+      y: { display: false },
+   },
+}
 
 function categoryLabel(cat: string): string {
    const labels: Record<string, string> = {
@@ -163,52 +187,19 @@ function categoryPercent(count: number): number {
    return Math.round((count / total) * 100)
 }
 
-function countsToPoints(counts: number[]): { x: number; y: number }[] {
-   if (counts.length === 0) return [{ x: 0, y: 28 }, { x: 100, y: 28 }]
-   if (counts.length === 1) return [{ x: 0, y: 16 }, { x: 100, y: 16 }]
-
-   const max = Math.max(...counts, 1)
-   const step = 100 / (counts.length - 1)
-
-   return counts.map((v, i) => ({
-      x: i * step,
-      y: 30 - (v / max) * 28 + 2,
-   }))
+function ensureData(counts: number[]): number[] {
+   if (counts.length >= 2) return counts
+   return counts.length === 1 ? [counts[0], counts[0]] : [0, 0]
 }
 
-function sparklinePath(points: { x: number; y: number }[]): string {
-   if (points.length < 2) return ''
-   const p0 = points[0]
-   if (p0 === undefined) return ''
-   let d = `M${p0.x},${p0.y}`
-   for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1]
-      const curr = points[i]
-      if (prev === undefined || curr === undefined) continue
-      const cpx1 = prev.x + (curr.x - prev.x) * 0.4
-      const cpx2 = curr.x - (curr.x - prev.x) * 0.4
-      d += ` C${cpx1},${prev.y} ${cpx2},${curr.y} ${curr.x},${curr.y}`
-   }
-   return d
-}
-
-function sparklineFill(points: { x: number; y: number }[]): string {
-   const line = sparklinePath(points)
-   if (!line) return ''
-   const last = points[points.length - 1]
-   const first = points[0]
-   if (last === undefined || first === undefined) return line
-   return `${line} L${last.x},32 L${first.x},32 Z`
-}
-
-const timelinePoints = computed(() => {
+const timelineData = computed(() => {
    const timeline = stats.data?.timeline || []
-   return countsToPoints(timeline.map(t => t.count))
+   return ensureData(timeline.map(t => t.count))
 })
 
-function categoryPoints(cat: string) {
+function categoryData(cat: string): number[] {
    const ct = stats.data?.category_timelines?.[cat] || []
-   return countsToPoints(ct.map(t => t.count))
+   return ensureData(ct.map(t => t.count))
 }
 
 const chartData = computed(() => {
