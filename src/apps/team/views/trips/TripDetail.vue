@@ -169,9 +169,10 @@
           </div>
           <div v-else class="divide-y divide-gray-50">
             <div
-              v-for="post in postsStore.items"
+              v-for="(post, idx) in postsStore.items"
               :key="post.id"
               class="px-4 py-3 flex items-center gap-4 hover:bg-gray-50 transition-colors"
+              :class="{ 'rounded-b-3xl': idx === postsStore.items.length - 1 }"
             >
               <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <span class="text-xs font-bold text-gray-500 text-center leading-tight">{{ post.day_number }}-kun</span>
