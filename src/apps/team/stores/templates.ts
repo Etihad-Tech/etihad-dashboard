@@ -25,6 +25,10 @@ export interface Template {
   name: string
   description: string | null
   roadmap_id: number | null
+  madina_start_day?: number
+  madina_end_day?: number
+  makka_start_day?: number
+  makka_end_day?: number
   created_at: string
   posts_count?: number
 }
@@ -107,10 +111,35 @@ export const useTemplatesStore = defineStore('team-templates', () => {
     return roadmap.value
   }
 
+  async function updateLocationDays(
+    templateId: number,
+    madinaStart: number,
+    madinaEnd: number,
+    makkaStart: number,
+    makkaEnd: number
+  ) {
+    const { data } = await api.put(`/api/templates/${templateId}`, {
+      madina_start_day: madinaStart,
+      madina_end_day: madinaEnd,
+      makka_start_day: makkaStart,
+      makka_end_day: makkaEnd,
+    })
+    const idx = items.value.findIndex(t => t.id === templateId)
+    if (idx !== -1) items.value[idx] = data
+    if (current.value?.id === templateId) current.value = data
+    return data
+  }
+
+  async function fetchTemplate(templateId: number) {
+    await fetchAll()
+    current.value = items.value.find(t => t.id === templateId) || null
+    return current.value
+  }
+
   return {
     items, current, posts, roadmap, loading,
-    fetchAll, createTemplate, deleteTemplate,
+    fetchAll, fetchTemplate, createTemplate, deleteTemplate,
     fetchPosts, addPost, updatePost, deletePost, importToTrip,
-    fetchRoadmap, saveRoadmap,
+    fetchRoadmap, saveRoadmap, updateLocationDays,
   }
 })

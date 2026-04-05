@@ -29,6 +29,10 @@ export interface Trip {
   is_active: boolean
   registration_open: boolean
   roadmap_id: number | null
+  madina_start_day: number | null
+  madina_end_day: number | null
+  makka_start_day: number | null
+  makka_end_day: number | null
   created_at: string
   participant_count?: number
 }

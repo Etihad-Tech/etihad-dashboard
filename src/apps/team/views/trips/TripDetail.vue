@@ -75,15 +75,108 @@
           </div>
         </div>
 
+        <!-- Location Days -->
+        <div class="bg-white rounded-3xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 40ms">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900">Мадина/Мекка кунлари</h3>
+            <button
+              v-if="!editingLocationDays"
+              @click="toggleLocationDaysEdit"
+              class="text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors"
+            >
+              Tahrirlash
+            </button>
+          </div>
+
+          <div v-if="editingLocationDays" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs font-medium text-gray-600 mb-2 block">Мадина бошланиш кун</label>
+                <input
+                  v-model.number="locationDaysForm.madina_start"
+                  type="number"
+                  min="1"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="1"
+                />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 mb-2 block">Мадина тугаш кун</label>
+                <input
+                  v-model.number="locationDaysForm.madina_end"
+                  type="number"
+                  min="1"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="5"
+                />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 mb-2 block">Мекка бошланиш кун</label>
+                <input
+                  v-model.number="locationDaysForm.makka_start"
+                  type="number"
+                  min="1"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="6"
+                />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 mb-2 block">Мекка тугаш кун</label>
+                <input
+                  v-model.number="locationDaysForm.makka_end"
+                  type="number"
+                  min="1"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="10"
+                />
+              </div>
+            </div>
+            <div v-if="locationDaysError" class="text-xs text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              {{ locationDaysError }}
+            </div>
+            <div class="flex justify-end gap-2">
+              <button
+                @click="cancelLocationDaysEdit"
+                class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-colors"
+              >
+                Bekor
+              </button>
+              <button
+                @click="saveLocationDays"
+                :disabled="savingLocationDays"
+                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
+              >
+                {{ savingLocationDays ? 'Saqlanmoqda...' : 'Saqlash' }}
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-2xl p-4">
+              <p class="text-xs font-medium text-gray-400 mb-1">Мадина</p>
+              <p class="text-sm font-semibold text-gray-900">
+                {{ trip?.madina_start_day ?? '—' }} - {{ trip?.madina_end_day ?? '—' }}
+              </p>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-4">
+              <p class="text-xs font-medium text-gray-400 mb-1">Мекка</p>
+              <p class="text-sm font-semibold text-gray-900">
+                {{ trip?.makka_start_day ?? '—' }} - {{ trip?.makka_end_day ?? '—' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Roadmap -->
         <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 50ms">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-semibold text-gray-900">Roadmap reja</h3>
             <button
-              @click="editingRoadmap = !editingRoadmap"
+              v-if="!editingRoadmap"
+              @click="editingRoadmap = true"
               class="text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors"
             >
-              {{ editingRoadmap ? 'Bekor qilish' : (tripsStore.roadmap ? 'Tahrirlash' : 'Qo\'shish') }}
+              {{ tripsStore.roadmap ? 'Tahrirlash' : 'Qo\'shish' }}
             </button>
           </div>
           <div v-if="editingRoadmap">
@@ -93,7 +186,13 @@
               class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
               placeholder="Roadmap rejasini yozing..."
             ></textarea>
-            <div class="flex justify-end mt-2">
+            <div class="flex justify-end gap-2 mt-2">
+              <button
+                @click="cancelRoadmapEdit"
+                class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-colors"
+              >
+                Bekor
+              </button>
               <button
                 @click="saveRoadmap"
                 :disabled="savingRoadmap"
@@ -230,6 +329,15 @@ const sendingNow = ref(false)
 const editingRoadmap = ref(false)
 const roadmapText = ref('')
 const savingRoadmap = ref(false)
+const editingLocationDays = ref(false)
+const savingLocationDays = ref(false)
+const locationDaysError = ref('')
+const locationDaysForm = ref({
+  madina_start: null as number | null,
+  madina_end: null as number | null,
+  makka_start: null as number | null,
+  makka_end: null as number | null,
+})
 
 const hasNowPosts = computed(() =>
   postsStore.items.some(p => p.send_mode === 'now' && !p.is_sent)
@@ -245,9 +353,77 @@ async function loadData() {
       postsStore.fetchByTrip(tripId),
     ])
     roadmapText.value = tripsStore.roadmap?.content || ''
+    initLocationDaysForm()
   } finally {
     loading.value = false
   }
+}
+
+function initLocationDaysForm() {
+  if (!trip.value) return
+  locationDaysForm.value = {
+    madina_start: trip.value.madina_start_day,
+    madina_end: trip.value.madina_end_day,
+    makka_start: trip.value.makka_start_day,
+    makka_end: trip.value.makka_end_day,
+  }
+  locationDaysError.value = ''
+}
+
+function validateLocationDays(): boolean {
+  locationDaysError.value = ''
+  const { madina_start, madina_end, makka_start, makka_end } = locationDaysForm.value
+
+  if (!madina_start || !madina_end || !makka_start || !makka_end) {
+    locationDaysError.value = 'Барча майдонлар тўлдирилиши керак'
+    return false
+  }
+
+  if (madina_end < madina_start) {
+    locationDaysError.value = `Мадина тугаш кун (${madina_end}) Мадина бошланиш кун (${madina_start}) дан кичик бўла олмайди`
+    return false
+  }
+
+  if (makka_start <= madina_end) {
+    locationDaysError.value = `Мекка бошланиш кун (${makka_start}) Мадина тугаш кун (${madina_end}) дан кейин бўлиши керак`
+    return false
+  }
+
+  if (makka_end < makka_start) {
+    locationDaysError.value = `Мекка тугаш кун (${makka_end}) Мекка бошланиш кун (${makka_start}) дан кичик бўла олмайди`
+    return false
+  }
+
+  return true
+}
+
+async function saveLocationDays() {
+  if (!validateLocationDays()) return
+
+  savingLocationDays.value = true
+  try {
+    trip.value = await tripsStore.updateTrip(tripId, {
+      madina_start_day: locationDaysForm.value.madina_start,
+      madina_end_day: locationDaysForm.value.madina_end,
+      makka_start_day: locationDaysForm.value.makka_start,
+      makka_end_day: locationDaysForm.value.makka_end,
+    })
+    editingLocationDays.value = false
+  } finally {
+    savingLocationDays.value = false
+  }
+}
+
+function toggleLocationDaysEdit() {
+  if (!editingLocationDays.value) {
+    initLocationDaysForm()
+  }
+  editingLocationDays.value = !editingLocationDays.value
+}
+
+function cancelLocationDaysEdit() {
+  editingLocationDays.value = false
+  initLocationDaysForm()
 }
 
 async function toggleRegistration() {
@@ -276,13 +452,17 @@ async function handleSendNowPosts() {
   }
 }
 
+function cancelRoadmapEdit() {
+  editingRoadmap.value = false
+  roadmapText.value = tripsStore.roadmap?.content || ''
+}
+
 async function saveRoadmap() {
   if (!roadmapText.value.trim()) return
   savingRoadmap.value = true
   try {
     await tripsStore.saveRoadmap(tripId, roadmapText.value.trim())
     editingRoadmap.value = false
-    // Refresh trip to get updated roadmap_id
     trip.value = await tripsStore.fetchTrip(tripId)
   } finally {
     savingRoadmap.value = false
