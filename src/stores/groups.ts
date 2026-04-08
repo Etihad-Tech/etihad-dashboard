@@ -67,6 +67,16 @@ export const useGroupsStore = defineStore('groups', () => {
     sending.value = chatId
     try {
       const { data } = await teamApi.post(`/api/trips/${tripId}/send-now-posts`)
+      const { data: trip } = await teamApi.get(`/api/trips/${tripId}`)
+      if (trip.madina_start_day || trip.makka_start_day) {
+        await aiApi.put(`/groups/${chatId}/location/public`, {
+          madina_start_day: trip.madina_start_day,
+          madina_end_day: trip.madina_end_day,
+          makka_start_day: trip.makka_start_day,
+          makka_end_day: trip.makka_end_day,
+        })
+      }
+
       const idx = items.value.findIndex(g => g.chat_id === chatId)
       if (idx !== -1) items.value[idx].is_activated = true
       return data
