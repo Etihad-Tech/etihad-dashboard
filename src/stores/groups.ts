@@ -74,6 +74,7 @@ export const useGroupsStore = defineStore('groups', () => {
           madina_end_day: trip.madina_end_day,
           makka_start_day: trip.makka_start_day,
           makka_end_day: trip.makka_end_day,
+          trip_start_date: trip.start_date,
         })
       }
 
