@@ -37,6 +37,11 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Templates.vue'),
     },
     {
+      path: '/ai/qa',
+      name: 'AiQa',
+      component: () => import('../apps/ai/views/Qa.vue'),
+    },
+    {
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),

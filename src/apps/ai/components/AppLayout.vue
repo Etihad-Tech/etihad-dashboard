@@ -138,6 +138,7 @@ const mainNav = [
 const supportNav = [
   { to: '/ai/settings', label: 'Sozlamalar', icon: 'gear' },
   { to: '/ai/templates', label: 'Shablonlar', icon: 'file-lines' },
+  { to: '/ai/qa', label: 'Bilimlar bazasi', icon: 'circle-question' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
 

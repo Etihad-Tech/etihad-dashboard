@@ -33,6 +33,8 @@ import {
    faArrowsRotate,
    faLock,
    faUser,
+   faCircleQuestion,
+   faTag,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -40,7 +42,7 @@ library.add(
    faEye, faDatabase, faCircle, faArrowLeft, faFileLines, faPlus, faPen,
    faTrash, faToggleOn, faToggleOff, faUsers, faPlane, faCalendar,
    faFileExport, faChartPie, faHome, faPaperPlane, faArrowsRotate, faLock,
-   faUser,
+   faUser, faCircleQuestion, faTag,
 )
 
 const app = createApp(App)
