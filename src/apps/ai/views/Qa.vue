@@ -50,10 +50,20 @@
               :class="q.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
             >
               <div class="min-w-0">
-                <p class="text-sm font-medium text-gray-900">{{ q.question }}</p>
+                <p class="text-sm font-medium text-gray-900">
+                  {{ q.question }}
+                  <span v-if="q.tier"
+                    class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                    :class="q.tier === 'comfort' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700'">
+                    {{ q.tier === 'comfort' ? 'Komfort (Taj)' : 'Premium/Lux' }}
+                  </span>
+                </p>
                 <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ q.answer }}</p>
                 <p v-if="q.keywords" class="text-[11px] text-gray-400 mt-1.5 truncate">
                   <font-awesome-icon icon="tag" class="w-3 h-3 mr-1" />{{ q.keywords }}
+                </p>
+                <p v-if="q.staff_username" class="text-[11px] text-emerald-600 mt-1 font-medium">
+                  👤 {{ q.staff_username }}
                 </p>
               </div>
               <div class="flex items-center gap-1 shrink-0">
@@ -115,6 +125,16 @@
                 class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
             </div>
             <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Mehmonxona turi (tier)</label>
+              <select v-model="form.tier"
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                <option value="">Barcha mehmonxonalar</option>
+                <option value="comfort">Komfort (Taj Park)</option>
+                <option value="premium">Premium / Lux</option>
+              </select>
+              <p class="text-[11px] text-gray-400 mt-1">Faqat shu turdagi mehmonxonadagi guruhlarga ko'rsatiladi (suv, tozalash kabi farqli javoblar uchun).</p>
+            </div>
+            <div>
               <label class="block text-xs font-medium text-gray-500 mb-1.5">Savol</label>
               <textarea v-model="form.question" rows="2" placeholder="Masalan: Viza qancha vaqtda chiqadi?"
                 class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"></textarea>
@@ -128,6 +148,12 @@
               <label class="block text-xs font-medium text-gray-500 mb-1.5">Kalit so'zlar (vergul bilan)</label>
               <input v-model="form.keywords" type="text" placeholder="viza, visa, виза, viza chiqadi"
                 class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Mas'ul xodim (@username)</label>
+              <input v-model="form.staff_username" type="text" placeholder="Masalan: @Sabir_S7"
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
+              <p class="text-[11px] text-gray-400 mt-1">Shu mavzu uchun mas'ul xodim. Bot bu savolga javob berganda aynan shu xodimni @belgilab, unga va guruh ellikboshisiga shaxsiy xabar (DM) yuboradi. Bo'sh qoldirilsa — umumiy ishchi guruh tanlanadi.</p>
             </div>
             <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
           </div>
@@ -155,6 +181,8 @@ interface Qa {
   question: string
   answer: string
   keywords: string | null
+  tier: string | null
+  staff_username: string | null
   is_active: boolean
 }
 
@@ -174,19 +202,19 @@ const grouped = computed(() => {
 const modalOpen = ref(false)
 const modalEditId = ref<number | null>(null)
 const formError = ref('')
-const form = ref({ category: '', question: '', answer: '', keywords: '' })
+const form = ref({ category: '', question: '', answer: '', keywords: '', tier: '', staff_username: '' })
 
 function openAdd() {
   modalEditId.value = null
   formError.value = ''
-  form.value = { category: '', question: '', answer: '', keywords: '' }
+  form.value = { category: '', question: '', answer: '', keywords: '', tier: '', staff_username: '' }
   modalOpen.value = true
 }
 
 function openEdit(q: Qa) {
   modalEditId.value = q.id
   formError.value = ''
-  form.value = { category: q.category || '', question: q.question, answer: q.answer, keywords: q.keywords || '' }
+  form.value = { category: q.category || '', question: q.question, answer: q.answer, keywords: q.keywords || '', tier: q.tier || '', staff_username: q.staff_username || '' }
   modalOpen.value = true
 }
 
@@ -204,6 +232,8 @@ async function saveModal() {
     question: form.value.question.trim(),
     answer: form.value.answer.trim(),
     keywords: form.value.keywords.trim() || null,
+    tier: form.value.tier || null,
+    staff_username: form.value.staff_username.trim() || null,
   }
   try {
     if (modalEditId.value) {

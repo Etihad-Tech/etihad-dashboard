@@ -60,6 +60,49 @@
                 {{ group.turon_bot ? 'Aktiv' : 'Yo\'q' }}
               </span>
             </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-500">Mehmonxona turi</span>
+              <select
+                :value="group.hotel_tier || ''"
+                @change="onTierChange(group, $event)"
+                :disabled="tierSaving === group.chat_id"
+                class="text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+              >
+                <option value="">Avto (nomdan)</option>
+                <option value="comfort">Komfort (Taj)</option>
+                <option value="premium">Premium / Lux</option>
+              </select>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs text-gray-500 shrink-0">Ellikboshi (@username)</span>
+              <input
+                :value="group.ellikboshi_username || ''"
+                @change="onEllikboshiChange(group, $event)"
+                :disabled="leaderSaving === group.chat_id"
+                type="text"
+                placeholder="@username"
+                class="w-32 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+              />
+            </div>
+            <p class="text-[10px] text-gray-400 leading-snug">
+              Bot bu guruhda xodimni @belgilaganda, murojaatni shu ellikboshiga ham shaxsiy (DM) yuboradi. (U avval botga /start bosgan bo'lishi kerak.)
+            </p>
+            <div class="flex items-center justify-between gap-2 pt-1">
+              <span class="text-xs text-gray-500 shrink-0">Jo'nash sanasi</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" :class="flightBadge(group.trip_start_date).cls">{{ flightBadge(group.trip_start_date).text }}</span>
+                <input
+                  :value="group.trip_start_date || ''"
+                  @change="onDateChange(group, $event)"
+                  :disabled="dateSaving === group.chat_id"
+                  type="date"
+                  class="w-32 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+                />
+              </div>
+            </div>
+            <p class="text-[10px] text-gray-400 leading-snug">
+              Reys (Payshanba/Shanba) shu sanadan aniqlanadi — bot "samolyot qachon uchadi?" savoliga aniq vaqt bilan javob beradi.
+            </p>
           </div>
 
           <div v-if="group.trip_name" class="mb-4 px-3 py-2 bg-blue-50 rounded-2xl">
@@ -109,14 +152,59 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import MainLayout from '../components/MainLayout.vue'
 import { useGroupsStore, type GroupInfo } from '../stores/groups'
 
 const groupsStore = useGroupsStore()
+const tierSaving = ref<string | null>(null)
+const leaderSaving = ref<string | null>(null)
+const dateSaving = ref<string | null>(null)
+
+// Mirrors the bot: Thursday departure -> Payshanba flight, Saturday -> Shanba.
+function flightBadge(dateStr: string | null) {
+  if (!dateStr) return { text: 'Sana yo\'q', cls: 'bg-gray-100 text-gray-400' }
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const day = new Date(y || 1970, (m || 1) - 1, d || 1).getDay() // Sun=0 .. Sat=6
+  if (day === 4) return { text: 'Payshanba', cls: 'bg-sky-50 text-sky-600' }
+  if (day === 6) return { text: 'Shanba', cls: 'bg-sky-50 text-sky-600' }
+  return { text: 'Reys yo\'q', cls: 'bg-amber-50 text-amber-600' }
+}
+
+async function onDateChange(group: GroupInfo, event: Event) {
+  const date = (event.target as HTMLInputElement).value
+  if (date === (group.trip_start_date || '')) return
+  dateSaving.value = group.chat_id
+  try {
+    await groupsStore.setTripStartDate(group.chat_id, date)
+  } finally {
+    dateSaving.value = null
+  }
+}
 
 function canSend(group: GroupInfo): boolean {
   return group.ai_bot && group.turon_bot && !!group.trip_id
+}
+
+async function onTierChange(group: GroupInfo, event: Event) {
+  const tier = (event.target as HTMLSelectElement).value
+  tierSaving.value = group.chat_id
+  try {
+    await groupsStore.setHotelTier(group.chat_id, tier)
+  } finally {
+    tierSaving.value = null
+  }
+}
+
+async function onEllikboshiChange(group: GroupInfo, event: Event) {
+  const username = (event.target as HTMLInputElement).value.trim()
+  if (username === (group.ellikboshi_username || '')) return
+  leaderSaving.value = group.chat_id
+  try {
+    await groupsStore.setEllikboshi(group.chat_id, username)
+  } finally {
+    leaderSaving.value = null
+  }
 }
 
 async function handleSendNow(group: GroupInfo) {

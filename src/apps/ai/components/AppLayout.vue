@@ -17,6 +17,7 @@
 
       <nav class="flex-1 px-3 space-y-1.5">
         <router-link
+          v-if="showHome"
           to="/"
           @click="sidebarOpen = false"
           class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors mb-2"
@@ -130,17 +131,29 @@ const displayInitial = computed(() => {
   return (displayName.value?.[0] || 'A').toUpperCase()
 })
 
-const mainNav = [
+const ALL_MAIN = [
   { to: '/ai', label: 'Dashboard', icon: 'chart-line' },
   { to: '/ai/messages', label: 'Murojaatlar', icon: 'comments' },
 ]
 
-const supportNav = [
+const ALL_SUPPORT = [
   { to: '/ai/settings', label: 'Sozlamalar', icon: 'gear' },
   { to: '/ai/templates', label: 'Shablonlar', icon: 'file-lines' },
   { to: '/ai/qa', label: 'Bilimlar bazasi', icon: 'circle-question' },
+  { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
+  { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
+
+// Role-limited managers see only their own panel; admin sees everything.
+function allowed(to: string): boolean {
+  if (auth.role === 'flight') return to === '/ai/reyslar'
+  if (auth.role === 'qa') return to === '/ai/qa'
+  return true
+}
+const mainNav = computed(() => ALL_MAIN.filter(i => allowed(i.to)))
+const supportNav = computed(() => ALL_SUPPORT.filter(i => allowed(i.to)))
+const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'qa')
 
 function handleLogout() {
   auth.logout()

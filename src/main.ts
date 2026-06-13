@@ -35,6 +35,10 @@ import {
    faUser,
    faCircleQuestion,
    faTag,
+   faLocationDot,
+   faUserDoctor,
+   faPlaneArrival,
+   faBroom,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -42,7 +46,8 @@ library.add(
    faEye, faDatabase, faCircle, faArrowLeft, faFileLines, faPlus, faPen,
    faTrash, faToggleOn, faToggleOff, faUsers, faPlane, faCalendar,
    faFileExport, faChartPie, faHome, faPaperPlane, faArrowsRotate, faLock,
-   faUser, faCircleQuestion, faTag,
+   faUser, faCircleQuestion, faTag, faLocationDot, faUserDoctor,
+   faPlaneArrival, faBroom,
 )
 
 const app = createApp(App)

@@ -10,6 +10,9 @@ export interface GroupInfo {
   trip_id: string | null
   trip_name: string | null
   is_activated: boolean
+  hotel_tier: string | null  // '' = avtomatik (nomdan aniqlanadi) | 'comfort' | 'premium'
+  ellikboshi_username: string | null  // group leader @username; DM'd on every staff mention
+  trip_start_date: string | null  // 'YYYY-MM-DD' departure date; drives the exact flight answer
 }
 
 export const useGroupsStore = defineStore('groups', () => {
@@ -20,10 +23,11 @@ export const useGroupsStore = defineStore('groups', () => {
   async function fetchGroups() {
     loading.value = true
     try {
-      const [tripsResult, teamGroupsResult, aiGroupsResult] = await Promise.allSettled([
+      const [tripsResult, teamGroupsResult, aiGroupsResult, aiTiersResult] = await Promise.allSettled([
         teamApi.get('/api/trips'),
         teamApi.get('/api/group-chats'),
         aiApi.get('/messages/groups'),
+        aiApi.get('/groups'),
       ])
 
       const turonGroupIds = new Set<string>()
@@ -40,6 +44,18 @@ export const useGroupsStore = defineStore('groups', () => {
         }
       }
 
+      // hotel_tier override + ellikboshi + departure date per ai-bot group (empty/absent => default)
+      const tierById = new Map<string, string>()
+      const leaderById = new Map<string, string>()
+      const dateById = new Map<string, string>()
+      if (aiTiersResult.status === 'fulfilled') {
+        for (const g of aiTiersResult.value.data) {
+          tierById.set(String(g.id), g.hotel_tier || '')
+          leaderById.set(String(g.id), g.ellikboshi_username || '')
+          dateById.set(String(g.id), g.trip_start_date || '')
+        }
+      }
+
       const merged: GroupInfo[] = []
       if (tripsResult.status === 'fulfilled') {
         for (const trip of tripsResult.value.data) {
@@ -53,6 +69,9 @@ export const useGroupsStore = defineStore('groups', () => {
             trip_id: trip.trip_id,
             trip_name: trip.name,
             is_activated: !!trip.is_activated,
+            hotel_tier: tierById.get(chatId) ?? '',
+            ellikboshi_username: leaderById.get(chatId) ?? '',
+            trip_start_date: dateById.get(chatId) ?? '',
           })
         }
       }
@@ -86,5 +105,28 @@ export const useGroupsStore = defineStore('groups', () => {
     }
   }
 
-  return { items, loading, sending, fetchGroups, sendNowPosts }
+  async function setHotelTier(chatId: string, tier: string) {
+    // Push the override to the AI bot group ('' clears it -> bot infers from title).
+    await aiApi.put(`/groups/${chatId}/location/public`, { hotel_tier: tier })
+    const idx = items.value.findIndex(g => g.chat_id === chatId)
+    if (idx !== -1) items.value[idx].hotel_tier = tier
+  }
+
+  async function setEllikboshi(chatId: string, username: string) {
+    // The group leader DM'd whenever the bot mentions a staff member here
+    // ('' clears it -> no leader DM).
+    await aiApi.put(`/groups/${chatId}/location/public`, { ellikboshi_username: username })
+    const idx = items.value.findIndex(g => g.chat_id === chatId)
+    if (idx !== -1) items.value[idx].ellikboshi_username = username
+  }
+
+  async function setTripStartDate(chatId: string, date: string) {
+    // Departure date ('YYYY-MM-DD'). The bot picks Payshanba/Shanba from its
+    // weekday and answers flight questions with the exact date + time.
+    await aiApi.put(`/groups/${chatId}/location/public`, { trip_start_date: date || null })
+    const idx = items.value.findIndex(g => g.chat_id === chatId)
+    if (idx !== -1) items.value[idx].trip_start_date = date
+  }
+
+  return { items, loading, sending, fetchGroups, sendNowPosts, setHotelTier, setEllikboshi, setTripStartDate }
 })
