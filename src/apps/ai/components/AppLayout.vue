@@ -142,6 +142,7 @@ const ALL_SUPPORT = [
   { to: '/ai/qa', label: 'Bilimlar bazasi', icon: 'circle-question' },
   { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
   { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
+  { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
 
@@ -149,11 +150,12 @@ const ALL_SUPPORT = [
 function allowed(to: string): boolean {
   if (auth.role === 'flight') return to === '/ai/reyslar'
   if (auth.role === 'qa') return to === '/ai/qa'
+  if (auth.role === 'mingboshi') return to === '/ai/ellikboshi'
   return true
 }
 const mainNav = computed(() => ALL_MAIN.filter(i => allowed(i.to)))
 const supportNav = computed(() => ALL_SUPPORT.filter(i => allowed(i.to)))
-const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'qa')
+const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'qa' && auth.role !== 'mingboshi')
 
 function handleLogout() {
   auth.logout()
