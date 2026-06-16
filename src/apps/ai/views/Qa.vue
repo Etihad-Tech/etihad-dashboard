@@ -55,7 +55,7 @@
                   <span v-if="q.tier"
                     class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
                     :class="q.tier === 'comfort' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700'">
-                    {{ q.tier === 'comfort' ? 'Komfort (Taj)' : 'Premium/Lux' }}
+                    {{ q.tier === 'comfort' ? 'Komfort' : 'Premium/Lux' }}
                   </span>
                   <span v-if="q.hotel"
                     class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
@@ -133,7 +133,7 @@
               <select v-model="form.tier"
                 class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                 <option value="">Barcha mehmonxonalar</option>
-                <option value="comfort">Komfort (Taj Park)</option>
+                <option value="comfort">Komfort</option>
                 <option value="premium">Premium / Lux</option>
               </select>
               <p class="text-[11px] text-gray-400 mt-1">Faqat shu turdagi mehmonxonadagi guruhlarga ko'rsatiladi (suv, tozalash kabi farqli javoblar uchun).</p>

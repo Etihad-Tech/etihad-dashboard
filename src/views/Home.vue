@@ -69,7 +69,7 @@
                 class="text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
               >
                 <option value="">Avto (nomdan)</option>
-                <option value="comfort">Komfort (Taj)</option>
+                <option value="comfort">Komfort</option>
                 <option value="premium">Premium / Lux</option>
               </select>
             </div>
