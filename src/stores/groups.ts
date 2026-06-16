@@ -13,6 +13,8 @@ export interface GroupInfo {
   hotel_tier: string | null  // '' = avtomatik (nomdan aniqlanadi) | 'comfort' | 'premium'
   ellikboshi_username: string | null  // group leader @username; DM'd on every staff mention
   trip_start_date: string | null  // 'YYYY-MM-DD' departure date; drives the exact flight answer
+  hotel_makka: string | null  // this group's Makka hotel (per-hotel facility answers)
+  hotel_madina: string | null  // this group's Madina hotel
 }
 
 export const useGroupsStore = defineStore('groups', () => {
@@ -48,11 +50,15 @@ export const useGroupsStore = defineStore('groups', () => {
       const tierById = new Map<string, string>()
       const leaderById = new Map<string, string>()
       const dateById = new Map<string, string>()
+      const makkaById = new Map<string, string>()
+      const madinaById = new Map<string, string>()
       if (aiTiersResult.status === 'fulfilled') {
         for (const g of aiTiersResult.value.data) {
           tierById.set(String(g.id), g.hotel_tier || '')
           leaderById.set(String(g.id), g.ellikboshi_username || '')
           dateById.set(String(g.id), g.trip_start_date || '')
+          makkaById.set(String(g.id), g.hotel_makka || '')
+          madinaById.set(String(g.id), g.hotel_madina || '')
         }
       }
 
@@ -72,6 +78,8 @@ export const useGroupsStore = defineStore('groups', () => {
             hotel_tier: tierById.get(chatId) ?? '',
             ellikboshi_username: leaderById.get(chatId) ?? '',
             trip_start_date: dateById.get(chatId) ?? '',
+            hotel_makka: makkaById.get(chatId) ?? '',
+            hotel_madina: madinaById.get(chatId) ?? '',
           })
         }
       }
@@ -128,5 +136,17 @@ export const useGroupsStore = defineStore('groups', () => {
     if (idx !== -1) items.value[idx].trip_start_date = date
   }
 
-  return { items, loading, sending, fetchGroups, sendNowPosts, setHotelTier, setEllikboshi, setTripStartDate }
+  async function setHotel(chatId: string, city: 'makka' | 'madina', hotel: string) {
+    // The group's hotel in that city — the bot answers hotel-specific facility
+    // questions (WiFi, floors, dining hours) from the current-city hotel.
+    const payload = city === 'madina' ? { hotel_madina: hotel } : { hotel_makka: hotel }
+    await aiApi.put(`/groups/${chatId}/location/public`, payload)
+    const idx = items.value.findIndex(g => g.chat_id === chatId)
+    if (idx !== -1) {
+      if (city === 'madina') items.value[idx].hotel_madina = hotel
+      else items.value[idx].hotel_makka = hotel
+    }
+  }
+
+  return { items, loading, sending, fetchGroups, sendNowPosts, setHotelTier, setEllikboshi, setTripStartDate, setHotel }
 })

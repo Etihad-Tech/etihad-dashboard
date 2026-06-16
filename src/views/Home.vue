@@ -103,6 +103,33 @@
             <p class="text-[10px] text-gray-400 leading-snug">
               Reys (Payshanba/Shanba) shu sanadan aniqlanadi — bot "samolyot qachon uchadi?" savoliga aniq vaqt bilan javob beradi.
             </p>
+            <div class="flex items-center justify-between gap-2 pt-1">
+              <span class="text-xs text-gray-500 shrink-0">Mehmonxona — Makka</span>
+              <select
+                :value="group.hotel_makka || ''"
+                @change="onHotelChange(group, 'makka', $event)"
+                :disabled="hotelSaving === group.chat_id + ':makka'"
+                class="w-36 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+              >
+                <option value="">— tanlanmagan —</option>
+                <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+              </select>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs text-gray-500 shrink-0">Mehmonxona — Madina</span>
+              <select
+                :value="group.hotel_madina || ''"
+                @change="onHotelChange(group, 'madina', $event)"
+                :disabled="hotelSaving === group.chat_id + ':madina'"
+                class="w-36 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+              >
+                <option value="">— tanlanmagan —</option>
+                <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+              </select>
+            </div>
+            <p class="text-[10px] text-gray-400 leading-snug">
+              Bot WiFi, qavatlar, ovqat vaqtlari kabi mehmonxonaga xos savollarga joriy shahardagi mehmonxona ma'lumotidan javob beradi.
+            </p>
           </div>
 
           <div v-if="group.trip_name" class="mb-4 px-3 py-2 bg-blue-50 rounded-2xl">
@@ -160,6 +187,9 @@ const groupsStore = useGroupsStore()
 const tierSaving = ref<string | null>(null)
 const leaderSaving = ref<string | null>(null)
 const dateSaving = ref<string | null>(null)
+const hotelSaving = ref<string | null>(null)
+
+const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Park', 'Grand Al Shahba', 'Bosphorus', 'Saja Al Madina', 'Hawada']
 
 // Mirrors the bot: Thursday departure -> Payshanba flight, Saturday -> Shanba.
 function flightBadge(dateStr: string | null) {
@@ -204,6 +234,16 @@ async function onEllikboshiChange(group: GroupInfo, event: Event) {
     await groupsStore.setEllikboshi(group.chat_id, username)
   } finally {
     leaderSaving.value = null
+  }
+}
+
+async function onHotelChange(group: GroupInfo, city: 'makka' | 'madina', event: Event) {
+  const hotel = (event.target as HTMLSelectElement).value
+  hotelSaving.value = group.chat_id + ':' + city
+  try {
+    await groupsStore.setHotel(group.chat_id, city, hotel)
+  } finally {
+    hotelSaving.value = null
   }
 }
 
