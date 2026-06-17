@@ -143,6 +143,7 @@ const ALL_SUPPORT = [
   { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
   { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
   { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
+  { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
 

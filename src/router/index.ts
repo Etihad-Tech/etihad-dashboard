@@ -57,6 +57,11 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Ellikboshi.vue'),
     },
     {
+      path: '/ai/groups',
+      name: 'AiGroups',
+      component: () => import('../apps/ai/views/Groups.vue'),
+    },
+    {
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),
