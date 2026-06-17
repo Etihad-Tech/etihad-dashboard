@@ -4,7 +4,7 @@
       <div class="animate-fade-up">
         <h2 class="text-2xl font-bold text-gray-900">Guruhlar</h2>
         <p class="text-sm text-gray-500 mt-1">
-          Har bir guruh uchun safar kunlari (Makka / Madina), mehmonxona, paket va ellikboshini sozlang.
+          Har bir guruh uchun safar kunlari (Madina / Makka), mehmonxona, paket va ellikboshini sozlang.
           Bot joriy shaharni shu kunlarga qarab aniqlaydi (kun = safar boshlanish sanasidan hisoblanadi).
         </p>
       </div>
@@ -55,21 +55,26 @@
               </div>
               <div class="hidden sm:block"></div>
 
-              <div>
-                <label class="block text-[11px] text-emerald-600 mb-1">Madina — boshlanish kuni</label>
-                <input v-model="g.madina_start_day" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <div class="col-span-2 sm:col-span-1">
+                <label class="block text-[11px] text-gray-400 mb-1">Ketma-ketlik</label>
+                <select v-model="g.order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="madina_makka">Avval Madina, keyin Makka</option>
+                  <option value="makka_madina">Avval Makka, keyin Madina</option>
+                </select>
               </div>
               <div>
-                <label class="block text-[11px] text-emerald-600 mb-1">Madina — tugash kuni</label>
-                <input v-model="g.madina_end_day" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <label class="block text-[11px] text-emerald-600 mb-1">Madina — necha kun</label>
+                <input v-model="g.madina_days" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
               <div>
-                <label class="block text-[11px] text-sky-600 mb-1">Makka — boshlanish kuni</label>
-                <input v-model="g.makka_start_day" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <label class="block text-[11px] text-sky-600 mb-1">Makka — necha kun</label>
+                <input v-model="g.makka_days" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
-              <div>
-                <label class="block text-[11px] text-sky-600 mb-1">Makka — tugash kuni</label>
-                <input v-model="g.makka_end_day" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <div class="hidden sm:flex items-end">
+                <p class="text-[11px] text-gray-400 pb-2 truncate">{{ rangeHint(g) }}</p>
+              </div>
+              <div class="col-span-2 sm:hidden">
+                <p class="text-[11px] text-gray-400">{{ rangeHint(g) }}</p>
               </div>
 
               <div class="col-span-2">
@@ -98,8 +103,8 @@
           </div>
         </div>
         <p class="text-[11px] text-gray-400">
-          Eslatma: kunlar bir marta to'g'ri kiritilsa kifoya. Misol: 10 kunlik safarda Madina 1–4, Makka 5–10.
-          Kunni o'chirib bo'lmaydi — faqat ustiga yangi qiymat yozish mumkin.
+          Eslatma: faqat har bir shaharda necha kun turishini yozing — Misol: Madina 4 kun, Makka 6 kun.
+          Bot kun raqamini safar boshlanish sanasidan o'zi hisoblaydi. Kunlarni o'chirib bo'lmaydi — faqat ustiga yangi qiymat yozish mumkin.
         </p>
       </template>
     </div>
@@ -113,14 +118,15 @@ import api from '../../../api'
 
 const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Park', 'Grand Al Shahba', 'Bosphorus', 'Saja Al Madina', 'Hawada']
 
+type Order = 'madina_makka' | 'makka_madina'
+
 interface Grp {
   id: number
   title: string | null
   trip_start_date: string
-  madina_start_day: number | string | null
-  madina_end_day: number | string | null
-  makka_start_day: number | string | null
-  makka_end_day: number | string | null
+  order: Order
+  madina_days: number | string | null
+  makka_days: number | string | null
   hotel_tier: string
   ellikboshi_username: string
   hotel_makka: string
@@ -143,32 +149,76 @@ const filtered = computed(() => {
 })
 
 function hasLocation(g: Grp) {
-  return g.madina_start_day != null && g.madina_start_day !== '' || g.makka_start_day != null && g.makka_start_day !== ''
+  return (g.madina_days != null && g.madina_days !== '') || (g.makka_days != null && g.makka_days !== '')
 }
 
 function numOrNull(v: number | string | null): number | null {
   if (v === '' || v === null || v === undefined) return null
   const n = Number(v)
-  return Number.isFinite(n) ? n : null
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+// Days entered per city -> the start/end day ranges the bot stores. The two
+// stays are laid back-to-back from day 1 in the chosen order.
+function computeRanges(g: Grp) {
+  const md = numOrNull(g.madina_days)
+  const mk = numOrNull(g.makka_days)
+  const out: Record<string, number | null> = {
+    madina_start_day: null, madina_end_day: null,
+    makka_start_day: null, makka_end_day: null,
+  }
+  let cur = 1
+  const place = (city: 'madina' | 'makka', days: number | null) => {
+    if (!days) return
+    out[`${city}_start_day`] = cur
+    out[`${city}_end_day`] = cur + days - 1
+    cur += days
+  }
+  if (g.order === 'makka_madina') {
+    place('makka', mk)
+    place('madina', md)
+  } else {
+    place('madina', md)
+    place('makka', mk)
+  }
+  return out
+}
+
+function rangeHint(g: Grp): string {
+  const r = computeRanges(g)
+  const parts: string[] = []
+  if (r.madina_start_day) parts.push(`Madina: ${r.madina_start_day}–${r.madina_end_day}-kun`)
+  if (r.makka_start_day) parts.push(`Makka: ${r.makka_start_day}–${r.makka_end_day}-kun`)
+  return parts.length ? parts.join(' · ') : 'Kun kiritilmagan'
+}
+
+// Stored ranges -> day-counts + order for the simplified inputs.
+function daysFromRange(start: any, end: any): number | string {
+  if (start == null || end == null) return ''
+  const d = Number(end) - Number(start) + 1
+  return Number.isFinite(d) && d > 0 ? d : ''
 }
 
 async function load() {
   loading.value = true
   try {
     const { data } = await api.get('/groups')
-    groups.value = data.map((g: any) => ({
-      id: g.id,
-      title: g.title,
-      trip_start_date: g.trip_start_date || '',
-      madina_start_day: g.madina_start_day ?? '',
-      madina_end_day: g.madina_end_day ?? '',
-      makka_start_day: g.makka_start_day ?? '',
-      makka_end_day: g.makka_end_day ?? '',
-      hotel_tier: g.hotel_tier || '',
-      ellikboshi_username: g.ellikboshi_username || '',
-      hotel_makka: g.hotel_makka || '',
-      hotel_madina: g.hotel_madina || '',
-    }))
+    groups.value = data.map((g: any): Grp => {
+      const ms = g.madina_start_day, ks = g.makka_start_day
+      const order: Order = (ms != null && ks != null && Number(ks) < Number(ms)) ? 'makka_madina' : 'madina_makka'
+      return {
+        id: g.id,
+        title: g.title,
+        trip_start_date: g.trip_start_date || '',
+        order,
+        madina_days: daysFromRange(g.madina_start_day, g.madina_end_day),
+        makka_days: daysFromRange(g.makka_start_day, g.makka_end_day),
+        hotel_tier: g.hotel_tier || '',
+        ellikboshi_username: g.ellikboshi_username || '',
+        hotel_makka: g.hotel_makka || '',
+        hotel_madina: g.hotel_madina || '',
+      }
+    })
   } catch {
     groups.value = []
   } finally {
@@ -183,10 +233,7 @@ async function save(g: Grp) {
   try {
     await api.put(`/groups/${g.id}/location/public`, {
       trip_start_date: g.trip_start_date || null,
-      madina_start_day: numOrNull(g.madina_start_day),
-      madina_end_day: numOrNull(g.madina_end_day),
-      makka_start_day: numOrNull(g.makka_start_day),
-      makka_end_day: numOrNull(g.makka_end_day),
+      ...computeRanges(g),
       hotel_tier: g.hotel_tier ?? '',
       ellikboshi_username: g.ellikboshi_username ?? '',
       hotel_makka: g.hotel_makka ?? '',
