@@ -62,6 +62,16 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Groups.vue'),
     },
     {
+      path: '/ai/admins',
+      name: 'AiAdmins',
+      component: () => import('../apps/ai/views/Admins.vue'),
+    },
+    {
+      path: '/ai/yonaltirish',
+      name: 'AiInquiryRouting',
+      component: () => import('../apps/ai/views/InquiryRouting.vue'),
+    },
+    {
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),

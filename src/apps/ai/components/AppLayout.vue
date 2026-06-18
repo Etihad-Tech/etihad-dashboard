@@ -144,6 +144,8 @@ const ALL_SUPPORT = [
   { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
   { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
   { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
+  { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
+  { to: '/ai/yonaltirish', label: "Murojaat yo'naltirish", icon: 'tag' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
 

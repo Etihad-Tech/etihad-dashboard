@@ -39,6 +39,7 @@ import {
    faUserDoctor,
    faPlaneArrival,
    faBroom,
+   faUserShield,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -47,7 +48,7 @@ library.add(
    faTrash, faToggleOn, faToggleOff, faUsers, faPlane, faCalendar,
    faFileExport, faChartPie, faHome, faPaperPlane, faArrowsRotate, faLock,
    faUser, faCircleQuestion, faTag, faLocationDot, faUserDoctor,
-   faPlaneArrival, faBroom,
+   faPlaneArrival, faBroom, faUserShield,
 )
 
 const app = createApp(App)
