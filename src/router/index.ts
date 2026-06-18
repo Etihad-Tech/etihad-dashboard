@@ -62,6 +62,21 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Groups.vue'),
     },
     {
+      path: '/ai/admins',
+      name: 'AiAdmins',
+      component: () => import('../apps/ai/views/Admins.vue'),
+    },
+    {
+      path: '/ai/yonaltirish',
+      name: 'AiInquiryRouting',
+      component: () => import('../apps/ai/views/InquiryRouting.vue'),
+    },
+    {
+      path: '/ai/videos',
+      name: 'AiVideos',
+      component: () => import('../apps/ai/views/Videos.vue'),
+    },
+    {
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),
@@ -124,10 +139,13 @@ const router = createRouter({
 // confined to their one panel; admin (and team-only/legacy, role null) unchanged.
 const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', admin: '/' }
 
+// The mingboshi manages leaders, staff, and inquiry routing.
+const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish']
+
 function roleAllows(path: string, role: string | null): boolean {
   if (role === 'flight') return path === '/ai/reyslar'
   if (role === 'qa') return path === '/ai/qa'
-  if (role === 'mingboshi') return path === '/ai/ellikboshi'
+  if (role === 'mingboshi') return MINGBOSHI_PATHS.includes(path)
   return true
 }
 

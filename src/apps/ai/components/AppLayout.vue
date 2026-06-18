@@ -144,6 +144,9 @@ const ALL_SUPPORT = [
   { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
   { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
   { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
+  { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
+  { to: '/ai/yonaltirish', label: "Murojaat yo'naltirish", icon: 'tag' },
+  { to: '/ai/videos', label: "Video yo'riqnomalar", icon: 'video' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
 
@@ -151,7 +154,8 @@ const ALL_SUPPORT = [
 function allowed(to: string): boolean {
   if (auth.role === 'flight') return to === '/ai/reyslar'
   if (auth.role === 'qa') return to === '/ai/qa'
-  if (auth.role === 'mingboshi') return to === '/ai/ellikboshi'
+  // mingboshi: leaders + staff + inquiry routing
+  if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish'].includes(to)
   return true
 }
 const mainNav = computed(() => ALL_MAIN.filter(i => allowed(i.to)))
