@@ -146,6 +146,7 @@ const ALL_SUPPORT = [
   { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
   { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
   { to: '/ai/yonaltirish', label: "Murojaat yo'naltirish", icon: 'tag' },
+  { to: '/ai/videos', label: "Video yo'riqnomalar", icon: 'video' },
   { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
 ]
 

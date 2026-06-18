@@ -72,6 +72,11 @@ const router = createRouter({
       component: () => import('../apps/ai/views/InquiryRouting.vue'),
     },
     {
+      path: '/ai/videos',
+      name: 'AiVideos',
+      component: () => import('../apps/ai/views/Videos.vue'),
+    },
+    {
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),
