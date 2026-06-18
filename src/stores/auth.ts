@@ -6,6 +6,9 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const teamToken = ref<string | null>(localStorage.getItem('team_token'))
   const username = ref<string | null>(localStorage.getItem('admin_username'))
+  // AI-side role from /auth/login: 'admin' | 'flight' | 'qa' (null = team-only/legacy).
+  // Drives which panels the dashboard shows; the API enforces it independently.
+  const role = ref<string | null>(localStorage.getItem('ai_role'))
 
   const isAuthenticated = computed(() => !!token.value || !!teamToken.value)
 
@@ -21,6 +24,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (aiResult.status === 'fulfilled' && aiResult.value.data.token) {
       token.value = aiResult.value.data.token
       localStorage.setItem('token', aiResult.value.data.token)
+      role.value = aiResult.value.data.role || 'admin'
+      localStorage.setItem('ai_role', role.value as string)
       success = true
     }
 
@@ -43,10 +48,12 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     teamToken.value = null
     username.value = null
+    role.value = null
     localStorage.removeItem('token')
     localStorage.removeItem('team_token')
     localStorage.removeItem('admin_username')
+    localStorage.removeItem('ai_role')
   }
 
-  return { token, teamToken, username, isAuthenticated, login, logout }
+  return { token, teamToken, username, role, isAuthenticated, login, logout }
 })

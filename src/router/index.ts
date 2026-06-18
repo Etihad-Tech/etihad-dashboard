@@ -42,6 +42,26 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Qa.vue'),
     },
     {
+      path: '/ai/reyslar',
+      name: 'AiReyslar',
+      component: () => import('../apps/ai/views/Reyslar.vue'),
+    },
+    {
+      path: '/ai/staff',
+      name: 'AiStaff',
+      component: () => import('../apps/ai/views/Staff.vue'),
+    },
+    {
+      path: '/ai/ellikboshi',
+      name: 'AiEllikboshi',
+      component: () => import('../apps/ai/views/Ellikboshi.vue'),
+    },
+    {
+      path: '/ai/groups',
+      name: 'AiGroups',
+      component: () => import('../apps/ai/views/Groups.vue'),
+    },
+    {
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),
@@ -100,13 +120,28 @@ const router = createRouter({
   ],
 })
 
+// Where each role lands, and which paths it may reach. Managers (flight/qa) are
+// confined to their one panel; admin (and team-only/legacy, role null) unchanged.
+const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', admin: '/' }
+
+function roleAllows(path: string, role: string | null): boolean {
+  if (role === 'flight') return path === '/ai/reyslar'
+  if (role === 'qa') return path === '/ai/qa'
+  if (role === 'mingboshi') return path === '/ai/ellikboshi'
+  return true
+}
+
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (!to.meta.guest && !auth.isAuthenticated) {
     return '/login'
   }
+  const home = ROLE_HOME[auth.role || ''] || '/'
   if (to.meta.guest && auth.isAuthenticated) {
-    return '/'
+    return home
+  }
+  if (auth.isAuthenticated && (auth.role === 'flight' || auth.role === 'qa' || auth.role === 'mingboshi') && !roleAllows(to.path, auth.role)) {
+    return home
   }
 })
 
