@@ -153,7 +153,8 @@ const ALL_SUPPORT = [
 function allowed(to: string): boolean {
   if (auth.role === 'flight') return to === '/ai/reyslar'
   if (auth.role === 'qa') return to === '/ai/qa'
-  if (auth.role === 'mingboshi') return to === '/ai/ellikboshi'
+  // mingboshi: leaders + staff + inquiry routing
+  if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish'].includes(to)
   return true
 }
 const mainNav = computed(() => ALL_MAIN.filter(i => allowed(i.to)))
