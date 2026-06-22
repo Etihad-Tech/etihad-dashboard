@@ -153,7 +153,8 @@ const ALL_SUPPORT = [
 // Role-limited managers see only their own panel; admin sees everything.
 function allowed(to: string): boolean {
   if (auth.role === 'flight') return to === '/ai/reyslar'
-  if (auth.role === 'qa') return to === '/ai/qa'
+  // qa: knowledge base + per-group hotel/tier setup (Guruhlar)
+  if (auth.role === 'qa') return ['/ai/qa', '/ai/groups'].includes(to)
   // mingboshi: leaders + staff + inquiry routing
   if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish'].includes(to)
   return true
