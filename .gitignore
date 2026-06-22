@@ -24,5 +24,7 @@ dist-ssr
 *.sw?
 
 .env
+.env.*
+*.zip
 .claude
 .vscode
