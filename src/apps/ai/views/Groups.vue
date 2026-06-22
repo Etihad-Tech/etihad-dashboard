@@ -91,6 +91,16 @@
                   <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
                 </select>
               </div>
+              <div v-if="isSaturday(g)" class="col-span-2">
+                <label class="block text-[11px] text-gray-400 mb-1">
+                  Kelish (Makka) mehmonxonasi
+                  <span class="text-amber-600">— Shanba reysi (1-kun)</span>
+                </label>
+                <select v-model="g.hotel_jidda" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">—</option>
+                  <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                </select>
+              </div>
             </div>
 
             <div class="flex items-center justify-end gap-3 mt-4">
@@ -131,6 +141,7 @@ interface Grp {
   ellikboshi_username: string
   hotel_makka: string
   hotel_madina: string
+  hotel_jidda: string
 }
 
 const loading = ref(false)
@@ -150,6 +161,16 @@ const filtered = computed(() => {
 
 function hasLocation(g: Grp) {
   return (g.madina_days != null && g.madina_days !== '') || (g.makka_days != null && g.makka_days !== '')
+}
+
+// The 3rd (arrival/Jidda) hotel only applies to Saturday (Shanba) flights — the
+// same weekday the bot keys the 3-stage itinerary off. Parse the date parts
+// explicitly so the weekday isn't shifted by timezone. JS getDay(): Sat = 6.
+function isSaturday(g: Grp): boolean {
+  if (!g.trip_start_date) return false
+  const [y, m, d] = g.trip_start_date.split('-').map(Number)
+  if (!y || !m || !d) return false
+  return new Date(y, m - 1, d).getDay() === 6
 }
 
 function numOrNull(v: number | string | null): number | null {
@@ -217,6 +238,7 @@ async function load() {
         ellikboshi_username: g.ellikboshi_username || '',
         hotel_makka: g.hotel_makka || '',
         hotel_madina: g.hotel_madina || '',
+        hotel_jidda: g.hotel_jidda || '',
       }
     })
   } catch {
@@ -238,6 +260,7 @@ async function save(g: Grp) {
       ellikboshi_username: g.ellikboshi_username ?? '',
       hotel_makka: g.hotel_makka ?? '',
       hotel_madina: g.hotel_madina ?? '',
+      hotel_jidda: g.hotel_jidda ?? '',
     })
     savedId.value = g.id
     setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2500)
