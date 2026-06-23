@@ -34,7 +34,7 @@
             </div>
             <div>
               <label class="block text-[11px] text-gray-400 mb-1">Ismi (ixtiyoriy)</label>
-              <input v-model="newName" type="text" placeholder="Masalan: Husniddin qori" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <input v-model="newName" type="text" placeholder="Masalan: Akmal qori" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
             </div>
             <button @click="addToPool" :disabled="poolBusy || !newUsername.trim()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">Qo'shish</button>
           </div>

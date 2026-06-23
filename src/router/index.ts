@@ -72,6 +72,11 @@ const router = createRouter({
       component: () => import('../apps/ai/views/InquiryRouting.vue'),
     },
     {
+      path: '/ai/qora-royxat',
+      name: 'AiBlacklist',
+      component: () => import('../apps/ai/views/Blacklist.vue'),
+    },
+    {
       path: '/ai/videos',
       name: 'AiVideos',
       component: () => import('../apps/ai/views/Videos.vue'),
