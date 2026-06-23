@@ -3,24 +3,25 @@
     <div class="space-y-6">
       <div class="flex items-center justify-between animate-fade-up">
         <div>
-          <h2 class="text-2xl font-bold text-gray-900">Adminlar</h2>
-          <p class="text-sm text-gray-500 mt-1">Botni guruhda to'xtatish / yoqish huquqiga ega Telegram foydalanuvchilari</p>
+          <h2 class="text-2xl font-bold text-gray-900">Qora ro'yxat</h2>
+          <p class="text-sm text-gray-500 mt-1">Bot bu foydalanuvchilarning xabarlariga umuman javob bermaydi</p>
         </div>
         <button
           @click="openAdd"
           class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
         >
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi admin
+          Yangi yozuv
         </button>
       </div>
 
       <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
         <p class="font-medium mb-1">Qanday ishlaydi</p>
         <p class="text-amber-700">
-          Ro'yxatdagi admin guruhga <b>bitta belgidan</b> iborat xabar (masalan «1») yuborsa, bot o'sha guruhda
-          to'xtaydi yoki qayta yoqiladi. Agar admin qayta yoqmasa, bot <b>5 daqiqadan</b> keyin avtomatik yoqiladi.
-          Admin Telegram ID raqami bo'yicha aniqlanadi (foydalanuvchi nomi o'zgarishi mumkin).
+          Bu ro'yxatdagi odamning guruhdagi xabariga bot <b>javob bermaydi</b> (Telegram ID yoki @username bo'yicha aniqlanadi).
+          Barcha faol <b>Xodimlar</b>, <b>Ellikboshilar</b> va har guruhning <b>rahbari</b> avtomatik ravishda shu ro'yxatga kiradi —
+          ularni bu yerga qayta kiritish shart emas. Bu sahifa qolgan boshqa odamlarni qo'shish uchun.
+          Eslatma: bot baribir kerak bo'lganda ularni teglaydi va shaxsiy xabar yuboradi — faqat <b>ularning savoliga javob bermaydi</b>.
         </p>
       </div>
 
@@ -28,49 +29,53 @@
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
-      <div v-else-if="admins.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up">
-        <font-awesome-icon icon="user-shield" class="w-10 h-10 text-gray-300 mb-4" />
-        <p class="text-gray-400">Hozircha adminlar yo'q</p>
+      <div v-else-if="entries.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up">
+        <font-awesome-icon icon="user-slash" class="w-10 h-10 text-gray-300 mb-4" />
+        <p class="text-gray-400">Qora ro'yxat bo'sh</p>
       </div>
 
       <div v-else class="space-y-3">
         <div
-          v-for="(a, i) in admins"
-          :key="a.id"
+          v-for="(e, i) in entries"
+          :key="e.id"
           class="bg-white rounded-3xl border p-4 flex items-center justify-between gap-4 transition-all animate-fade-up"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-          :class="a.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
+          :class="e.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
         >
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-              <font-awesome-icon icon="user-shield" class="w-4 h-4 text-indigo-600" />
+            <div class="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
+              <font-awesome-icon icon="user-slash" class="w-4 h-4 text-rose-600" />
             </div>
             <div class="min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">
-                {{ a.name || a.username || ('ID ' + a.telegram_id) }}
-                <span v-if="a.name && a.username" class="text-gray-400 font-normal">· {{ a.username }}</span>
+                {{ e.name || e.username || ('ID ' + e.telegram_id) }}
+                <span v-if="e.name && e.username" class="text-gray-400 font-normal">· {{ e.username }}</span>
               </p>
-              <p class="text-xs text-gray-500">Telegram ID: {{ a.telegram_id }}</p>
+              <p class="text-xs text-gray-500">
+                <span v-if="e.telegram_id">Telegram ID: {{ e.telegram_id }}</span>
+                <span v-if="e.telegram_id && e.username"> · </span>
+                <span v-if="e.username && !e.name">{{ e.username }}</span>
+              </p>
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
             <button
-              @click="toggleActive(a)"
+              @click="toggleActive(e)"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-              :class="a.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
+              :class="e.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
             >
-              <font-awesome-icon :icon="a.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-              {{ a.is_active ? 'Faol' : 'Nofaol' }}
+              <font-awesome-icon :icon="e.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
+              {{ e.is_active ? 'Faol' : 'Nofaol' }}
             </button>
             <button
-              @click="openEdit(a)"
+              @click="openEdit(e)"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
             >
               <font-awesome-icon icon="pen" class="w-3 h-3" />
               Tahrirlash
             </button>
             <button
-              @click="askDelete(a.id)"
+              @click="askDelete(e.id)"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
             >
               <font-awesome-icon icon="trash" class="w-3 h-3" />
@@ -87,7 +92,7 @@
           <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <font-awesome-icon icon="trash" class="w-5 h-5 text-red-500" />
           </div>
-          <h3 class="font-semibold text-gray-900 mb-1">Adminni o'chirish</h3>
+          <h3 class="font-semibold text-gray-900 mb-1">Yozuvni o'chirish</h3>
           <p class="text-sm text-gray-500 mb-5">Bu amalni ortga qaytarib bo'lmaydi</p>
           <div class="flex justify-center gap-3">
             <button @click="cancelDelete" class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
@@ -101,14 +106,14 @@
       <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
         <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Adminni tahrirlash' : 'Yangi admin' }}</h3>
+            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Yozuvni tahrirlash' : 'Yangi yozuv' }}</h3>
           </div>
           <div class="p-6 space-y-4">
+            <p class="text-xs text-gray-400">Telegram ID yoki username dan kamida bittasini kiriting.</p>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Telegram ID</label>
-              <input v-model.number="form.telegram_id" type="number" placeholder="Masalan: 123456789" :disabled="!!modalEditId"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:opacity-60" />
-              <p class="text-[11px] text-gray-400 mt-1">Foydalanuvchining raqamli Telegram ID si (qo'shilgach o'zgartirib bo'lmaydi)</p>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Telegram ID (ixtiyoriy)</label>
+              <input v-model.number="form.telegram_id" type="number" placeholder="Masalan: 123456789"
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1.5">Username (ixtiyoriy)</label>
@@ -140,15 +145,15 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 
-interface Admin {
+interface Entry {
   id: number
-  telegram_id: number
+  telegram_id: number | null
   username: string | null
   name: string | null
   is_active: boolean
 }
 
-const admins = ref<Admin[]>([])
+const entries = ref<Entry[]>([])
 const loading = ref(false)
 const saving = ref(false)
 
@@ -159,7 +164,7 @@ const form = ref<{ telegram_id: number | null; username: string; name: string }>
   telegram_id: null, username: '', name: '',
 })
 
-const canSave = computed(() => !!modalEditId.value || !!form.value.telegram_id)
+const canSave = computed(() => !!form.value.telegram_id || !!form.value.username.trim())
 
 function openAdd() {
   modalEditId.value = null
@@ -168,10 +173,10 @@ function openAdd() {
   modalOpen.value = true
 }
 
-function openEdit(a: Admin) {
-  modalEditId.value = a.id
+function openEdit(e: Entry) {
+  modalEditId.value = e.id
   formError.value = ''
-  form.value = { telegram_id: a.telegram_id, username: a.username || '', name: a.name || '' }
+  form.value = { telegram_id: e.telegram_id, username: e.username || '', name: e.name || '' }
   modalOpen.value = true
 }
 
@@ -184,25 +189,21 @@ async function saveModal() {
   if (!canSave.value) return
   saving.value = true
   formError.value = ''
+  const payload = {
+    telegram_id: form.value.telegram_id || null,
+    username: form.value.username.trim() || null,
+    name: form.value.name.trim() || null,
+  }
   try {
     if (modalEditId.value) {
-      const payload = {
-        username: form.value.username.trim() || null,
-        name: form.value.name.trim() || null,
-      }
-      const { data } = await api.put(`/admins/${modalEditId.value}`, payload)
-      const idx = admins.value.findIndex(a => a.id === modalEditId.value)
-      if (idx !== -1) admins.value[idx] = data
+      const { data } = await api.put(`/blacklist/${modalEditId.value}`, payload)
+      const idx = entries.value.findIndex(e => e.id === modalEditId.value)
+      if (idx !== -1) entries.value[idx] = data
     } else {
-      const payload = {
-        telegram_id: form.value.telegram_id,
-        username: form.value.username.trim() || null,
-        name: form.value.name.trim() || null,
-      }
-      const { data } = await api.post('/admins', payload)
-      const idx = admins.value.findIndex(a => a.id === data.id)
-      if (idx !== -1) admins.value[idx] = data
-      else admins.value.push(data)
+      const { data } = await api.post('/blacklist', payload)
+      const idx = entries.value.findIndex(e => e.id === data.id)
+      if (idx !== -1) entries.value[idx] = data
+      else entries.value.push(data)
     }
     closeModal()
   } catch {
@@ -212,11 +213,11 @@ async function saveModal() {
   }
 }
 
-async function toggleActive(a: Admin) {
+async function toggleActive(e: Entry) {
   try {
-    const { data } = await api.put(`/admins/${a.id}`, { is_active: !a.is_active })
-    const idx = admins.value.findIndex(x => x.id === a.id)
-    if (idx !== -1) admins.value[idx] = data
+    const { data } = await api.put(`/blacklist/${e.id}`, { is_active: !e.is_active })
+    const idx = entries.value.findIndex(x => x.id === e.id)
+    if (idx !== -1) entries.value[idx] = data
   } catch { /* ignore */ }
 }
 
@@ -227,25 +228,25 @@ function cancelDelete() { confirmDeleteId.value = null }
 async function confirmDelete() {
   if (!confirmDeleteId.value) return
   try {
-    await api.delete(`/admins/${confirmDeleteId.value}`)
-    admins.value = admins.value.filter(a => a.id !== confirmDeleteId.value)
+    await api.delete(`/blacklist/${confirmDeleteId.value}`)
+    entries.value = entries.value.filter(e => e.id !== confirmDeleteId.value)
   } catch { /* ignore */ }
   finally { confirmDeleteId.value = null }
 }
 
-async function loadAdmins() {
+async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/admins')
-    admins.value = data
+    const { data } = await api.get('/blacklist')
+    entries.value = data
   } catch {
-    admins.value = []
+    entries.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(loadAdmins)
+onMounted(load)
 </script>
 
 <style scoped>
