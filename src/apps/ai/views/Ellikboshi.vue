@@ -4,6 +4,7 @@
       <div class="animate-fade-up">
         <h2 class="text-2xl font-bold text-gray-900">Ellikboshilar</h2>
         <p class="text-sm text-gray-500 mt-1">Ellikboshilar ro'yxatini boshqaring va har bir guruhga ellikboshi tayinlang</p>
+        <p class="text-xs text-gray-400 mt-1">Faqat Turon tizimida safarga biriktirilgan guruhlar ko'rsatiladi.</p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">

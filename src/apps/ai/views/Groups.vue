@@ -7,6 +7,10 @@
           Har bir guruh uchun safar kechalari (Madina / Makka), mehmonxona, paket va ellikboshini sozlang.
           Bot joriy shaharni shu kechalar soniga qarab aniqlaydi (kun = safar boshlanish sanasidan hisoblanadi).
         </p>
+        <p class="text-xs text-gray-400 mt-1">
+          Faqat Turon tizimida safarga biriktirilgan (ro'yxatdan o'tgan) guruhlar ko'rsatiladi — botga
+          tasodifan qo'shilgan begona guruhlar bu yerda chiqmaydi.
+        </p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">
