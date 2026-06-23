@@ -4,8 +4,8 @@
       <div class="animate-fade-up">
         <h2 class="text-2xl font-bold text-gray-900">Guruhlar</h2>
         <p class="text-sm text-gray-500 mt-1">
-          Har bir guruh uchun safar kunlari (Madina / Makka), mehmonxona, paket va ellikboshini sozlang.
-          Bot joriy shaharni shu kunlarga qarab aniqlaydi (kun = safar boshlanish sanasidan hisoblanadi).
+          Har bir guruh uchun safar kechalari (Madina / Makka), mehmonxona, paket va ellikboshini sozlang.
+          Bot joriy shaharni shu kechalar soniga qarab aniqlaydi (kun = safar boshlanish sanasidan hisoblanadi).
         </p>
       </div>
 
@@ -63,12 +63,12 @@
                 </select>
               </div>
               <div>
-                <label class="block text-[11px] text-emerald-600 mb-1">Madina — necha kun</label>
-                <input v-model="g.madina_days" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <label class="block text-[11px] text-emerald-600 mb-1">Madina — necha kecha</label>
+                <input v-model="g.madina_nights" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
               <div>
-                <label class="block text-[11px] text-sky-600 mb-1">Makka — necha kun</label>
-                <input v-model="g.makka_days" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <label class="block text-[11px] text-sky-600 mb-1">Makka — necha kecha</label>
+                <input v-model="g.makka_nights" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
               <div class="hidden sm:flex items-end">
                 <p class="text-[11px] text-gray-400 pb-2 truncate">{{ rangeHint(g) }}</p>
@@ -113,8 +113,9 @@
           </div>
         </div>
         <p class="text-[11px] text-gray-400">
-          Eslatma: faqat har bir shaharda necha kun turishini yozing — Misol: Madina 4 kun, Makka 6 kun.
-          Bot kun raqamini safar boshlanish sanasidan o'zi hisoblaydi. Kunlarni o'chirib bo'lmaydi — faqat ustiga yangi qiymat yozish mumkin.
+          Eslatma: har bir shaharda necha <b>kecha</b> turishini yozing — Misol: Payshanba (8 kecha) → Madina 4 kecha, Makka 4 kecha;
+          Shanba (12 kecha) → Madina 4 kecha, Makka 8 kecha. Ikki shahar kechalari yig'indisi reysning umumiy kechalariga teng bo'lishi kerak.
+          Bot kun raqamini safar boshlanish sanasidan o'zi hisoblaydi (1 kecha = 1 kun). Qiymatni o'chirib bo'lmaydi — faqat ustiga yangi qiymat yozish mumkin.
         </p>
       </template>
     </div>
@@ -135,8 +136,8 @@ interface Grp {
   title: string | null
   trip_start_date: string
   order: Order
-  madina_days: number | string | null
-  makka_days: number | string | null
+  madina_nights: number | string | null
+  makka_nights: number | string | null
   hotel_tier: string
   ellikboshi_username: string
   hotel_makka: string
@@ -160,7 +161,7 @@ const filtered = computed(() => {
 })
 
 function hasLocation(g: Grp) {
-  return (g.madina_days != null && g.madina_days !== '') || (g.makka_days != null && g.makka_days !== '')
+  return (g.madina_nights != null && g.madina_nights !== '') || (g.makka_nights != null && g.makka_nights !== '')
 }
 
 // The 3rd (arrival/Jidda) hotel only applies to Saturday (Shanba) flights — the
@@ -179,11 +180,12 @@ function numOrNull(v: number | string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-// Days entered per city -> the start/end day ranges the bot stores. The two
-// stays are laid back-to-back from day 1 in the chosen order.
+// Nights entered per city -> the start/end day ranges the bot stores. 1 night = 1
+// day-slot, so the two stays are laid back-to-back from day 1 in the chosen order
+// (Madina 4 nights -> days 1-4, Makka next -> day 5 onward).
 function computeRanges(g: Grp) {
-  const md = numOrNull(g.madina_days)
-  const mk = numOrNull(g.makka_days)
+  const md = numOrNull(g.madina_nights)
+  const mk = numOrNull(g.makka_nights)
   const out: Record<string, number | null> = {
     madina_start_day: null, madina_end_day: null,
     makka_start_day: null, makka_end_day: null,
@@ -210,11 +212,14 @@ function rangeHint(g: Grp): string {
   const parts: string[] = []
   if (r.madina_start_day) parts.push(`Madina: ${r.madina_start_day}–${r.madina_end_day}-kun`)
   if (r.makka_start_day) parts.push(`Makka: ${r.makka_start_day}–${r.makka_end_day}-kun`)
-  return parts.length ? parts.join(' · ') : 'Kun kiritilmagan'
+  const total = (numOrNull(g.madina_nights) || 0) + (numOrNull(g.makka_nights) || 0)
+  if (total) parts.push(`Jami: ${total} kecha`)
+  return parts.length ? parts.join(' · ') : 'Kecha kiritilmagan'
 }
 
-// Stored ranges -> day-counts + order for the simplified inputs.
-function daysFromRange(start: any, end: any): number | string {
+// Stored day-ranges -> per-city night-counts for the simplified inputs (1 night =
+// 1 day-slot, so the count of day-slots a city spans is its number of nights).
+function nightsFromRange(start: any, end: any): number | string {
   if (start == null || end == null) return ''
   const d = Number(end) - Number(start) + 1
   return Number.isFinite(d) && d > 0 ? d : ''
@@ -232,8 +237,8 @@ async function load() {
         title: g.title,
         trip_start_date: g.trip_start_date || '',
         order,
-        madina_days: daysFromRange(g.madina_start_day, g.madina_end_day),
-        makka_days: daysFromRange(g.makka_start_day, g.makka_end_day),
+        madina_nights: nightsFromRange(g.madina_start_day, g.madina_end_day),
+        makka_nights: nightsFromRange(g.makka_start_day, g.makka_end_day),
         hotel_tier: g.hotel_tier || '',
         ellikboshi_username: g.ellikboshi_username || '',
         hotel_makka: g.hotel_makka || '',
