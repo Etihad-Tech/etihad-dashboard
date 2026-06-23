@@ -7,6 +7,10 @@
           Har bir guruh uchun safar kechalari (Madina / Makka), mehmonxona, paket va ellikboshini sozlang.
           Bot joriy shaharni shu kechalar soniga qarab aniqlaydi (kun = safar boshlanish sanasidan hisoblanadi).
         </p>
+        <p class="text-xs text-gray-400 mt-1">
+          Faqat Turon tizimida ro'yxatdan o'tgan (safarga biriktirilgan) guruhlar ko'rsatiladi — botga tasodifan
+          qo'shilgan begona guruhlar bu yerda chiqmaydi.
+        </p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">
@@ -125,7 +129,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
-import api from '../../../api'
+import api, { teamApi } from '../../../api'
+import { useAuthStore } from '../../../stores/auth'
 
 const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Park', 'Grand Al Shahba', 'Bosphorus', 'Saja Al Madina', 'Hawada']
 
@@ -228,8 +233,29 @@ function nightsFromRange(start: any, end: any): number | string {
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/groups')
-    groups.value = data.map((g: any): Grp => {
+    // Only company groups REGISTERED in the Turon (team) system should appear: a
+    // trip's group_chat_id is the registry. Random groups the AI bot happens to be
+    // added to have no trip, so they are filtered out. The team API needs a team
+    // session (the admin login has one; qa/flight do not) — guard the call so a
+    // missing/expired team token can never 401-logout a non-admin; in that case we
+    // skip the filter and fall back to showing all AI groups.
+    const auth = useAuthStore()
+    const calls: Promise<any>[] = [api.get('/groups')]
+    if (auth.teamToken) calls.push(teamApi.get('/api/trips'))
+    const [aiRes, tripsRes] = await Promise.allSettled(calls)
+
+    let registered: Set<string> | null = null
+    if (tripsRes && tripsRes.status === 'fulfilled') {
+      registered = new Set<string>(
+        tripsRes.value.data
+          .filter((t: any) => t.group_chat_id)
+          .map((t: any) => String(t.group_chat_id)),
+      )
+    }
+
+    const aiGroups: any[] = aiRes.status === 'fulfilled' ? aiRes.value.data : []
+    const visible = registered ? aiGroups.filter(g => registered!.has(String(g.id))) : aiGroups
+    groups.value = visible.map((g: any): Grp => {
       const ms = g.madina_start_day, ks = g.makka_start_day
       const order: Order = (ms != null && ks != null && Number(ks) < Number(ms)) ? 'makka_madina' : 'madina_makka'
       return {
