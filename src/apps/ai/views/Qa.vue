@@ -25,6 +25,22 @@
         </p>
       </div>
 
+      <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-2 animate-fade-up">
+        <span class="text-xs font-medium text-gray-400 mr-1">Kategoriya:</span>
+        <button
+          @click="categoryFilter = ''"
+          class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
+          :class="categoryFilter === '' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
+        >Barchasi ({{ entries.length }})</button>
+        <button
+          v-for="c in categories"
+          :key="c.name"
+          @click="categoryFilter = c.name"
+          class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
+          :class="categoryFilter === c.name ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
+        >{{ c.name }} ({{ c.count }})</button>
+      </div>
+
       <div v-if="loading" class="flex justify-center py-12">
         <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
@@ -205,11 +221,23 @@ const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Pa
 const entries = ref<Qa[]>([])
 const loading = ref(false)
 const saving = ref(false)
+const categoryFilter = ref('')
+
+// Distinct categories with counts, for the filter chips ('Boshqa' = no category).
+const categories = computed(() => {
+  const map: Record<string, number> = {}
+  for (const q of entries.value) {
+    const key = q.category || 'Boshqa'
+    map[key] = (map[key] || 0) + 1
+  }
+  return Object.keys(map).sort().map(name => ({ name, count: map[name] ?? 0 }))
+})
 
 const grouped = computed(() => {
   const map: Record<string, Qa[]> = {}
   for (const q of entries.value) {
     const key = q.category || 'Boshqa'
+    if (categoryFilter.value && key !== categoryFilter.value) continue
     ;(map[key] ||= []).push(q)
   }
   return Object.keys(map).sort().map(category => ({ category, items: map[category] ?? [] }))

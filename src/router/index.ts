@@ -146,9 +146,10 @@ const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa',
 
 // The mingboshi manages leaders, staff, and inquiry routing.
 const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish']
-// The qa manager owns the knowledge base AND the per-group hotel/tier setup
-// (Guruhlar) that decides which hotel-scoped answers each group receives.
-const QA_PATHS = ['/ai/qa', '/ai/groups']
+// The qa manager owns the knowledge base, the per-group hotel/tier setup
+// (/ai/groups), AND the main Guruhlar page ('/') where the bots are started per
+// group (needs a Turon team token — the login posts to both APIs to obtain one).
+const QA_PATHS = ['/', '/ai/qa', '/ai/groups']
 
 function roleAllows(path: string, role: string | null): boolean {
   if (role === 'flight') return path === '/ai/reyslar'
