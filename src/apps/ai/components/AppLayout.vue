@@ -15,48 +15,35 @@
         <h1 class="text-lg font-bold text-gray-900 tracking-tight">Etihad AI Support</h1>
       </div>
 
-      <nav class="flex-1 px-3 space-y-1.5">
+      <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
         <router-link
           v-if="showHome"
           to="/"
           @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors mb-2"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors mb-1"
         >
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
           Bosh sahifa
         </router-link>
 
-        <router-link
-          v-for="item in mainNav"
-          :key="item.to"
-          :to="item.to"
-          @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border transition-colors"
-          :class="$route.path === item.to
-            ? 'bg-amber-50 text-amber-700 border-amber-300'
-            : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
-        >
-          <font-awesome-icon :icon="item.icon" class="w-4 h-4" />
-          {{ item.label }}
-        </router-link>
-
-        <div class="pt-5 pb-2">
-          <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Boshqaruv</p>
-        </div>
-
-        <router-link
-          v-for="item in supportNav"
-          :key="item.to"
-          :to="item.to"
-          @click="sidebarOpen = false"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border transition-colors"
-          :class="$route.path === item.to
-            ? 'bg-amber-50 text-amber-700 border-amber-300'
-            : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
-        >
-          <font-awesome-icon :icon="item.icon" class="w-4 h-4" />
-          {{ item.label }}
-        </router-link>
+        <template v-for="(group, gi) in visibleGroups" :key="group.title">
+          <div class="pb-1" :class="gi === 0 ? 'pt-1' : 'pt-4'">
+            <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">{{ group.title }}</p>
+          </div>
+          <router-link
+            v-for="item in group.items"
+            :key="item.to"
+            :to="item.to"
+            @click="sidebarOpen = false"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border transition-colors"
+            :class="$route.path === item.to
+              ? 'bg-amber-50 text-amber-700 border-amber-300'
+              : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
+          >
+            <font-awesome-icon :icon="item.icon" class="w-4 h-4" />
+            {{ item.label }}
+          </router-link>
+        </template>
       </nav>
 
       <div class="p-4 border-t border-gray-200">
@@ -131,24 +118,34 @@ const displayInitial = computed(() => {
   return (displayName.value?.[0] || 'A').toUpperCase()
 })
 
-const ALL_MAIN = [
-  { to: '/ai', label: 'Dashboard', icon: 'chart-line' },
-  { to: '/ai/messages', label: 'Murojaatlar', icon: 'comments' },
-]
-
-const ALL_SUPPORT = [
-  { to: '/ai/settings', label: 'Sozlamalar', icon: 'gear' },
-  { to: '/ai/templates', label: 'Shablonlar', icon: 'file-lines' },
-  { to: '/ai/qa', label: 'Bilimlar bazasi', icon: 'circle-question' },
-  { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
-  { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
-  { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
-  { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
-  { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
-  { to: '/ai/qora-royxat', label: "Qora ro'yxat", icon: 'user-slash' },
-  { to: '/ai/yonaltirish', label: "Murojaat yo'naltirish", icon: 'tag' },
-  { to: '/ai/videos', label: "Video yo'riqnomalar", icon: 'video' },
-  { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
+// Sidebar grouped into a few clear sections so the panel list reads at a glance
+// instead of a flat wall of items. Role-limited logins still see only their own
+// panels (empty groups are hidden automatically).
+const NAV_GROUPS = [
+  { title: 'Asosiy', items: [
+    { to: '/ai', label: 'Boshqaruv paneli', icon: 'chart-line' },
+    { to: '/ai/messages', label: 'Murojaatlar', icon: 'comments' },
+  ] },
+  { title: 'Safar va guruhlar', items: [
+    { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
+    { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
+  ] },
+  { title: 'Bot javoblari', items: [
+    { to: '/ai/qa', label: 'Bilimlar bazasi', icon: 'circle-question' },
+    { to: '/ai/yonaltirish', label: "Murojaat yo'naltirish", icon: 'tag' },
+    { to: '/ai/videos', label: "Video yo'riqnomalar", icon: 'video' },
+    { to: '/ai/templates', label: 'Shablonlar', icon: 'file-lines' },
+  ] },
+  { title: 'Xodimlar', items: [
+    { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
+    { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
+    { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
+    { to: '/ai/qora-royxat', label: "Qora ro'yxat", icon: 'user-slash' },
+  ] },
+  { title: 'Tizim', items: [
+    { to: '/ai/settings', label: 'Sozlamalar', icon: 'gear' },
+    { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
+  ] },
 ]
 
 // Role-limited managers see only their own panel; admin sees everything.
@@ -160,8 +157,12 @@ function allowed(to: string): boolean {
   if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish'].includes(to)
   return true
 }
-const mainNav = computed(() => ALL_MAIN.filter(i => allowed(i.to)))
-const supportNav = computed(() => ALL_SUPPORT.filter(i => allowed(i.to)))
+// Groups with their items filtered by role; empty groups dropped.
+const visibleGroups = computed(() =>
+  NAV_GROUPS
+    .map(g => ({ title: g.title, items: g.items.filter(i => allowed(i.to)) }))
+    .filter(g => g.items.length > 0)
+)
 // qa now also manages the main Guruhlar page ('/'), so it keeps the "Bosh sahifa" link.
 const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'mingboshi')
 
