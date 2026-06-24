@@ -162,7 +162,8 @@ function allowed(to: string): boolean {
 }
 const mainNav = computed(() => ALL_MAIN.filter(i => allowed(i.to)))
 const supportNav = computed(() => ALL_SUPPORT.filter(i => allowed(i.to)))
-const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'qa' && auth.role !== 'mingboshi')
+// qa now also manages the main Guruhlar page ('/'), so it keeps the "Bosh sahifa" link.
+const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'mingboshi')
 
 function handleLogout() {
   auth.logout()

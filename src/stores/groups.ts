@@ -25,10 +25,9 @@ export const useGroupsStore = defineStore('groups', () => {
   async function fetchGroups() {
     loading.value = true
     try {
-      const [tripsResult, teamGroupsResult, aiGroupsResult, aiTiersResult] = await Promise.allSettled([
+      const [tripsResult, teamGroupsResult, aiGroupsResult] = await Promise.allSettled([
         teamApi.get('/api/trips'),
         teamApi.get('/api/group-chats'),
-        aiApi.get('/messages/groups'),
         aiApi.get('/groups'),
       ])
 
@@ -39,21 +38,19 @@ export const useGroupsStore = defineStore('groups', () => {
         }
       }
 
+      // AI-bot membership AND the per-group settings (tier/ellikboshi/date/hotels)
+      // both come from /groups — the AI endpoint the qa role can call. (/messages/groups
+      // is admin-only, so a qa login would get an empty ai_bot set and the Start button
+      // would stay locked.) /groups is already Turon-filtered to trip-bound groups.
       const aiGroupIds = new Set<string>()
-      if (aiGroupsResult.status === 'fulfilled') {
-        for (const g of aiGroupsResult.value.data) {
-          aiGroupIds.add(String(g.id))
-        }
-      }
-
-      // hotel_tier override + ellikboshi + departure date per ai-bot group (empty/absent => default)
       const tierById = new Map<string, string>()
       const leaderById = new Map<string, string>()
       const dateById = new Map<string, string>()
       const makkaById = new Map<string, string>()
       const madinaById = new Map<string, string>()
-      if (aiTiersResult.status === 'fulfilled') {
-        for (const g of aiTiersResult.value.data) {
+      if (aiGroupsResult.status === 'fulfilled') {
+        for (const g of aiGroupsResult.value.data) {
+          aiGroupIds.add(String(g.id))
           tierById.set(String(g.id), g.hotel_tier || '')
           leaderById.set(String(g.id), g.ellikboshi_username || '')
           dateById.set(String(g.id), g.trip_start_date || '')

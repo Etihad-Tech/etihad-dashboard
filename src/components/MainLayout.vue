@@ -33,6 +33,7 @@
         </div>
 
         <router-link
+          v-if="showTeam"
           to="/team"
           @click="sidebarOpen = false"
           class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium border transition-colors"
@@ -107,6 +108,10 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const auth = useAuthStore()
 const sidebarOpen = ref(false)
+
+// Managers (qa/flight/mingboshi) can't enter the team section — hide the dead link.
+// qa reaches this layout via the main Guruhlar page; the others never do.
+const showTeam = computed(() => !['qa', 'flight', 'mingboshi'].includes(auth.role || ''))
 
 const displayName = computed(() => {
   const u = auth.username
