@@ -163,7 +163,8 @@ const visibleGroups = computed(() =>
     .map(g => ({ title: g.title, items: g.items.filter(i => allowed(i.to)) }))
     .filter(g => g.items.length > 0)
 )
-const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'qa' && auth.role !== 'mingboshi')
+// qa now also manages the main Guruhlar page ('/'), so it keeps the "Bosh sahifa" link.
+const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'mingboshi')
 
 function handleLogout() {
   auth.logout()
