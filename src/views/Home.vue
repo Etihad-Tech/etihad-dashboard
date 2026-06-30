@@ -112,7 +112,7 @@
                 class="w-36 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
               >
                 <option value="">— tanlanmagan —</option>
-                <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                <option v-for="h in hotelOptions('makka', group.hotel_makka)" :key="h" :value="h">{{ h }}</option>
               </select>
             </div>
             <div class="flex items-center justify-between gap-2">
@@ -124,7 +124,7 @@
                 class="w-36 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
               >
                 <option value="">— tanlanmagan —</option>
-                <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                <option v-for="h in hotelOptions('madina', group.hotel_madina)" :key="h" :value="h">{{ h }}</option>
               </select>
             </div>
             <p class="text-[10px] text-gray-400 leading-snug">
@@ -182,14 +182,18 @@
 import { onMounted, ref } from 'vue'
 import MainLayout from '../components/MainLayout.vue'
 import { useGroupsStore, type GroupInfo } from '../stores/groups'
+import { useHotelsStore } from '../stores/hotels'
 
 const groupsStore = useGroupsStore()
+const hotelsStore = useHotelsStore()
 const tierSaving = ref<string | null>(null)
 const leaderSaving = ref<string | null>(null)
 const dateSaving = ref<string | null>(null)
 const hotelSaving = ref<string | null>(null)
 
-const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Park', 'Grand Al Shahba', 'Bosphorus', 'Saja Al Madina', 'Hawada']
+// Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
+// Keeps a group's already-saved hotel selectable even if it was later removed.
+const hotelOptions = (city: string, current?: string | null) => hotelsStore.optionsForCity(city, current)
 
 // Mirrors the bot: Thursday departure -> Payshanba flight, Saturday -> Shanba.
 function flightBadge(dateStr: string | null) {
@@ -252,5 +256,5 @@ async function handleSendNow(group: GroupInfo) {
   await groupsStore.sendNowPosts(group.trip_id, group.chat_id)
 }
 
-onMounted(() => groupsStore.fetchGroups())
+onMounted(() => { hotelsStore.fetch(); groupsStore.fetchGroups() })
 </script>

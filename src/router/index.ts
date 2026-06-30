@@ -62,6 +62,11 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Groups.vue'),
     },
     {
+      path: '/ai/hotels',
+      name: 'AiHotels',
+      component: () => import('../apps/ai/views/Hotels.vue'),
+    },
+    {
       path: '/ai/admins',
       name: 'AiAdmins',
       component: () => import('../apps/ai/views/Admins.vue'),
@@ -85,6 +90,11 @@ const router = createRouter({
       path: '/ai/redis',
       name: 'AiRedis',
       component: () => import('../apps/ai/views/Redis.vue'),
+    },
+    {
+      path: '/ai/audit-log',
+      name: 'AiAuditLog',
+      component: () => import('../apps/ai/views/AuditLog.vue'),
     },
 
     {
