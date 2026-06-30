@@ -157,8 +157,8 @@ function allowed(to: string): boolean {
   // (hotels) management page is admin-only; qa still gets the hotel list for the
   // dropdowns via the GET /hotels endpoint.
   if (auth.role === 'qa') return ['/ai/qa', '/ai/groups'].includes(to)
-  // mingboshi: leaders + staff + inquiry routing
-  if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish'].includes(to)
+  // mingboshi: leaders + staff + inquiry routing + hotels management
+  if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/hotels'].includes(to)
   return true
 }
 // Groups with their items filtered by role; empty groups dropped.
