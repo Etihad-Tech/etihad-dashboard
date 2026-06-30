@@ -159,7 +159,7 @@
               <select v-model="form.hotel"
                 class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                 <option value="">Barcha mehmonxonalar</option>
-                <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                <option v-for="h in hotelOptions(form.hotel)" :key="h" :value="h">{{ h }}</option>
               </select>
               <p class="text-[11px] text-gray-400 mt-1">Faqat shu mehmonxonadagi guruhlarga ko'rsatiladi (WiFi, qavatlar, ovqat vaqtlari kabi mehmonxonaga xos javoblar uchun). Bo'sh = barcha mehmonxonalar.</p>
             </div>
@@ -203,6 +203,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
+import { useHotelsStore } from '../../../stores/hotels'
 
 interface Qa {
   id: number
@@ -216,7 +217,10 @@ interface Qa {
   is_active: boolean
 }
 
-const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Park', 'Grand Al Shahba', 'Bosphorus', 'Saja Al Madina', 'Hawada']
+// Dashboard-managed hotel list (Mehmonxonalar page). hotelOptions(current) keeps
+// the entry's already-saved hotel selectable even if it was later removed.
+const hotelsStore = useHotelsStore()
+const hotelOptions = (current?: string | null) => hotelsStore.optionsFor(current)
 
 const entries = ref<Qa[]>([])
 const loading = ref(false)
@@ -330,7 +334,7 @@ async function loadQa() {
   }
 }
 
-onMounted(loadQa)
+onMounted(() => { hotelsStore.fetch(); loadQa() })
 </script>
 
 <style scoped>

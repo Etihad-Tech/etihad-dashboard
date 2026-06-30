@@ -128,6 +128,7 @@ const NAV_GROUPS = [
   ] },
   { title: 'Safar va guruhlar', items: [
     { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
+    { to: '/ai/hotels', label: 'Mehmonxonalar', icon: 'hotel' },
     { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
   ] },
   { title: 'Bot javoblari', items: [
@@ -144,6 +145,7 @@ const NAV_GROUPS = [
   ] },
   { title: 'Tizim', items: [
     { to: '/ai/settings', label: 'Sozlamalar', icon: 'gear' },
+    { to: '/ai/audit-log', label: 'Audit jurnali', icon: 'clock-rotate-left' },
     { to: '/ai/redis', label: 'Redis Monitor', icon: 'database' },
   ] },
 ]
@@ -151,7 +153,9 @@ const NAV_GROUPS = [
 // Role-limited managers see only their own panel; admin sees everything.
 function allowed(to: string): boolean {
   if (auth.role === 'flight') return to === '/ai/reyslar'
-  // qa: knowledge base + per-group hotel/tier setup (Guruhlar)
+  // qa: knowledge base + per-group hotel/tier setup (Guruhlar). The Mehmonxonalar
+  // (hotels) management page is admin-only; qa still gets the hotel list for the
+  // dropdowns via the GET /hotels endpoint.
   if (auth.role === 'qa') return ['/ai/qa', '/ai/groups'].includes(to)
   // mingboshi: leaders + staff + inquiry routing
   if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish'].includes(to)
