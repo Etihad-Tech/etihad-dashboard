@@ -85,14 +85,14 @@
                 <label class="block text-[11px] text-gray-400 mb-1">Madina mehmonxonasi</label>
                 <select v-model="g.hotel_madina" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                   <option value="">—</option>
-                  <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                  <option v-for="h in hotelOptions('madina', g.hotel_madina)" :key="h" :value="h">{{ h }}</option>
                 </select>
               </div>
               <div class="col-span-2">
                 <label class="block text-[11px] text-gray-400 mb-1">Makka mehmonxonasi</label>
-                <select v-model="g.hotel_makka" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <select v-model="g.hotel_makka" @change="applyHotelTier(g)" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                   <option value="">—</option>
-                  <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                  <option v-for="h in hotelOptions('makka', g.hotel_makka)" :key="h" :value="h">{{ h }}</option>
                 </select>
               </div>
               <div v-if="isSaturday(g)" class="col-span-2">
@@ -102,7 +102,7 @@
                 </label>
                 <select v-model="g.hotel_jidda" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                   <option value="">—</option>
-                  <option v-for="h in HOTELS" :key="h" :value="h">{{ h }}</option>
+                  <option v-for="h in hotelOptions('jidda', g.hotel_jidda)" :key="h" :value="h">{{ h }}</option>
                 </select>
               </div>
             </div>
@@ -131,8 +131,20 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api, { teamApi } from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
+import { useHotelsStore } from '../../../stores/hotels'
 
-const HOTELS = ['Swissotel Makka', 'Anjum', 'Jumeirah', 'Makkah Towers', 'Taj Park', 'Grand Al Shahba', 'Bosphorus', 'Saja Al Madina', 'Hawada']
+// Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
+// Keeps a group's already-saved hotel in the list even if it was later removed.
+const hotelsStore = useHotelsStore()
+const hotelOptions = (city: string, current?: string | null) => hotelsStore.optionsForCity(city, current)
+
+// When a Makka hotel is picked, apply its default tier (Taj Park = comfort, etc.)
+// to the group — this is what the hotel's `default_tier` is for. The admin can
+// still override the tier select afterwards.
+function applyHotelTier(g: Grp) {
+  const h = hotelsStore.items.find(x => x.name === g.hotel_makka)
+  if (h?.default_tier) g.hotel_tier = h.default_tier
+}
 
 type Order = 'madina_makka' | 'makka_madina'
 
@@ -303,5 +315,5 @@ async function save(g: Grp) {
   }
 }
 
-onMounted(load)
+onMounted(() => { hotelsStore.fetch(); load() })
 </script>
