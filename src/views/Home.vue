@@ -104,6 +104,22 @@
               Reys (Payshanba/Shanba) shu sanadan aniqlanadi — bot "samolyot qachon uchadi?" savoliga aniq vaqt bilan javob beradi.
             </p>
             <div class="flex items-center justify-between gap-2 pt-1">
+              <span class="text-xs text-gray-500 shrink-0">Safar oldi majlis</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" :class="majlisMeeting(group.trip_start_date).cls">{{ majlisMeeting(group.trip_start_date).text }}</span>
+                <input
+                  :value="group.preflight_majlis_time || ''"
+                  @change="onMajlisTimeChange(group, $event)"
+                  :disabled="majlisSaving === group.chat_id"
+                  type="time"
+                  class="w-32 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+                />
+              </div>
+            </div>
+            <p class="text-[10px] text-gray-400 leading-snug">
+              Majlis kuni jo'nash sanasidan avtomatik aniqlanadi (reysdan 3 kun oldin: Payshanba→Dushanba, Shanba→Chorshanba). Faqat vaqtni kiriting — bot "majlis qachon?" savoliga to'liq taklif bilan javob beradi.
+            </p>
+            <div class="flex items-center justify-between gap-2 pt-1">
               <span class="text-xs text-gray-500 shrink-0">Mehmonxona — Makka</span>
               <select
                 :value="group.hotel_makka || ''"
@@ -190,6 +206,7 @@ const tierSaving = ref<string | null>(null)
 const leaderSaving = ref<string | null>(null)
 const dateSaving = ref<string | null>(null)
 const hotelSaving = ref<string | null>(null)
+const majlisSaving = ref<string | null>(null)
 
 // Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
 // Keeps a group's already-saved hotel selectable even if it was later removed.
@@ -213,6 +230,33 @@ async function onDateChange(group: GroupInfo, event: Event) {
     await groupsStore.setTripStartDate(group.chat_id, date)
   } finally {
     dateSaving.value = null
+  }
+}
+
+// Mirrors the bot: the pre-flight majlis is 3 days before departure (Payshanba→Dushanba,
+// Shanba→Chorshanba). Shows the derived meeting date so the admin sees which meeting the
+// time is for; only the time is entered, the day/date follow the trip date automatically.
+const UZ_WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
+const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr']
+function majlisMeeting(dateStr: string | null) {
+  if (!dateStr) return { text: 'Sana yo\'q', cls: 'bg-gray-100 text-gray-400' }
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dep = new Date(y || 1970, (m || 1) - 1, d || 1)
+  const dow = dep.getDay() // Sun=0 .. Sat=6
+  if (dow !== 4 && dow !== 6) return { text: 'Reys yo\'q', cls: 'bg-amber-50 text-amber-600' }
+  const meet = new Date(dep)
+  meet.setDate(meet.getDate() - 3)
+  return { text: `${UZ_WEEKDAYS[meet.getDay()]}, ${meet.getDate()}-${UZ_MONTHS[meet.getMonth()]}`, cls: 'bg-emerald-50 text-emerald-600' }
+}
+
+async function onMajlisTimeChange(group: GroupInfo, event: Event) {
+  const timeStr = (event.target as HTMLInputElement).value
+  if (timeStr === (group.preflight_majlis_time || '')) return
+  majlisSaving.value = group.chat_id
+  try {
+    await groupsStore.setPreflightMajlisTime(group.chat_id, timeStr)
+  } finally {
+    majlisSaving.value = null
   }
 }
 
