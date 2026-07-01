@@ -154,8 +154,8 @@ const router = createRouter({
 // confined to their one panel; admin (and team-only/legacy, role null) unchanged.
 const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', admin: '/' }
 
-// The mingboshi manages leaders, staff, and inquiry routing.
-const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish']
+// The mingboshi manages leaders, staff, inquiry routing, and the hotels list.
+const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/hotels']
 // The qa manager owns the knowledge base, the per-group hotel/tier setup
 // (/ai/groups), AND the main Guruhlar page ('/') where the bots are started per
 // group (needs a Turon team token — the login posts to both APIs to obtain one).

@@ -15,6 +15,7 @@ export interface GroupInfo {
   trip_start_date: string | null  // 'YYYY-MM-DD' departure date; drives the exact flight answer
   hotel_makka: string | null  // this group's Makka hotel (per-hotel facility answers)
   hotel_madina: string | null  // this group's Madina hotel
+  preflight_majlis_time: string | null  // 'HH:MM' safar-oldi majlis time; day derives from trip date
 }
 
 export const useGroupsStore = defineStore('groups', () => {
@@ -48,6 +49,7 @@ export const useGroupsStore = defineStore('groups', () => {
       const dateById = new Map<string, string>()
       const makkaById = new Map<string, string>()
       const madinaById = new Map<string, string>()
+      const majlisById = new Map<string, string>()
       if (aiGroupsResult.status === 'fulfilled') {
         for (const g of aiGroupsResult.value.data) {
           aiGroupIds.add(String(g.id))
@@ -56,6 +58,7 @@ export const useGroupsStore = defineStore('groups', () => {
           dateById.set(String(g.id), g.trip_start_date || '')
           makkaById.set(String(g.id), g.hotel_makka || '')
           madinaById.set(String(g.id), g.hotel_madina || '')
+          majlisById.set(String(g.id), g.preflight_majlis_time || '')
         }
       }
 
@@ -77,6 +80,7 @@ export const useGroupsStore = defineStore('groups', () => {
             trip_start_date: dateById.get(chatId) ?? '',
             hotel_makka: makkaById.get(chatId) ?? '',
             hotel_madina: madinaById.get(chatId) ?? '',
+            preflight_majlis_time: majlisById.get(chatId) ?? '',
           })
         }
       }
@@ -145,5 +149,14 @@ export const useGroupsStore = defineStore('groups', () => {
     }
   }
 
-  return { items, loading, sending, fetchGroups, sendNowPosts, setHotelTier, setEllikboshi, setTripStartDate, setHotel }
+  async function setPreflightMajlisTime(chatId: string, timeStr: string) {
+    // Time ('HH:MM') of the safar-oldi (pre-flight) Tashkent majlis. The bot derives
+    // the day/date from the trip date (trip - 3 days) and fills the invite template.
+    // '' clears it -> the bot defers the question to the ellikboshi.
+    await aiApi.put(`/groups/${chatId}/location/public`, { preflight_majlis_time: timeStr || null })
+    const idx = items.value.findIndex(g => g.chat_id === chatId)
+    if (idx !== -1) items.value[idx].preflight_majlis_time = timeStr
+  }
+
+  return { items, loading, sending, fetchGroups, sendNowPosts, setHotelTier, setEllikboshi, setTripStartDate, setHotel, setPreflightMajlisTime }
 })
