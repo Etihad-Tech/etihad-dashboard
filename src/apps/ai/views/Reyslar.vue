@@ -205,7 +205,7 @@
                   </div>
                   <div>
                     <label class="block text-[11px] text-gray-400 mb-1">
-                      Yetib borish vaqti
+                      Yetib borish vaqti<span v-if="excForm[s.id].leg === 'Qaytish'" class="text-rose-500"> *</span>
                       <span class="text-amber-600">— {{ excArrCity(s) }}</span>
                     </label>
                     <input v-model="excForm[s.id].newArr" type="time" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
@@ -431,6 +431,9 @@ async function addExc(s: Flight) {
   excNotice.value[s.id] = ''
   if (!f.date) { excError.value[s.id] = 'Reys sanasini tanlang.'; return }
   if (!f.newDep && !f.newDate) { excError.value[s.id] = 'Yangi vaqt yoki yangi sanani kiriting.'; return }
+  // Return leg lands in the home city — pilgrims always ask "when do we arrive?",
+  // so the bot needs it. Require arrival for any return-leg change.
+  if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
   excSavingId.value = s.id
   try {
     const { data } = await api.post(`/flights/${s.id}/exceptions`, {
