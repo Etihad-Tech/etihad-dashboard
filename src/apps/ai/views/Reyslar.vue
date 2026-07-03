@@ -163,36 +163,47 @@
 
             <div v-if="excOpen[s.id]" class="mt-3 space-y-3">
               <div v-if="(excs[s.id] || []).length" class="space-y-1.5">
-                <div v-for="e in excs[s.id]" :key="e.id" class="flex items-center gap-2 text-xs bg-amber-50/70 border border-amber-100 rounded-xl px-3 py-2">
+                <div v-for="e in excs[s.id]" :key="e.id" class="flex items-center gap-2 text-xs rounded-xl px-3 py-2 border" :class="excEditId[s.id] === e.id ? 'bg-amber-100/80 border-amber-300' : 'bg-amber-50/70 border-amber-100'">
                   <span class="font-medium text-gray-700">{{ dmy(e.flight_date) }}</span>
                   <span class="text-gray-400">({{ legForDate(s, e.flight_date) }})</span>
                   <span class="text-gray-300">→</span>
                   <span class="text-amber-700 font-medium">{{ changeSummary(e) }}</span>
-                  <button @click="removeExc(s, e)" :disabled="excDeletingId === e.id" class="ml-auto text-gray-300 hover:text-rose-600 disabled:opacity-40 transition-colors">
-                    <font-awesome-icon icon="trash" class="w-3 h-3" />
-                  </button>
+                  <div class="ml-auto flex items-center gap-2">
+                    <button @click="startEditExc(s, e)" class="text-gray-300 hover:text-amber-600 transition-colors" title="Tahrirlash">
+                      <font-awesome-icon icon="pen" class="w-3 h-3" />
+                    </button>
+                    <button @click="removeExc(s, e)" :disabled="excDeletingId === e.id" class="text-gray-300 hover:text-rose-600 disabled:opacity-40 transition-colors" title="O'chirish">
+                      <font-awesome-icon icon="trash" class="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
               <p v-else class="text-xs text-gray-400">Hozircha o'zgarish yo'q.</p>
 
               <div class="bg-gray-50/60 rounded-2xl p-3 space-y-2">
-                <div>
-                  <label class="block text-[11px] text-gray-400 mb-1">Qaysi reys o'zgardi?</label>
-                  <div class="grid grid-cols-2 gap-2">
-                    <button type="button" @click="setExcLeg(s, 'Borish')"
-                      :class="excForm[s.id].leg === 'Borish' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'"
-                      class="px-2 py-1.5 text-xs font-medium rounded-xl border transition-colors">🛫 Borish (ketish)</button>
-                    <button type="button" @click="setExcLeg(s, 'Qaytish')"
-                      :class="excForm[s.id].leg === 'Qaytish' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'"
-                      class="px-2 py-1.5 text-xs font-medium rounded-xl border transition-colors">🛬 Qaytish (uyga)</button>
+                <template v-if="!excEditId[s.id]">
+                  <div>
+                    <label class="block text-[11px] text-gray-400 mb-1">Qaysi reys o'zgardi?</label>
+                    <div class="grid grid-cols-2 gap-2">
+                      <button type="button" @click="setExcLeg(s, 'Borish')"
+                        :class="excForm[s.id].leg === 'Borish' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'"
+                        class="px-2 py-1.5 text-xs font-medium rounded-xl border transition-colors">🛫 Borish (ketish)</button>
+                      <button type="button" @click="setExcLeg(s, 'Qaytish')"
+                        :class="excForm[s.id].leg === 'Qaytish' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'"
+                        class="px-2 py-1.5 text-xs font-medium rounded-xl border transition-colors">🛬 Qaytish (uyga)</button>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label class="block text-[11px] text-gray-400 mb-1">Qaysi kuni?</label>
-                  <select v-model="excForm[s.id].date" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
-                    <option value="">— sanani tanlang —</option>
-                    <option v-for="o in availableForLeg(s)" :key="o.iso" :value="o.iso">{{ dmy(o.iso) }} ({{ o.time }})</option>
-                  </select>
+                  <div>
+                    <label class="block text-[11px] text-gray-400 mb-1">Qaysi kuni?</label>
+                    <select v-model="excForm[s.id].date" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+                      <option value="">— sanani tanlang —</option>
+                      <option v-for="o in availableForLeg(s)" :key="o.iso" :value="o.iso">{{ dmy(o.iso) }} ({{ o.time }})</option>
+                    </select>
+                  </div>
+                </template>
+                <div v-else class="flex items-center gap-2 text-[11px]">
+                  <span class="px-2 py-1 rounded-lg bg-amber-100 text-amber-800 font-medium">✏️ Tahrirlash: {{ dmy(excForm[s.id].date) }} ({{ excForm[s.id].leg }})</span>
+                  <button type="button" @click="cancelEditExc(s)" class="ml-auto text-gray-400 hover:text-gray-600 transition-colors">Bekor qilish</button>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <div>
@@ -213,8 +224,8 @@
                 </div>
                 <p class="text-[11px] text-gray-400">Har ikki vaqt ham o'z shahrining mahalliy vaqti bilan. Yetib borish vaqti ziyoratchilar ko'p so'raydigan ma'lumot.</p>
                 <div class="flex justify-end">
-                  <button @click="addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
-                    {{ excSavingId === s.id ? '...' : "Qo'shish" }}
+                  <button @click="excEditId[s.id] ? saveEditExc(s) : addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
+                    {{ excSavingId === s.id ? '...' : (excEditId[s.id] ? 'Saqlash' : "Qo'shish") }}
                   </button>
                 </div>
                 <button type="button" @click="excForm[s.id].more = !excForm[s.id].more" class="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
@@ -366,6 +377,7 @@ const excError = ref<Record<number, string>>({})
 const excNotice = ref<Record<number, string>>({})
 const excSavingId = ref<number | null>(null)
 const excDeletingId = ref<number | null>(null)
+const excEditId = ref<Record<number, number | null>>({})  // exc id being edited, per schedule
 
 function retWeekday(s: Flight) { return (s.departure_weekday + s.nights) % 7 }
 function legForDate(s: Flight, iso: string) {
@@ -458,10 +470,61 @@ async function removeExc(s: Flight, e: Exc) {
   try {
     const { data } = await api.delete(`/flights/exceptions/${e.id}`)
     excs.value[s.id] = (excs.value[s.id] || []).filter(x => x.id !== e.id)
+    if (excEditId.value[s.id] === e.id) cancelEditExc(s)
     const n = data?.notified ?? 0
     excNotice.value[s.id] = n > 0 ? `✓ ${n} ta guruhga "jadval o'z holiga qaytdi" xabari yuborildi` : "✓ O'chirildi"
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
   } catch { /* ignore */ } finally { excDeletingId.value = null }
+}
+
+// Load an existing change into the form for in-place editing. The anchor date +
+// leg are fixed (identity of the occurrence) — only the new times/day are editable.
+function startEditExc(s: Flight, e: Exc) {
+  excEditId.value[s.id] = e.id
+  excError.value[s.id] = ''
+  excNotice.value[s.id] = ''
+  excForm.value[s.id] = {
+    leg: legForDate(s, e.flight_date),
+    date: e.flight_date,
+    newDep: e.new_dep || '',
+    newDate: e.new_date || '',
+    newArr: e.new_arr || '',
+    more: !!e.new_date,
+  }
+}
+
+function cancelEditExc(s: Flight) {
+  excEditId.value[s.id] = null
+  excError.value[s.id] = ''
+  resetExcForm(s)
+}
+
+async function saveEditExc(s: Flight) {
+  const f = excForm.value[s.id]
+  const id = excEditId.value[s.id]
+  if (!id) return
+  excError.value[s.id] = ''
+  excNotice.value[s.id] = ''
+  if (!f.newDep && !f.newDate) { excError.value[s.id] = 'Yangi vaqt yoki yangi sanani kiriting.'; return }
+  if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  excSavingId.value = s.id
+  try {
+    const { data } = await api.patch(`/flights/exceptions/${id}`, {
+      new_dep: f.newDep || null, new_date: f.newDate || null, new_arr: f.newArr || null,
+    })
+    const arr = excs.value[s.id] || []
+    const idx = arr.findIndex(x => x.id === id)
+    if (idx >= 0) arr[idx] = data
+    const n = data.notified ?? 0
+    excNotice.value[s.id] = n > 0 ? `✓ ${n} ta guruhga yangilangan xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
+    setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
+    excEditId.value[s.id] = null
+    resetExcForm(s)
+  } catch (e: any) {
+    excError.value[s.id] = e?.response?.data?.detail || 'Xatolik. Qayta urinib ko\'ring.'
+  } finally {
+    excSavingId.value = null
+  }
 }
 
 async function load() {
