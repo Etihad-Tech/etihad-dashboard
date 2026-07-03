@@ -194,32 +194,36 @@
                     <option v-for="o in availableForLeg(s)" :key="o.iso" :value="o.iso">{{ dmy(o.iso) }} ({{ o.time }})</option>
                   </select>
                 </div>
-                <div>
-                  <label class="block text-[11px] text-gray-400 mb-1">
-                    Yangi {{ excForm[s.id].leg === 'Qaytish' ? "qaytish" : "jo'nash" }} vaqti
-                    <span class="text-amber-600">— {{ excDepCity(s) }} (mahalliy vaqt)</span>
-                    <span v-if="selectedOccTime(s)" class="text-gray-400">· hozirgi {{ selectedOccTime(s) }}</span>
-                  </label>
-                  <div class="flex gap-2">
-                    <input v-model="excForm[s.id].newDep" type="time" class="flex-1 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                    <button @click="addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
-                      {{ excSavingId === s.id ? '...' : "Qo'shish" }}
-                    </button>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-[11px] text-gray-400 mb-1">
+                      Yangi {{ excForm[s.id].leg === 'Qaytish' ? "qaytish" : "jo'nash" }} vaqti
+                      <span class="text-amber-600">— {{ excDepCity(s) }}</span>
+                      <span v-if="selectedOccTime(s)" class="text-gray-400">· hozirgi {{ selectedOccTime(s) }}</span>
+                    </label>
+                    <input v-model="excForm[s.id].newDep" type="time" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
                   </div>
+                  <div>
+                    <label class="block text-[11px] text-gray-400 mb-1">
+                      Yetib borish vaqti<span v-if="excForm[s.id].leg === 'Qaytish'" class="text-rose-500"> *</span>
+                      <span class="text-amber-600">— {{ excArrCity(s) }}</span>
+                    </label>
+                    <input v-model="excForm[s.id].newArr" type="time" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                </div>
+                <p class="text-[11px] text-gray-400">Har ikki vaqt ham o'z shahrining mahalliy vaqti bilan. Yetib borish vaqti ziyoratchilar ko'p so'raydigan ma'lumot.</p>
+                <div class="flex justify-end">
+                  <button @click="addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
+                    {{ excSavingId === s.id ? '...' : "Qo'shish" }}
+                  </button>
                 </div>
                 <button type="button" @click="excForm[s.id].more = !excForm[s.id].more" class="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
                   <font-awesome-icon :icon="excForm[s.id].more ? 'xmark' : 'plus'" class="w-2.5 h-2.5" />
-                  Qo'shimcha (boshqa kunga ko'chdi / yetib borish vaqti)
+                  Qo'shimcha (boshqa kunga ko'chdi)
                 </button>
-                <div v-if="excForm[s.id].more" class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-[11px] text-gray-400 mb-1">Boshqa kunga ko'chdi (sana)</label>
-                    <input v-model="excForm[s.id].newDate" type="date" :min="excForm[s.id].date || todayISO" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
-                  <div>
-                    <label class="block text-[11px] text-gray-400 mb-1">Yetib borish vaqti</label>
-                    <input v-model="excForm[s.id].newArr" type="time" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
+                <div v-if="excForm[s.id].more">
+                  <label class="block text-[11px] text-gray-400 mb-1">Boshqa kunga ko'chdi (sana)</label>
+                  <input v-model="excForm[s.id].newDate" type="date" :min="excForm[s.id].date || todayISO" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
                 <p class="text-[11px] text-gray-400">Qo'shilganda, o'sha sanada uchadigan guruhga avtomatik xabar yuboriladi.</p>
                 <p v-if="excNotice[s.id]" class="text-xs text-emerald-600">{{ excNotice[s.id] }}</p>
@@ -407,6 +411,9 @@ function selectedOccTime(s: Flight) { const iso = excForm.value[s.id]?.date; ret
 // Departure city for the selected leg — its LOCAL time is what the group needs
 // (return departs Jidda/Madina = Saudi local time, where the pilgrims are).
 function excDepCity(s: Flight) { return cityLabel(excForm.value[s.id]?.leg === 'Qaytish' ? s.return_from : s.outbound_from) }
+// Arrival city for the selected leg — its arrival time is what pilgrims ask about
+// ("when do we land in Tashkent?"), stated in that city's OWN local time.
+function excArrCity(s: Flight) { return cityLabel(excForm.value[s.id]?.leg === 'Qaytish' ? s.return_to : s.outbound_to) }
 
 function toggleExc(s: Flight) {
   if (!excForm.value[s.id]) resetExcForm(s)
@@ -424,6 +431,9 @@ async function addExc(s: Flight) {
   excNotice.value[s.id] = ''
   if (!f.date) { excError.value[s.id] = 'Reys sanasini tanlang.'; return }
   if (!f.newDep && !f.newDate) { excError.value[s.id] = 'Yangi vaqt yoki yangi sanani kiriting.'; return }
+  // Return leg lands in the home city — pilgrims always ask "when do we arrive?",
+  // so the bot needs it. Require arrival for any return-leg change.
+  if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
   excSavingId.value = s.id
   try {
     const { data } = await api.post(`/flights/${s.id}/exceptions`, {
