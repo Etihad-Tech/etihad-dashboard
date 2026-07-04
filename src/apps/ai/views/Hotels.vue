@@ -129,6 +129,59 @@
                 </select>
               </div>
             </div>
+
+            <!-- Structured facts the bot answers automatically (verbatim). Blank = the
+                 bot stays silent on that item rather than guessing. -->
+            <div class="pt-3 border-t border-gray-100">
+              <p class="text-xs font-semibold text-gray-600 mb-2">Qavatlar</p>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label :class="labelCls">Masjid qavati</label>
+                  <input v-model="form.mosque_floor" type="text" placeholder="2" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Oshxona qavati</label>
+                  <input v-model="form.dining_floor" type="text" placeholder="1" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Loby (ishchi guruh)</label>
+                  <input v-model="form.lobby_floor" type="text" placeholder="0" :class="inputCls" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p class="text-xs font-semibold text-gray-600 mb-2">Ovqat vaqtlari</p>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label :class="labelCls">Nonushta</label>
+                  <input v-model="form.breakfast_time" type="text" placeholder="07:00-09:00" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Tushlik</label>
+                  <input v-model="form.lunch_time" type="text" placeholder="13:00-14:30" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Kechki ovqat</label>
+                  <input v-model="form.dinner_time" type="text" placeholder="19:00-21:00" :class="inputCls" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p class="text-xs font-semibold text-gray-600 mb-2">Wi-Fi</p>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label :class="labelCls">Wi-Fi nomi</label>
+                  <input v-model="form.wifi_name" type="text" placeholder="EtihadHotel" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Wi-Fi paroli</label>
+                  <input v-model="form.wifi_code" type="text" placeholder="********" :class="inputCls" />
+                </div>
+              </div>
+            </div>
+
             <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
           </div>
           <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
@@ -155,7 +208,25 @@ const saving = ref(false)
 const modalOpen = ref(false)
 const modalEditId = ref<number | null>(null)
 const formError = ref('')
-const form = ref<{ name: string; city: string; default_tier: string }>({ name: '', city: '', default_tier: '' })
+// Shared styling for the added hotel-detail inputs.
+const inputCls = 'w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
+const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
+
+type HotelForm = {
+  name: string; city: string; default_tier: string
+  mosque_floor: string; dining_floor: string; lobby_floor: string
+  breakfast_time: string; lunch_time: string; dinner_time: string
+  wifi_name: string; wifi_code: string
+}
+function blankForm(): HotelForm {
+  return {
+    name: '', city: '', default_tier: '',
+    mosque_floor: '', dining_floor: '', lobby_floor: '',
+    breakfast_time: '', lunch_time: '', dinner_time: '',
+    wifi_name: '', wifi_code: '',
+  }
+}
+const form = ref<HotelForm>(blankForm())
 
 const CITIES = [
   { value: 'makka', label: 'Makka' },
@@ -170,14 +241,19 @@ const canSave = computed(() => !!form.value.name.trim())
 function openAdd() {
   modalEditId.value = null
   formError.value = ''
-  form.value = { name: '', city: '', default_tier: '' }
+  form.value = blankForm()
   modalOpen.value = true
 }
 
 function openEdit(h: Hotel) {
   modalEditId.value = h.id
   formError.value = ''
-  form.value = { name: h.name, city: h.city || '', default_tier: h.default_tier || '' }
+  form.value = {
+    name: h.name, city: h.city || '', default_tier: h.default_tier || '',
+    mosque_floor: h.mosque_floor || '', dining_floor: h.dining_floor || '', lobby_floor: h.lobby_floor || '',
+    breakfast_time: h.breakfast_time || '', lunch_time: h.lunch_time || '', dinner_time: h.dinner_time || '',
+    wifi_name: h.wifi_name || '', wifi_code: h.wifi_code || '',
+  }
   modalOpen.value = true
 }
 
@@ -194,6 +270,14 @@ async function saveModal() {
     name: form.value.name.trim(),
     city: form.value.city || null,
     default_tier: form.value.default_tier || null,
+    mosque_floor: form.value.mosque_floor.trim() || null,
+    dining_floor: form.value.dining_floor.trim() || null,
+    lobby_floor: form.value.lobby_floor.trim() || null,
+    breakfast_time: form.value.breakfast_time.trim() || null,
+    lunch_time: form.value.lunch_time.trim() || null,
+    dinner_time: form.value.dinner_time.trim() || null,
+    wifi_name: form.value.wifi_name.trim() || null,
+    wifi_code: form.value.wifi_code.trim() || null,
   }
   try {
     if (modalEditId.value) {
