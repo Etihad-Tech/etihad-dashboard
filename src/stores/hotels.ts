@@ -2,7 +2,19 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import api from '../api'
 
-export interface Hotel {
+// Structured per-hotel facts the bot answers verbatim (Mehmonxonalar form).
+export interface HotelDetails {
+  mosque_floor?: string | null
+  dining_floor?: string | null
+  lobby_floor?: string | null
+  breakfast_time?: string | null
+  lunch_time?: string | null
+  dinner_time?: string | null
+  wifi_name?: string | null
+  wifi_code?: string | null
+}
+
+export interface Hotel extends HotelDetails {
   id: number
   name: string
   city: string | null          // makka | madina | jidda | flexible
@@ -37,13 +49,13 @@ export const useHotelsStore = defineStore('hotels', () => {
     }
   }
 
-  async function add(payload: { name: string; city?: string | null; default_tier?: string | null }): Promise<Hotel> {
+  async function add(payload: { name: string; city?: string | null; default_tier?: string | null } & HotelDetails): Promise<Hotel> {
     const { data } = await api.post('/hotels', payload)
     items.value.push(data)
     return data
   }
 
-  async function update(id: number, payload: { name?: string; city?: string | null; default_tier?: string | null; is_active?: boolean }): Promise<Hotel> {
+  async function update(id: number, payload: { name?: string; city?: string | null; default_tier?: string | null; is_active?: boolean } & HotelDetails): Promise<Hotel> {
     const { data } = await api.put(`/hotels/${id}`, payload)
     const idx = items.value.findIndex(h => h.id === id)
     if (idx !== -1) items.value[idx] = data

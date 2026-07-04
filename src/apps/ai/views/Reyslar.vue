@@ -112,6 +112,11 @@
             </div>
           </div>
 
+          <div class="mb-4">
+            <label class="block text-xs text-gray-400 mb-1">Borish reys raqami (ixtiyoriy)</label>
+            <input v-model="s.outbound_flight_no" type="text" maxlength="16" placeholder="masalan, C8 501" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+
           <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🛬 Qaytish</p>
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
@@ -134,6 +139,11 @@
               <label class="block text-xs text-gray-400 mb-1">Yetib borish vaqti</label>
               <input v-model="s.return_arr" type="time" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
             </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-xs text-gray-400 mb-1">Qaytish reys raqami (ixtiyoriy)</label>
+            <input v-model="s.return_flight_no" type="text" maxlength="16" placeholder="masalan, C8 502" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
 
           <label class="flex items-center gap-2 text-sm text-gray-600 mb-4 cursor-pointer">
@@ -278,6 +288,8 @@ interface Flight {
   return_arr: string
   return_next_day: boolean
   airline: string | null
+  outbound_flight_no: string | null
+  return_flight_no: string | null
   is_active: boolean
 }
 
@@ -557,6 +569,8 @@ async function save(s: Flight) {
       return_arr: s.return_arr,
       return_next_day: s.return_next_day,
       airline: s.airline || null,
+      outbound_flight_no: s.outbound_flight_no || null,
+      return_flight_no: s.return_flight_no || null,
     })
     const idx = schedules.value.findIndex(x => x.id === s.id)
     if (idx !== -1) schedules.value[idx] = data
