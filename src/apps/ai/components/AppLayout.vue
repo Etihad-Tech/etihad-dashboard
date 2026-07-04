@@ -153,10 +153,10 @@ const NAV_GROUPS = [
 // Role-limited managers see only their own panel; admin sees everything.
 function allowed(to: string): boolean {
   if (auth.role === 'flight') return to === '/ai/reyslar'
-  // qa: knowledge base + per-group hotel/tier setup (Guruhlar). The Mehmonxonalar
-  // (hotels) management page is admin-only; qa still gets the hotel list for the
-  // dropdowns via the GET /hotels endpoint.
-  if (auth.role === 'qa') return ['/ai/qa', '/ai/groups'].includes(to)
+  // qa: knowledge base + response templates (Shablonlar) + per-group hotel/tier
+  // setup (Guruhlar). The Mehmonxonalar (hotels) management page is admin-only; qa
+  // still gets the hotel list for the dropdowns via the GET /hotels endpoint.
+  if (auth.role === 'qa') return ['/ai/qa', '/ai/groups', '/ai/templates'].includes(to)
   // mingboshi: leaders + staff + inquiry routing + hotels management
   if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/hotels'].includes(to)
   return true
