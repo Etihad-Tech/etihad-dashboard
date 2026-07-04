@@ -50,67 +50,56 @@
         <p class="text-gray-400">Hozircha savollar yo'q</p>
       </div>
 
-      <div v-else class="space-y-8">
-        <div v-for="(group, gi) in grouped" :key="group.category" class="animate-fade-up" :style="{ animationDelay: `${(gi + 1) * 30}ms` }">
-          <div class="flex items-center gap-2 mb-3">
-            <font-awesome-icon icon="circle-question" class="w-4 h-4 text-amber-600" />
-            <h3 class="text-base font-semibold text-gray-900">{{ group.category || 'Boshqa' }}</h3>
-            <span class="text-xs text-gray-400">({{ group.items.length }})</span>
-          </div>
+      <div v-else class="space-y-3">
+        <div class="flex items-center justify-end gap-1">
+          <button @click="setAllOpen(true)" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">Barchasini yoyish</button>
+          <button @click="setAllOpen(false)" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">Barchasini yig'ish</button>
+        </div>
 
-          <div class="space-y-3">
-            <div
-              v-for="q in group.items"
-              :key="q.id"
-              class="bg-white rounded-3xl border p-5 flex items-start justify-between gap-4 transition-all"
-              :class="q.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-gray-900">
-                  {{ q.question }}
-                  <span v-if="q.tier"
-                    class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                    :class="q.tier === 'comfort' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700'">
-                    {{ q.tier === 'comfort' ? 'Komfort' : 'Premium/Lux' }}
-                  </span>
-                  <span v-if="q.hotel"
-                    class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
-                    🏨 {{ q.hotel }}
-                  </span>
-                </p>
-                <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ q.answer }}</p>
-                <p v-if="q.keywords" class="text-[11px] text-gray-400 mt-1.5 truncate">
-                  <font-awesome-icon icon="tag" class="w-3 h-3 mr-1" />{{ q.keywords }}
-                </p>
-                <p v-if="q.staff_username" class="text-[11px] text-emerald-600 mt-1 font-medium">
-                  👤 {{ q.staff_username }}
-                </p>
+        <div
+          v-for="(group, gi) in grouped"
+          :key="group.category"
+          class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up"
+          :style="{ animationDelay: `${(gi + 1) * 30}ms` }"
+        >
+          <!-- category header (tap +/- to open/close) -->
+          <button
+            @click="toggleCat(group.category)"
+            class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+          >
+            <span
+              class="w-6 h-6 flex items-center justify-center rounded-lg border text-base font-semibold leading-none shrink-0 transition-colors"
+              :class="isCatOpen(group.category) ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-200 text-gray-400'"
+            >{{ isCatOpen(group.category) ? '−' : '+' }}</span>
+            <font-awesome-icon icon="circle-question" class="w-4 h-4 text-amber-600 shrink-0" />
+            <h3 class="text-base font-semibold text-gray-900">{{ group.category }}</h3>
+            <span class="text-xs text-gray-400">({{ group.count }})</span>
+          </button>
+
+          <div v-if="isCatOpen(group.category)" class="px-3 pb-3 space-y-2">
+            <template v-for="sub in group.subs" :key="sub.name || '__loose__'">
+              <!-- entries sitting directly under the category (no sub-group) -->
+              <div v-if="!sub.name" class="space-y-2">
+                <QaEntryCard v-for="q in sub.items" :key="q.id" :q="q" @toggle="toggleActive" @edit="openEdit" @delete="askDelete" />
               </div>
-              <div class="flex items-center gap-1 shrink-0">
+              <!-- a sub-category (tap +/- to open/close) -->
+              <div v-else class="rounded-2xl border border-gray-100 bg-gray-50/60 overflow-hidden">
                 <button
-                  @click="toggleActive(q)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-                  :class="q.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
+                  @click="toggleSub(group.category, sub.name)"
+                  class="w-full flex items-center gap-2.5 px-4 py-2.5 text-left hover:bg-gray-100 transition-colors"
                 >
-                  <font-awesome-icon :icon="q.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-                  {{ q.is_active ? 'Faol' : 'Nofaol' }}
+                  <span
+                    class="w-5 h-5 flex items-center justify-center rounded-md border text-sm font-semibold leading-none shrink-0 transition-colors"
+                    :class="isSubOpen(group.category, sub.name) ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-200 bg-white text-gray-400'"
+                  >{{ isSubOpen(group.category, sub.name) ? '−' : '+' }}</span>
+                  <span class="text-sm font-medium text-gray-700">{{ sub.name }}</span>
+                  <span class="text-xs text-gray-400">({{ sub.items.length }})</span>
                 </button>
-                <button
-                  @click="openEdit(q)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-                >
-                  <font-awesome-icon icon="pen" class="w-3 h-3" />
-                  Tahrirlash
-                </button>
-                <button
-                  @click="askDelete(q.id)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <font-awesome-icon icon="trash" class="w-3 h-3" />
-                  O'chirish
-                </button>
+                <div v-if="isSubOpen(group.category, sub.name)" class="px-2 pb-2 space-y-2">
+                  <QaEntryCard v-for="q in sub.items" :key="q.id" :q="q" @toggle="toggleActive" @edit="openEdit" @delete="askDelete" />
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -139,10 +128,19 @@
             <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Savolni tahrirlash' : 'Yangi savol' }}</h3>
           </div>
           <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Kategoriya (ixtiyoriy)</label>
-              <input v-model="form.category" type="text" placeholder="Masalan: Viza, Ehrom, Ayollar"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Kategoriya (ixtiyoriy)</label>
+                <input v-model="form.category" type="text" list="qa-cat-list" placeholder="Masalan: Aviatsiya"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
+                <datalist id="qa-cat-list"><option v-for="c in allCategories" :key="c" :value="c" /></datalist>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1.5">Kichik bo'lim (ixtiyoriy)</label>
+                <input v-model="form.subcategory" type="text" list="qa-sub-list" placeholder="Masalan: Bilet, Bagaj"
+                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
+                <datalist id="qa-sub-list"><option v-for="s in allSubcategories" :key="s" :value="s" /></datalist>
+              </div>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1.5">Mehmonxona turi (tier)</label>
@@ -200,14 +198,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
+import QaEntryCard from '../components/QaEntryCard.vue'
 import api from '../../../api'
 import { useHotelsStore } from '../../../stores/hotels'
 
 interface Qa {
   id: number
   category: string | null
+  subcategory: string | null
   question: string
   answer: string
   keywords: string | null
@@ -237,32 +237,65 @@ const categories = computed(() => {
   return Object.keys(map).sort().map(name => ({ name, count: map[name] ?? 0 }))
 })
 
+// Two-level tree: category -> [ {name:null = loose entries}, {name:sub, items}, ... ].
 const grouped = computed(() => {
-  const map: Record<string, Qa[]> = {}
+  const cats: Record<string, { subs: Record<string, Qa[]>; loose: Qa[] }> = {}
   for (const q of entries.value) {
-    const key = q.category || 'Boshqa'
-    if (categoryFilter.value && key !== categoryFilter.value) continue
-    ;(map[key] ||= []).push(q)
+    const cat = q.category || 'Boshqa'
+    if (categoryFilter.value && cat !== categoryFilter.value) continue
+    const c = (cats[cat] ||= { subs: {}, loose: [] })
+    const sub = (q.subcategory || '').trim()
+    if (sub) (c.subs[sub] ||= []).push(q)
+    else c.loose.push(q)
   }
-  return Object.keys(map).sort().map(category => ({ category, items: map[category] ?? [] }))
+  return Object.keys(cats).sort().map(category => {
+    const c = cats[category]
+    const subs = Object.keys(c.subs).sort().map(name => ({ name: name as string | null, items: c.subs[name] }))
+    // loose (no-subcategory) entries lead, as a nameless group; then the sub-categories
+    const groups = c.loose.length ? [{ name: null as string | null, items: c.loose }, ...subs] : subs
+    const count = c.loose.length + subs.reduce((n, s) => n + s.items.length, 0)
+    return { category, subs: groups, count }
+  })
 })
+
+// Distinct existing names, for the form datalists (reuse instead of retyping -> tidy).
+const allCategories = computed(() => [...new Set(entries.value.map(q => q.category).filter(Boolean) as string[])].sort())
+const allSubcategories = computed(() => [...new Set(entries.value.map(q => q.subcategory).filter(Boolean) as string[])].sort())
+
+// Collapse state — everything starts collapsed (compact); counts stay visible so
+// nothing is hidden without a trace.
+const openCat = reactive<Record<string, boolean>>({})
+const openSub = reactive<Record<string, boolean>>({})
+const subKey = (cat: string, sub: string) => `${cat}:::${sub}`
+const isCatOpen = (c: string) => !!openCat[c]
+const isSubOpen = (c: string, s: string) => !!openSub[subKey(c, s)]
+const toggleCat = (c: string) => { openCat[c] = !openCat[c] }
+const toggleSub = (c: string, s: string) => { openSub[subKey(c, s)] = !openSub[subKey(c, s)] }
+function setAllOpen(v: boolean) {
+  for (const g of grouped.value) {
+    openCat[g.category] = v
+    for (const s of g.subs) if (s.name) openSub[subKey(g.category, s.name)] = v
+  }
+}
+// Picking a category chip opens that category so its content is visible.
+watch(categoryFilter, v => { if (v) openCat[v] = true })
 
 const modalOpen = ref(false)
 const modalEditId = ref<number | null>(null)
 const formError = ref('')
-const form = ref({ category: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '' })
+const form = ref({ category: '', subcategory: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '' })
 
 function openAdd() {
   modalEditId.value = null
   formError.value = ''
-  form.value = { category: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '' }
+  form.value = { category: '', subcategory: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '' }
   modalOpen.value = true
 }
 
 function openEdit(q: Qa) {
   modalEditId.value = q.id
   formError.value = ''
-  form.value = { category: q.category || '', question: q.question, answer: q.answer, keywords: q.keywords || '', tier: q.tier || '', staff_username: q.staff_username || '', hotel: q.hotel || '' }
+  form.value = { category: q.category || '', subcategory: q.subcategory || '', question: q.question, answer: q.answer, keywords: q.keywords || '', tier: q.tier || '', staff_username: q.staff_username || '', hotel: q.hotel || '' }
   modalOpen.value = true
 }
 
@@ -277,6 +310,7 @@ async function saveModal() {
   formError.value = ''
   const payload = {
     category: form.value.category.trim() || null,
+    subcategory: form.value.subcategory.trim() || null,
     question: form.value.question.trim(),
     answer: form.value.answer.trim(),
     keywords: form.value.keywords.trim() || null,
