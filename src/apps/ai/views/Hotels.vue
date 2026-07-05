@@ -186,6 +186,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import { useHotelsStore, type Hotel } from '../../../stores/hotels'
 import { useConfirm } from '../../../composables/useConfirm'
+import { useToast } from '../../../composables/useToast'
 
 const store = useHotelsStore()
 
@@ -270,6 +271,7 @@ async function saveModal() {
     } else {
       await store.add(payload)
     }
+    toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch (e: any) {
     formError.value = e?.response?.data?.detail || 'Saqlashda xatolik yuz berdi'
@@ -285,6 +287,7 @@ async function toggleActive(h: Hotel) {
 }
 
 const { confirm } = useConfirm()
+const toast = useToast()
 
 async function askDelete(id: number) {
   if (!(await confirm({
@@ -293,7 +296,10 @@ async function askDelete(id: number) {
   }))) return
   try {
     await store.remove(id)
-  } catch { /* ignore */ }
+    toast.success("O'chirildi")
+  } catch {
+    toast.error("O'chirishda xatolik yuz berdi")
+  }
 }
 
 onMounted(() => store.fetch(true))

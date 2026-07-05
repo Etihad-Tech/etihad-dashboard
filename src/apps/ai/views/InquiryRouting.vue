@@ -142,6 +142,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
+import { useToast } from '../../../composables/useToast'
 
 interface Tag {
   id: number
@@ -209,6 +210,7 @@ async function saveModal() {
       const { data } = await api.post('/inquiry-tags', payload)
       tags.value.push(data)
     }
+    toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch {
     formError.value = 'Saqlashda xatolik yuz berdi'
@@ -226,13 +228,17 @@ async function toggleActive(t: Tag) {
 }
 
 const { confirm } = useConfirm()
+const toast = useToast()
 
 async function askDelete(id: number) {
   if (!(await confirm({ title: "O'chirish" }))) return
   try {
     await api.delete(`/inquiry-tags/${id}`)
     tags.value = tags.value.filter(t => t.id !== id)
-  } catch { /* ignore */ }
+    toast.success("O'chirildi")
+  } catch {
+    toast.error("O'chirishda xatolik yuz berdi")
+  }
 }
 
 async function load() {

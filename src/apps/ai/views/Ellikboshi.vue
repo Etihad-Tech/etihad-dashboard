@@ -76,6 +76,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
+import { useToast } from '../../../composables/useToast'
 
 interface Ellik { id: number; username: string; name: string | null; is_active: boolean }
 interface Grp { id: number; title: string | null; ellikboshi_username: string | null }
@@ -147,6 +148,7 @@ async function addToPool() {
 }
 
 const { confirm } = useConfirm()
+const toast = useToast()
 
 async function removeFromPool(e: Ellik) {
   if (!(await confirm({ title: "Ro'yxatdan o'chirish", message: `"${e.name || e.username}" ro'yxatdan o'chirilsinmi?` }))) return
@@ -154,8 +156,9 @@ async function removeFromPool(e: Ellik) {
   try {
     await api.delete(`/ellikboshilar/${e.id}`)
     pool.value = pool.value.filter(x => x.id !== e.id)
+    toast.success("O'chirildi")
   } catch {
-    /* ignore */
+    toast.error("O'chirishda xatolik yuz berdi")
   } finally {
     poolBusy.value = false
   }

@@ -108,6 +108,7 @@ import { onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
+import { useToast } from '../../../composables/useToast'
 
 interface Template {
   id: number
@@ -154,8 +155,11 @@ async function saveModal() {
       const { data } = await api.post('/templates', { text: modalText.value.trim() })
       templates.value.unshift(data)
     }
+    toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
-  } catch { /* ignore */ }
+  } catch {
+    toast.error('Saqlashda xatolik yuz berdi')
+  }
   finally { saving.value = false }
 }
 
@@ -180,13 +184,17 @@ async function toggleActive(tpl: Template) {
 }
 
 const { confirm } = useConfirm()
+const toast = useToast()
 
 async function askDelete(id: number) {
   if (!(await confirm({ title: "Shablonni o'chirish" }))) return
   try {
     await api.delete(`/templates/${id}`)
     templates.value = templates.value.filter(t => t.id !== id)
-  } catch { /* ignore */ }
+    toast.success("O'chirildi")
+  } catch {
+    toast.error("O'chirishda xatolik yuz berdi")
+  }
 }
 
 onMounted(loadTemplates)

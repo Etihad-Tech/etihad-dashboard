@@ -273,6 +273,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
+import { useToast } from '../../../composables/useToast'
 
 interface Flight {
   id: number
@@ -370,6 +371,7 @@ async function createDay() {
 }
 
 const { confirm } = useConfirm()
+const toast = useToast()
 
 async function deleteDay(s: Flight) {
   if (!(await confirm({ title: "Reysni o'chirish", message: `"${s.name}" reysini o'chirasizmi?` }))) return
@@ -377,8 +379,9 @@ async function deleteDay(s: Flight) {
   try {
     await api.delete(`/flights/${s.id}`)
     schedules.value = schedules.value.filter(x => x.id !== s.id)
+    toast.success("O'chirildi")
   } catch {
-    /* ignore */
+    toast.error("O'chirishda xatolik yuz berdi")
   } finally {
     deletingId.value = null
   }
@@ -493,7 +496,9 @@ async function removeExc(s: Flight, e: Exc) {
     const n = data?.notified ?? 0
     excNotice.value[s.id] = n > 0 ? `✓ ${n} ta guruhga "jadval o'z holiga qaytdi" xabari yuborildi` : "✓ O'chirildi"
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
-  } catch { /* ignore */ } finally { excDeletingId.value = null }
+  } catch {
+    toast.error("O'chirishda xatolik yuz berdi")
+  } finally { excDeletingId.value = null }
 }
 
 // Load an existing change into the form for in-place editing. The anchor date +

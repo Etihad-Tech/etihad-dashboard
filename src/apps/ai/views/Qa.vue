@@ -188,8 +188,10 @@ import QaEntryCard from '../components/QaEntryCard.vue'
 import api from '../../../api'
 import { useHotelsStore } from '../../../stores/hotels'
 import { useConfirm } from '../../../composables/useConfirm'
+import { useToast } from '../../../composables/useToast'
 
 const { confirm } = useConfirm()
+const toast = useToast()
 
 interface Qa {
   id: number
@@ -314,6 +316,7 @@ async function saveModal() {
       const { data } = await api.post('/qa', payload)
       entries.value.push(data)
     }
+    toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch {
     formError.value = 'Saqlashda xatolik yuz berdi'
@@ -335,7 +338,10 @@ async function askDelete(id: number) {
   try {
     await api.delete(`/qa/${id}`)
     entries.value = entries.value.filter(q => q.id !== id)
-  } catch { /* ignore */ }
+    toast.success("O'chirildi")
+  } catch {
+    toast.error("O'chirishda xatolik yuz berdi")
+  }
 }
 
 async function loadQa() {
