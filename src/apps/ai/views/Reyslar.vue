@@ -272,6 +272,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
+import { useConfirm } from '../../../composables/useConfirm'
 
 interface Flight {
   id: number
@@ -368,8 +369,10 @@ async function createDay() {
   }
 }
 
+const { confirm } = useConfirm()
+
 async function deleteDay(s: Flight) {
-  if (!window.confirm(`"${s.name}" reysini o'chirasizmi? Bu amalni qaytarib bo'lmaydi.`)) return
+  if (!(await confirm({ title: "Reysni o'chirish", message: `"${s.name}" reysini o'chirasizmi?` }))) return
   deletingId.value = s.id
   try {
     await api.delete(`/flights/${s.id}`)
@@ -478,6 +481,10 @@ async function addExc(s: Flight) {
 }
 
 async function removeExc(s: Flight, e: Exc) {
+  if (!(await confirm({
+    title: "O'zgarishni o'chirish",
+    message: "Bu o'zgarish o'chiriladi. Guruhlarga jadval o'z holiga qaytgani haqida xabar yuborilishi mumkin.",
+  }))) return
   excDeletingId.value = e.id
   try {
     const { data } = await api.delete(`/flights/exceptions/${e.id}`)

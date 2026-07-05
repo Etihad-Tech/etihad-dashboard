@@ -75,6 +75,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
+import { useConfirm } from '../../../composables/useConfirm'
 
 interface Ellik { id: number; username: string; name: string | null; is_active: boolean }
 interface Grp { id: number; title: string | null; ellikboshi_username: string | null }
@@ -145,8 +146,10 @@ async function addToPool() {
   }
 }
 
+const { confirm } = useConfirm()
+
 async function removeFromPool(e: Ellik) {
-  if (!window.confirm(`"${e.name || e.username}" ro'yxatdan o'chirilsinmi?`)) return
+  if (!(await confirm({ title: "Ro'yxatdan o'chirish", message: `"${e.name || e.username}" ro'yxatdan o'chirilsinmi?` }))) return
   poolBusy.value = true
   try {
     await api.delete(`/ellikboshilar/${e.id}`)

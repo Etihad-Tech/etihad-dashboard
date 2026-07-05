@@ -106,22 +106,6 @@
     </div>
 
     <Transition name="modal">
-      <div v-if="confirmDeleteId" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="cancelDelete">
-        <div class="bg-white rounded-3xl w-full max-w-xs border border-gray-200 shadow-xl mx-4 p-6 text-center">
-          <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-            <font-awesome-icon icon="trash" class="w-5 h-5 text-red-500" />
-          </div>
-          <h3 class="font-semibold text-gray-900 mb-1">Savolni o'chirish</h3>
-          <p class="text-sm text-gray-500 mb-5">Bu amalni ortga qaytarib bo'lmaydi</p>
-          <div class="flex justify-center gap-3">
-            <button @click="cancelDelete" class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-            <button @click="confirmDelete" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-2xl transition-colors">O'chirish</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <Transition name="modal">
       <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
         <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -203,6 +187,9 @@ import AppLayout from '../components/AppLayout.vue'
 import QaEntryCard from '../components/QaEntryCard.vue'
 import api from '../../../api'
 import { useHotelsStore } from '../../../stores/hotels'
+import { useConfirm } from '../../../composables/useConfirm'
+
+const { confirm } = useConfirm()
 
 interface Qa {
   id: number
@@ -343,17 +330,12 @@ async function toggleActive(q: Qa) {
   } catch { /* ignore */ }
 }
 
-const confirmDeleteId = ref<number | null>(null)
-function askDelete(id: number) { confirmDeleteId.value = id }
-function cancelDelete() { confirmDeleteId.value = null }
-
-async function confirmDelete() {
-  if (!confirmDeleteId.value) return
+async function askDelete(id: number) {
+  if (!(await confirm({ title: "Savolni o'chirish" }))) return
   try {
-    await api.delete(`/qa/${confirmDeleteId.value}`)
-    entries.value = entries.value.filter(q => q.id !== confirmDeleteId.value)
+    await api.delete(`/qa/${id}`)
+    entries.value = entries.value.filter(q => q.id !== id)
   } catch { /* ignore */ }
-  finally { confirmDeleteId.value = null }
 }
 
 async function loadQa() {
