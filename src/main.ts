@@ -44,6 +44,9 @@ import {
    faUserSlash,
    faHotel,
    faClockRotateLeft,
+   faCircleCheck,
+   faCircleExclamation,
+   faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -53,7 +56,7 @@ library.add(
    faFileExport, faChartPie, faHome, faPaperPlane, faArrowsRotate, faLock,
    faUser, faCircleQuestion, faTag, faLocationDot, faUserDoctor,
    faPlaneArrival, faBroom, faUserShield, faVideo, faUserSlash, faHotel,
-   faClockRotateLeft,
+   faClockRotateLeft, faCircleCheck, faCircleExclamation, faCircleInfo,
 )
 
 const app = createApp(App)

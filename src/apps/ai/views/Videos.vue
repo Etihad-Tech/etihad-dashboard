@@ -74,6 +74,7 @@
 import { onMounted, ref } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
+import { useToast } from '../../../composables/useToast'
 
 interface Video {
   category: string
@@ -99,6 +100,8 @@ async function load() {
   }
 }
 
+const toast = useToast()
+
 async function save(v: Video) {
   savingCat.value = v.category
   savedCat.value = null
@@ -111,7 +114,9 @@ async function save(v: Video) {
     if (idx !== -1) videos.value[idx] = data
     savedCat.value = v.category
     setTimeout(() => { if (savedCat.value === v.category) savedCat.value = null }, 2500)
-  } catch { /* ignore */ }
+  } catch {
+    toast.error('Saqlashda xatolik yuz berdi')
+  }
   finally { savingCat.value = null }
 }
 
