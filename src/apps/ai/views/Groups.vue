@@ -132,6 +132,7 @@ import AppLayout from '../components/AppLayout.vue'
 import api, { teamApi } from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
 import { useHotelsStore } from '../../../stores/hotels'
+import { byGroupNumber } from '../../../utils/groupOrder'
 
 // Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
 // Keeps a group's already-saved hotel in the list even if it was later removed.
@@ -172,9 +173,12 @@ const errorMsg = ref('')
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return q
+  const list = q
     ? groups.value.filter(g => (g.title || '').toLowerCase().includes(q) || String(g.id).includes(q))
     : groups.value
+  // Order by the #NNN number in each group's title (see utils/groupOrder) so the
+  // list always reads #001, #002, #003… instead of raw API order.
+  return [...list].sort(byGroupNumber)
 })
 
 function hasLocation(g: Grp) {
