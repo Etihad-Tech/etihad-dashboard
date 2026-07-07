@@ -3,13 +3,20 @@ import { computed, ref } from 'vue'
 import api from '../api'
 
 // Structured per-hotel facts the bot answers verbatim (Mehmonxonalar form).
+// Floors are free-text ("L (Tower 2)"); a blank field means the place does not exist.
 export interface HotelDetails {
-  mosque_floor?: string | null
-  dining_floor?: string | null
-  lobby_floor?: string | null
+  mosque_floor_male?: string | null
+  mosque_floor_female?: string | null
+  haram_floor?: string | null
+  sartaroshxona_floor?: string | null
+  reception_floor?: string | null
+  staff_floor?: string | null
   breakfast_time?: string | null
+  breakfast_floor?: string | null
   lunch_time?: string | null
+  lunch_floor?: string | null
   dinner_time?: string | null
+  dinner_floor?: string | null
   wifi_name?: string | null
   wifi_code?: string | null
 }
