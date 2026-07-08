@@ -24,7 +24,7 @@
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <div
-          v-for="(group, i) in groupsStore.items"
+          v-for="(group, i) in sortedGroups"
           :key="group.chat_id"
           class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up"
           :style="{ animationDelay: `${(i + 1) * 30}ms` }"
@@ -62,42 +62,20 @@
             </div>
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-500">Mehmonxona turi</span>
-              <select
-                :value="group.hotel_tier || ''"
-                @change="onTierChange(group, $event)"
-                :disabled="tierSaving === group.chat_id"
-                class="text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-              >
-                <option value="">Avto (nomdan)</option>
-                <option value="comfort">Komfort</option>
-                <option value="premium">Premium / Lux</option>
-              </select>
+              <span class="text-xs font-medium text-gray-700">{{ tierLabel(group.hotel_tier) }}</span>
             </div>
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-gray-500 shrink-0">Ellikboshi (@username)</span>
-              <input
-                :value="group.ellikboshi_username || ''"
-                @change="onEllikboshiChange(group, $event)"
-                :disabled="leaderSaving === group.chat_id"
-                type="text"
-                placeholder="@username"
-                class="w-32 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-              />
+              <span class="text-xs font-medium text-gray-700 truncate text-right" :class="{ 'text-gray-400': !group.ellikboshi_username }">{{ group.ellikboshi_username || 'belgilanmagan' }}</span>
             </div>
             <p class="text-[10px] text-gray-400 leading-snug">
-              Bot bu guruhda xodimni @belgilaganda, murojaatni shu ellikboshiga ham shaxsiy (DM) yuboradi. (U avval botga /start bosgan bo'lishi kerak.)
+              Bot bu guruhda xodimni @belgilaganda, murojaatni shu ellikboshiga ham shaxsiy (DM) yuboradi.
             </p>
             <div class="flex items-center justify-between gap-2 pt-1">
               <span class="text-xs text-gray-500 shrink-0">Jo'nash sanasi</span>
               <div class="flex items-center gap-1.5">
                 <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" :class="flightBadge(group.trip_start_date).cls">{{ flightBadge(group.trip_start_date).text }}</span>
-                <input
-                  :value="group.trip_start_date || ''"
-                  @change="onDateChange(group, $event)"
-                  :disabled="dateSaving === group.chat_id"
-                  type="date"
-                  class="w-32 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-                />
+                <span class="text-xs font-medium text-gray-700" :class="{ 'text-gray-400': !group.trip_start_date }">{{ group.trip_start_date || 'belgilanmagan' }}</span>
               </div>
             </div>
             <p class="text-[10px] text-gray-400 leading-snug">
@@ -121,27 +99,11 @@
             </p>
             <div class="flex items-center justify-between gap-2 pt-1">
               <span class="text-xs text-gray-500 shrink-0">Mehmonxona — Makka</span>
-              <select
-                :value="group.hotel_makka || ''"
-                @change="onHotelChange(group, 'makka', $event)"
-                :disabled="hotelSaving === group.chat_id + ':makka'"
-                class="w-36 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-              >
-                <option value="">— tanlanmagan —</option>
-                <option v-for="h in hotelOptions('makka', group.hotel_makka)" :key="h" :value="h">{{ h }}</option>
-              </select>
+              <span class="text-xs font-medium text-gray-700 truncate text-right max-w-[9rem]" :class="{ 'text-gray-400': !group.hotel_makka }">{{ group.hotel_makka || 'tanlanmagan' }}</span>
             </div>
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-gray-500 shrink-0">Mehmonxona — Madina</span>
-              <select
-                :value="group.hotel_madina || ''"
-                @change="onHotelChange(group, 'madina', $event)"
-                :disabled="hotelSaving === group.chat_id + ':madina'"
-                class="w-36 text-xs font-medium bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-              >
-                <option value="">— tanlanmagan —</option>
-                <option v-for="h in hotelOptions('madina', group.hotel_madina)" :key="h" :value="h">{{ h }}</option>
-              </select>
+              <span class="text-xs font-medium text-gray-700 truncate text-right max-w-[9rem]" :class="{ 'text-gray-400': !group.hotel_madina }">{{ group.hotel_madina || 'tanlanmagan' }}</span>
             </div>
             <p class="text-[10px] text-gray-400 leading-snug">
               Bot WiFi, qavatlar, ovqat vaqtlari kabi mehmonxonaga xos savollarga joriy shahardagi mehmonxona ma'lumotidan javob beradi.
@@ -195,22 +157,23 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import MainLayout from '../components/MainLayout.vue'
 import { useGroupsStore, type GroupInfo } from '../stores/groups'
-import { useHotelsStore } from '../stores/hotels'
+import { byGroupNumber } from '../utils/groupOrder'
 
 const groupsStore = useGroupsStore()
-const hotelsStore = useHotelsStore()
-const tierSaving = ref<string | null>(null)
-const leaderSaving = ref<string | null>(null)
-const dateSaving = ref<string | null>(null)
-const hotelSaving = ref<string | null>(null)
 const majlisSaving = ref<string | null>(null)
 
-// Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
-// Keeps a group's already-saved hotel selectable even if it was later removed.
-const hotelOptions = (city: string, current?: string | null) => hotelsStore.optionsForCity(city, current)
+// Groups are numbered in their title (#001, #002…) — show them in that order.
+const sortedGroups = computed(() => [...groupsStore.items].sort(byGroupNumber))
+
+// Tier / ellikboshi / departure / hotels are shown read-only on this overview; they
+// are edited in the AI panel's "Guruhlar" page (both admin and qa can open it). Only
+// the pre-flight majlis time (below) lives solely here, so it stays editable.
+function tierLabel(tier: string | null): string {
+  return tier === 'comfort' ? 'Komfort' : tier === 'premium' ? 'Premium / Lux' : 'Avto (nomdan)'
+}
 
 // Mirrors the bot: Thursday departure -> Payshanba flight, Saturday -> Shanba.
 function flightBadge(dateStr: string | null) {
@@ -220,17 +183,6 @@ function flightBadge(dateStr: string | null) {
   if (day === 4) return { text: 'Payshanba', cls: 'bg-sky-50 text-sky-600' }
   if (day === 6) return { text: 'Shanba', cls: 'bg-sky-50 text-sky-600' }
   return { text: 'Reys yo\'q', cls: 'bg-amber-50 text-amber-600' }
-}
-
-async function onDateChange(group: GroupInfo, event: Event) {
-  const date = (event.target as HTMLInputElement).value
-  if (date === (group.trip_start_date || '')) return
-  dateSaving.value = group.chat_id
-  try {
-    await groupsStore.setTripStartDate(group.chat_id, date)
-  } finally {
-    dateSaving.value = null
-  }
 }
 
 // Mirrors the bot: the pre-flight majlis is 3 days before departure (Payshanba→Dushanba,
@@ -264,41 +216,10 @@ function canSend(group: GroupInfo): boolean {
   return group.ai_bot && group.turon_bot && !!group.trip_id
 }
 
-async function onTierChange(group: GroupInfo, event: Event) {
-  const tier = (event.target as HTMLSelectElement).value
-  tierSaving.value = group.chat_id
-  try {
-    await groupsStore.setHotelTier(group.chat_id, tier)
-  } finally {
-    tierSaving.value = null
-  }
-}
-
-async function onEllikboshiChange(group: GroupInfo, event: Event) {
-  const username = (event.target as HTMLInputElement).value.trim()
-  if (username === (group.ellikboshi_username || '')) return
-  leaderSaving.value = group.chat_id
-  try {
-    await groupsStore.setEllikboshi(group.chat_id, username)
-  } finally {
-    leaderSaving.value = null
-  }
-}
-
-async function onHotelChange(group: GroupInfo, city: 'makka' | 'madina', event: Event) {
-  const hotel = (event.target as HTMLSelectElement).value
-  hotelSaving.value = group.chat_id + ':' + city
-  try {
-    await groupsStore.setHotel(group.chat_id, city, hotel)
-  } finally {
-    hotelSaving.value = null
-  }
-}
-
 async function handleSendNow(group: GroupInfo) {
   if (!group.trip_id || !canSend(group)) return
   await groupsStore.sendNowPosts(group.trip_id, group.chat_id)
 }
 
-onMounted(() => { hotelsStore.fetch(); groupsStore.fetchGroups() })
+onMounted(() => { groupsStore.fetchGroups() })
 </script>

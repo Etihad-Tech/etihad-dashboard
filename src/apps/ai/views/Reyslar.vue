@@ -464,6 +464,13 @@ async function addExc(s: Flight) {
   // Return leg lands in the home city — pilgrims always ask "when do we arrive?",
   // so the bot needs it. Require arrival for any return-leg change.
   if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  // Saving a one-off change immediately NOTIFIES every group flying that day on
+  // Telegram — an outward, hard-to-undo action — so confirm first (mirrors removeExc).
+  if (!(await confirm({
+    title: "O'zgarishni saqlash",
+    message: "Bu o'zgarish saqlanadi va shu kuni uchadigan guruhlarga yangi reys vaqti haqida darhol xabar yuboriladi. Davom etamizmi?",
+    confirmText: "Saqlash va xabar berish",
+  }))) return
   excSavingId.value = s.id
   try {
     const { data } = await api.post(`/flights/${s.id}/exceptions`, {
@@ -531,6 +538,13 @@ async function saveEditExc(s: Flight) {
   excNotice.value[s.id] = ''
   if (!f.newDep && !f.newDate) { excError.value[s.id] = 'Yangi vaqt yoki yangi sanani kiriting.'; return }
   if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  // Editing a one-off change re-NOTIFIES the affected groups on Telegram (same
+  // outward side-effect as adding one) — confirm before re-blasting the update.
+  if (!(await confirm({
+    title: "O'zgarishni yangilash",
+    message: "Yangilangan reys vaqti shu kuni uchadigan guruhlarga darhol qayta yuboriladi. Davom etamizmi?",
+    confirmText: "Yangilash va xabar berish",
+  }))) return
   excSavingId.value = s.id
   try {
     const { data } = await api.patch(`/flights/exceptions/${id}`, {
