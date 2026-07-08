@@ -114,40 +114,71 @@
               </div>
             </div>
 
-            <!-- Structured facts the bot answers automatically (verbatim). Blank = the
-                 bot stays silent on that item rather than guessing. -->
+            <!-- Structured facts the bot answers automatically (verbatim). A BLANK field
+                 means that place DOES NOT EXIST — the bot says so. Floors are free-text,
+                 so "L (Tower 2)" or "M (Tower 3)" work, not just a bare number. -->
             <div class="pt-3 border-t border-gray-100">
-              <p class="text-xs font-semibold text-gray-600 mb-2">Qavatlar</p>
+              <p class="text-xs font-semibold text-gray-600 mb-2">Qavatlar <span class="font-normal text-gray-400">(bo'sh = mavjud emas)</span></p>
               <div class="grid grid-cols-3 gap-3">
                 <div>
-                  <label :class="labelCls">Masjid qavati</label>
-                  <input v-model="form.mosque_floor" type="text" placeholder="2" :class="inputCls" />
+                  <label :class="labelCls">Erkaklar masjidi</label>
+                  <input v-model="form.mosque_floor_male" type="text" placeholder="2" :class="inputCls" />
                 </div>
                 <div>
-                  <label :class="labelCls">Oshxona qavati</label>
-                  <input v-model="form.dining_floor" type="text" placeholder="1" :class="inputCls" />
+                  <label :class="labelCls">Ayollar masjidi</label>
+                  <input v-model="form.mosque_floor_female" type="text" placeholder="M (Tower 2)" :class="inputCls" />
                 </div>
                 <div>
-                  <label :class="labelCls">Loby (ishchi guruh)</label>
-                  <input v-model="form.lobby_floor" type="text" placeholder="0" :class="inputCls" />
+                  <label :class="labelCls">Haramga chiqish</label>
+                  <input v-model="form.haram_floor" type="text" placeholder="L" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Sartaroshxona</label>
+                  <input v-model="form.sartaroshxona_floor" type="text" placeholder="1" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Resepshn</label>
+                  <input v-model="form.reception_floor" type="text" placeholder="0" :class="inputCls" />
+                </div>
+                <div>
+                  <label :class="labelCls">Ishchi guruh</label>
+                  <input v-model="form.staff_floor" type="text" placeholder="1" :class="inputCls" />
                 </div>
               </div>
             </div>
 
             <div>
-              <p class="text-xs font-semibold text-gray-600 mb-2">Ovqat vaqtlari</p>
-              <div class="grid grid-cols-3 gap-3">
-                <div>
-                  <label :class="labelCls">Nonushta</label>
-                  <input v-model="form.breakfast_time" type="text" placeholder="07:00-09:00" :class="inputCls" />
+              <p class="text-xs font-semibold text-gray-600 mb-2">Ovqatlanish <span class="font-normal text-gray-400">(vaqti va joyi; bo'sh = berilmaydi)</span></p>
+              <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label :class="labelCls">Nonushta vaqti</label>
+                    <input v-model="form.breakfast_time" type="text" placeholder="07:00-09:00" :class="inputCls" />
+                  </div>
+                  <div>
+                    <label :class="labelCls">Nonushta joyi</label>
+                    <input v-model="form.breakfast_floor" type="text" placeholder="2-qavat (Tower 1)" :class="inputCls" />
+                  </div>
                 </div>
-                <div>
-                  <label :class="labelCls">Tushlik</label>
-                  <input v-model="form.lunch_time" type="text" placeholder="13:00-14:30" :class="inputCls" />
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label :class="labelCls">Tushlik vaqti</label>
+                    <input v-model="form.lunch_time" type="text" placeholder="13:00-14:30" :class="inputCls" />
+                  </div>
+                  <div>
+                    <label :class="labelCls">Tushlik joyi</label>
+                    <input v-model="form.lunch_floor" type="text" placeholder="1-qavat" :class="inputCls" />
+                  </div>
                 </div>
-                <div>
-                  <label :class="labelCls">Kechki ovqat</label>
-                  <input v-model="form.dinner_time" type="text" placeholder="19:00-21:00" :class="inputCls" />
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label :class="labelCls">Kechki ovqat vaqti</label>
+                    <input v-model="form.dinner_time" type="text" placeholder="19:00-21:00" :class="inputCls" />
+                  </div>
+                  <div>
+                    <label :class="labelCls">Kechki ovqat joyi</label>
+                    <input v-model="form.dinner_floor" type="text" placeholder="2-qavat" :class="inputCls" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -200,15 +231,21 @@ const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
 type HotelForm = {
   name: string; city: string; default_tier: string
-  mosque_floor: string; dining_floor: string; lobby_floor: string
-  breakfast_time: string; lunch_time: string; dinner_time: string
+  mosque_floor_male: string; mosque_floor_female: string; haram_floor: string
+  sartaroshxona_floor: string; reception_floor: string; staff_floor: string
+  breakfast_time: string; breakfast_floor: string
+  lunch_time: string; lunch_floor: string
+  dinner_time: string; dinner_floor: string
   wifi_name: string; wifi_code: string
 }
 function blankForm(): HotelForm {
   return {
     name: '', city: '', default_tier: '',
-    mosque_floor: '', dining_floor: '', lobby_floor: '',
-    breakfast_time: '', lunch_time: '', dinner_time: '',
+    mosque_floor_male: '', mosque_floor_female: '', haram_floor: '',
+    sartaroshxona_floor: '', reception_floor: '', staff_floor: '',
+    breakfast_time: '', breakfast_floor: '',
+    lunch_time: '', lunch_floor: '',
+    dinner_time: '', dinner_floor: '',
     wifi_name: '', wifi_code: '',
   }
 }
@@ -236,8 +273,12 @@ function openEdit(h: Hotel) {
   formError.value = ''
   form.value = {
     name: h.name, city: h.city || '', default_tier: h.default_tier || '',
-    mosque_floor: h.mosque_floor || '', dining_floor: h.dining_floor || '', lobby_floor: h.lobby_floor || '',
-    breakfast_time: h.breakfast_time || '', lunch_time: h.lunch_time || '', dinner_time: h.dinner_time || '',
+    mosque_floor_male: h.mosque_floor_male || '', mosque_floor_female: h.mosque_floor_female || '',
+    haram_floor: h.haram_floor || '', sartaroshxona_floor: h.sartaroshxona_floor || '',
+    reception_floor: h.reception_floor || '', staff_floor: h.staff_floor || '',
+    breakfast_time: h.breakfast_time || '', breakfast_floor: h.breakfast_floor || '',
+    lunch_time: h.lunch_time || '', lunch_floor: h.lunch_floor || '',
+    dinner_time: h.dinner_time || '', dinner_floor: h.dinner_floor || '',
     wifi_name: h.wifi_name || '', wifi_code: h.wifi_code || '',
   }
   modalOpen.value = true
@@ -256,12 +297,18 @@ async function saveModal() {
     name: form.value.name.trim(),
     city: form.value.city || null,
     default_tier: form.value.default_tier || null,
-    mosque_floor: form.value.mosque_floor.trim() || null,
-    dining_floor: form.value.dining_floor.trim() || null,
-    lobby_floor: form.value.lobby_floor.trim() || null,
+    mosque_floor_male: form.value.mosque_floor_male.trim() || null,
+    mosque_floor_female: form.value.mosque_floor_female.trim() || null,
+    haram_floor: form.value.haram_floor.trim() || null,
+    sartaroshxona_floor: form.value.sartaroshxona_floor.trim() || null,
+    reception_floor: form.value.reception_floor.trim() || null,
+    staff_floor: form.value.staff_floor.trim() || null,
     breakfast_time: form.value.breakfast_time.trim() || null,
+    breakfast_floor: form.value.breakfast_floor.trim() || null,
     lunch_time: form.value.lunch_time.trim() || null,
+    lunch_floor: form.value.lunch_floor.trim() || null,
     dinner_time: form.value.dinner_time.trim() || null,
+    dinner_floor: form.value.dinner_floor.trim() || null,
     wifi_name: form.value.wifi_name.trim() || null,
     wifi_code: form.value.wifi_code.trim() || null,
   }
