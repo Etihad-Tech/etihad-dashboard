@@ -260,13 +260,21 @@ async function load() {
     if (auth.teamToken) calls.push(teamApi.get('/api/trips'))
     const [aiRes, tripsRes] = await Promise.allSettled(calls)
 
+    // The Turon trips also carry each group's registered name. The AI bot's own
+    // groups.title is empty when the bot isn't a member of the chat (it never
+    // captured a title), which would make the card fall back to the raw chat id.
+    // Use the trip name as the display fallback — exactly what the main Guruhlar
+    // page does — so the panel shows a name even for bot-less groups.
     let registered: Set<string> | null = null
+    const nameByChatId = new Map<string, string>()
     if (tripsRes && tripsRes.status === 'fulfilled') {
-      registered = new Set<string>(
-        tripsRes.value.data
-          .filter((t: any) => t.group_chat_id)
-          .map((t: any) => String(t.group_chat_id)),
-      )
+      registered = new Set<string>()
+      for (const t of tripsRes.value.data) {
+        if (!t.group_chat_id) continue
+        const cid = String(t.group_chat_id)
+        registered.add(cid)
+        if (t.name) nameByChatId.set(cid, t.name)
+      }
     }
 
     const aiGroups: any[] = aiRes.status === 'fulfilled' ? aiRes.value.data : []
@@ -276,7 +284,7 @@ async function load() {
       const order: Order = (ms != null && ks != null && Number(ks) < Number(ms)) ? 'makka_madina' : 'madina_makka'
       return {
         id: g.id,
-        title: g.title,
+        title: g.title || nameByChatId.get(String(g.id)) || null,
         trip_start_date: g.trip_start_date || '',
         order,
         madina_nights: nightsFromRange(g.madina_start_day, g.madina_end_day),
