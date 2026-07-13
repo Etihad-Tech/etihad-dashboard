@@ -241,9 +241,9 @@ const editingLocationDays = ref(false)
 const savingLocationDays = ref(false)
 const locationDaysForm = ref({
   madina_start: 1,
-  madina_end: 5,
-  makka_start: 6,
-  makka_end: 10,
+  madina_end: 4,
+  makka_start: 5,
+  makka_end: 9,
 })
 
 async function loadData() {
@@ -261,9 +261,9 @@ async function loadData() {
     if (template) {
       locationDaysForm.value = {
         madina_start: template.madina_start_day || 1,
-        madina_end: template.madina_end_day || 5,
-        makka_start: template.makka_start_day || 6,
-        makka_end: template.makka_end_day || 10,
+        madina_end: template.madina_end_day || 4,
+        makka_start: template.makka_start_day || 5,
+        makka_end: template.makka_end_day || 9,
       }
     }
   } finally {
@@ -312,9 +312,9 @@ function cancelLocationDaysEdit() {
   if (template) {
     locationDaysForm.value = {
       madina_start: template.madina_start_day || 1,
-      madina_end: template.madina_end_day || 5,
-      makka_start: template.makka_start_day || 6,
-      makka_end: template.makka_end_day || 10,
+      madina_end: template.madina_end_day || 4,
+      makka_start: template.makka_start_day || 5,
+      makka_end: template.makka_end_day || 9,
     }
   }
 }
