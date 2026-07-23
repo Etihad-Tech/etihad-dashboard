@@ -96,6 +96,11 @@ const router = createRouter({
       name: 'AiAuditLog',
       component: () => import('../apps/ai/views/AuditLog.vue'),
     },
+    {
+      path: '/ai/nazorat',
+      name: 'AiNazorat',
+      component: () => import('../apps/ai/views/Nazorat.vue'),
+    },
 
     {
       path: '/team',

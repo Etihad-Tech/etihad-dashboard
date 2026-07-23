@@ -140,6 +140,7 @@ const NAV_GROUPS = [
   { title: 'Xodimlar', items: [
     { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
     { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
+    { to: '/ai/nazorat', label: 'Nazorat', icon: 'eye' },
     { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
     { to: '/ai/qora-royxat', label: "Qora ro'yxat", icon: 'user-slash' },
   ] },
