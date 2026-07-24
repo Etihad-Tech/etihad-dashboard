@@ -16,10 +16,6 @@
                      {{ p.label }}
                   </button>
                </div>
-               <button @click="exportCsv" :disabled="exporting" title="Yig'ilish uchun CSV yuklab olish"
-                  class="px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors whitespace-nowrap">
-                  {{ exporting ? 'Yuklanmoqda…' : '⬇ CSV' }}
-               </button>
             </div>
          </div>
 
@@ -34,6 +30,24 @@
                   <p class="text-xs text-gray-500">{{ c.label }}</p>
                   <p class="text-2xl font-bold mt-1" :class="c.tone">{{ c.value }}</p>
                   <p v-if="c.hint" class="text-[11px] text-gray-400 mt-1">{{ c.hint }}</p>
+               </div>
+            </div>
+
+            <!-- trend: how the buckets move over time (line graph, not just totals) -->
+            <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up">
+               <div class="flex items-baseline justify-between gap-3 mb-4">
+                  <div>
+                     <h3 class="text-sm font-semibold text-gray-900">Vaqt bo'yicha dinamika</h3>
+                     <p class="text-[11px] text-gray-400 mt-0.5">
+                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha holatlar
+                     </p>
+                  </div>
+               </div>
+               <div v-if="trendLabels.length" class="h-72">
+                  <Line :data="trendData" :options="trendOptions" :plugins="[crosshairPlugin]" />
+               </div>
+               <div v-else class="py-12 text-center text-gray-400 text-sm">
+                  Bu davr uchun ma'lumot yo'q
                </div>
             </div>
 
@@ -111,10 +125,10 @@
                            <th class="px-4 py-3 font-medium">Ism</th>
                            <th class="px-3 py-3 font-medium text-center">Murojaatlar</th>
                            <th class="px-3 py-3 font-medium text-center">Qabul</th>
-                           <th class="px-3 py-3 font-medium text-center">Javobsiz</th>
-                           <th class="px-3 py-3 font-medium text-center">Hal qilindi</th>
-                           <th class="px-3 py-3 font-medium text-center" title="«Hal qilindi» deb belgilangan, lekin ziyoratchi qayta so'ragan — yolg'on yopilish">Hal bo'lib qayta</th>
-                           <th class="px-3 py-3 font-medium text-center" title="Ziyoratchi qayta so'ragan (hal qilinmagan)">Qayta so'ralgan</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Yetib borgan, lekin xodim qabul qilmagan">Javobsiz</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Qabul qilindi, ziyoratchi qayta so'ramadi">Bajarildi</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Ikkinchi marta so'ralgan, xodim qabul qilgan">Qayta so'rov</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Qabul qilingan, lekin ziyoratchi qayta so'ragan — hal bo'lmagan">Qayta so'ralgan</th>
                         </tr>
                      </thead>
                      <tbody>
@@ -133,13 +147,16 @@
                            <td class="px-3 py-3 text-center text-gray-600">{{ w.dms }}</td>
                            <td class="px-3 py-3 text-center text-gray-600">{{ w.accepted }}</td>
                            <td class="px-3 py-3 text-center"
-                              :class="w.never_accepted ? 'text-red-600 font-semibold' : 'text-gray-400'">
+                              :class="w.never_accepted ? 'text-blue-600 font-semibold' : 'text-gray-400'">
                               {{ w.never_accepted }}
                            </td>
-                           <td class="px-3 py-3 text-center text-gray-600">{{ w.solved }}</td>
                            <td class="px-3 py-3 text-center"
-                              :class="w.solved_reopened ? 'text-red-600 font-semibold' : 'text-gray-400'">
-                              {{ w.solved_reopened }}
+                              :class="w.completed ? 'text-emerald-600 font-semibold' : 'text-gray-400'">
+                              {{ w.completed }}
+                           </td>
+                           <td class="px-3 py-3 text-center"
+                              :class="w.re_requests ? 'text-amber-600 font-semibold' : 'text-gray-400'">
+                              {{ w.re_requests }}
                            </td>
                            <td class="px-3 py-3 text-center"
                               :class="w.reopened ? 'text-red-600 font-semibold' : 'text-gray-400'">
@@ -185,15 +202,21 @@
                         <div v-if="expandedStaff.has(s.telegram_id)" class="px-4 pb-3 pt-1 space-y-3 bg-gray-50/50">
                            <div v-for="(e, i) in s.entries" :key="i"
                               class="border-l-2 pl-3"
-                              :class="e.parent_request_id ? 'border-red-200' : 'border-gray-200'">
+                              :class="e.parent_request_id && !e.reopen_dismissed ? 'border-amber-200' : 'border-gray-200'">
                               <p class="text-sm text-gray-900">
-                                 <span v-if="e.parent_request_id" class="text-red-500 font-medium">🔁 Qayta so'rov · </span>
+                                 <span v-if="e.parent_request_id && !e.reopen_dismissed" class="text-amber-600 font-medium">🔁 Qayta so'rov · </span>
                                  {{ e.text || '—' }}
                               </p>
                               <p class="text-xs mt-0.5" :class="e.sum.tone">
                                  {{ e.sum.text }}
                                  <a v-if="e.message_link" :href="e.message_link" target="_blank"
                                     class="text-amber-600 hover:underline ml-1 whitespace-nowrap">Xabarni ko'rish</a>
+                                 <button v-if="e.parent_request_id && !e.reopen_dismissed"
+                                    @click="dismissReopen(e.id)"
+                                    class="text-gray-400 hover:text-gray-700 hover:underline ml-2 whitespace-nowrap"
+                                    title="Bu aslida takror emas — noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
+                                    Takror emas
+                                 </button>
                               </p>
                            </div>
                         </div>
@@ -252,22 +275,29 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { Line } from 'vue-chartjs'
+import {
+   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
+   Tooltip, Legend, Filler, type ChartOptions, type Plugin,
+} from 'chart.js'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
+
 interface Report {
    requests: number; dms: number; delivered: number; undelivered: number
-   accepted: number; never_accepted: number; solved: number; first_pass: number
-   reopened: number; avg_response_seconds: number | null; avg_fix_seconds: number | null
+   accepted: number; never_accepted: number; completed: number; re_requests: number
+   reopened: number; avg_response_seconds: number | null
    flagged: number; bot_mistakes: number; flags_neutral: number; flags_pending: number
    error_kinds: Record<string, number>
 }
 interface Worker {
    telegram_id: number; username: string | null; name: string | null; role: string
    dms: number; undelivered: number; accepted: number; never_accepted: number
-   solved: number; first_pass: number; reopened: number; solved_reopened: number; released: number
+   completed: number; re_requests: number; reopened: number; released: number
    flagged: number; flags_confirmed: number; flags_neutral: number
-   avg_response_seconds: number | null; avg_fix_seconds: number | null
+   avg_response_seconds: number | null
 }
 interface StaffReady { role: string; location: string; username: string | null; name: string | null }
 
@@ -293,11 +323,11 @@ const savedMsg = ref('')
 const showRequests = ref(true)
 const report = ref<Report | null>(null)
 const workers = ref<Worker[]>([])
+const timeseries = ref<{ period: string; completed: number; re_requests: number; reopened: number; never_accepted: number }[]>([])
 const filterRole = ref('')          // '' = all, else 'staff' | 'ellikboshi'
 const filterName = ref('')          // matches name OR username (case-insensitive)
 const requests = ref<any[]>([])
 const staffReadiness = ref<StaffReady[]>([])
-const exporting = ref(false)
 const form = ref({
    staff_repeat_window_hours: 6,
    ellikboshi_repeat_window_hours: 0,
@@ -322,33 +352,30 @@ function fmtTime(iso: string | null): string {
    return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
 }
 
-function fmtDate(iso: string | null): string {
-   if (!iso) return '—'
-   return new Date(iso).toLocaleString('uz-UZ', {
-      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-   })
-}
-
 const cards = computed(() => {
    const r = report.value
    if (!r) return []
    return [
       { label: 'Murojaatlar', value: r.requests, tone: 'text-gray-900' },
       {
-         label: 'Birinchi safar hal qilindi', value: r.first_pass, tone: 'text-emerald-600',
-         hint: 'Ziyoratchi qayta so\'ramagan',
+         label: 'Bajarildi', value: r.completed, tone: 'text-emerald-600',
+         hint: 'Qabul qilindi, ziyoratchi qayta so\'ramadi',
+      },
+      {
+         label: 'Qayta so\'rov', value: r.re_requests,
+         tone: r.re_requests ? 'text-amber-600' : 'text-gray-900',
+         hint: 'Ikkinchi marta so\'ralgan, qabul qilingan',
       },
       {
          label: 'Qayta so\'ralgan', value: r.reopened, tone: r.reopened ? 'text-red-600' : 'text-gray-900',
-         hint: 'Hal qilinmagan',
+         hint: 'Qabul qilingan, lekin hal bo\'lmagan',
       },
       {
          label: 'Javobsiz qolgan', value: r.never_accepted,
-         tone: r.never_accepted ? 'text-red-600' : 'text-gray-900',
-         hint: 'Yetib borgan, lekin ochilmagan',
+         tone: r.never_accepted ? 'text-blue-600' : 'text-gray-900',
+         hint: 'Yetib borgan, lekin qabul qilinmagan',
       },
       { label: 'O\'rtacha javob vaqti', value: dur(r.avg_response_seconds), tone: 'text-gray-900' },
-      { label: 'O\'rtacha hal qilish', value: dur(r.avg_fix_seconds), tone: 'text-gray-900' },
       {
          label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes, tone: 'text-indigo-600',
          hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : '',
@@ -360,6 +387,108 @@ const cards = computed(() => {
       },
    ]
 })
+
+// The trend line — the same four colour buckets as the cards, but over time. Colours
+// mirror the card tones: 🟢 completed, 🟡 re_requests, 🔴 reopened, 🔵 never_accepted.
+const TREND_SERIES = [
+   { key: 'completed', label: 'Bajarildi', color: '#10b981' },
+   { key: 're_requests', label: "Qayta so'rov", color: '#f59e0b' },
+   { key: 'reopened', label: "Qayta so'ralgan", color: '#ef4444' },
+   { key: 'never_accepted', label: 'Javobsiz', color: '#3b82f6' },
+] as const
+
+/** X-axis labels: hour for the day period, else day/month — matching the Dashboard. */
+const trendLabels = computed(() =>
+   timeseries.value.map((t) => {
+      const d = new Date(t.period)
+      return period.value === 'day'
+         ? d.toLocaleTimeString('uz', { hour: '2-digit', minute: '2-digit' })
+         : d.toLocaleDateString('uz', { day: '2-digit', month: '2-digit' })
+   }),
+)
+
+const trendData = computed(() => ({
+   labels: trendLabels.value,
+   datasets: TREND_SERIES.map((s) => ({
+      label: s.label,
+      data: timeseries.value.map((t) => t[s.key] ?? 0),
+      borderColor: s.color,
+      backgroundColor: s.color,
+      pointBackgroundColor: s.color,
+      pointBorderWidth: 0,
+      pointHoverBorderColor: '#ffffff',
+      pointHoverBorderWidth: 3,
+      pointRadius: 3,
+      pointHoverRadius: 6,
+      borderWidth: 2.5,
+      tension: 0.4,
+      fill: false,
+      borderCapStyle: 'round' as CanvasLineCap,
+      borderJoinStyle: 'round' as CanvasLineJoin,
+   })),
+}))
+
+const trendOptions: ChartOptions<'line'> = {
+   responsive: true,
+   maintainAspectRatio: false,
+   layout: { padding: { top: 4, right: 6 } },
+   interaction: { mode: 'index', intersect: false, axis: 'x' },
+   plugins: {
+      legend: {
+         position: 'top',
+         align: 'end',
+         labels: {
+            usePointStyle: true, pointStyle: 'circle',
+            boxWidth: 7, boxHeight: 7, padding: 16,
+            color: '#6b7280', font: { size: 11, weight: 500 },
+         },
+      },
+      tooltip: {
+         backgroundColor: 'rgba(17, 24, 39, 0.96)',
+         padding: 12, cornerRadius: 12,
+         titleColor: '#9ca3af', titleFont: { size: 11, weight: 600 },
+         bodyColor: '#f9fafb', bodyFont: { size: 12, weight: 500 },
+         bodySpacing: 6, boxPadding: 6, usePointStyle: true,
+         caretSize: 6, caretPadding: 10,
+         borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1,
+      },
+   },
+   scales: {
+      x: {
+         grid: { display: false },
+         border: { display: false },
+         ticks: { color: '#9ca3af', font: { size: 11 }, padding: 8 },
+      },
+      y: {
+         beginAtZero: true, grace: '25%',
+         border: { display: false },
+         grid: { color: 'rgba(17, 24, 39, 0.05)' },
+         ticks: { color: '#9ca3af', font: { size: 11 }, padding: 10, stepSize: 1, precision: 0 },
+      },
+   },
+}
+
+// A soft dashed vertical guide at the hovered point — pairs with the index tooltip so all
+// four series read at the same moment (a small touch that lifts the chart out of the
+// chart.js defaults). Drawn under the points, over the lines.
+const crosshairPlugin: Plugin<'line'> = {
+   id: 'nazoratCrosshair',
+   afterDatasetsDraw(chart) {
+      const first = chart.getActiveElements()[0]
+      if (!first) return
+      const x = (first.element as PointElement).x
+      const { ctx, chartArea } = chart
+      ctx.save()
+      ctx.beginPath()
+      ctx.setLineDash([4, 4])
+      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(17, 24, 39, 0.16)'
+      ctx.moveTo(x, chartArea.top)
+      ctx.lineTo(x, chartArea.bottom)
+      ctx.stroke()
+      ctx.restore()
+   },
+}
 
 /** Display label for a worker/recipient — the DASHBOARD name if entered, else @username. */
 function personLabel(p: { name?: string | null; username?: string | null; telegram_id: number }): string {
@@ -388,12 +517,14 @@ function durBetween(fromIso: string | null, toIso: string | null): string {
 }
 
 /** One request turned into a plain Uzbek sentence an ordinary reader understands, plus a
- *  colour tone. Covers every state: not-delivered, Xatolik, taken-by-another, javobsiz,
- *  accepted+solved, accepted-but-still-open. */
+ *  colour tone. Accept is terminal (no solve step): once a worker takes a need it counts
+ *  as done (🟢 bajarildi) UNTIL the pilgrim asks again, which turns it 🔴 hal bo'lmagan.
+ *  Covers every state: not-delivered, Xatolik, taken-by-another, 🔵 javobsiz,
+ *  🟢 completed, 🟡 accepted-re-request, 🔴 reopened. */
 function entrySummary(e: any): { text: string; tone: string } {
    const sent = fmtTime(e.dm_sent_at)
    if (!e.delivered)
-      return { text: 'Xodimga yetib bormadi.', tone: 'text-amber-600' }
+      return { text: 'Xodimga yetib bormadi.', tone: 'text-gray-400' }
    if (e.flagged_at)
       return {
          text: `${sent} da yuborildi. Xodim «Xatolik» deb belgiladi`
@@ -408,28 +539,26 @@ function entrySummary(e: any): { text: string; tone: string } {
          tone: 'text-gray-400',
       }
    }
-   if (!e.accepted_at)
+   if (!e.accepted_at)   // 🔵 delivered but never taken
       return {
          text: `${sent} da yuborildi. Xodim hali qabul qilmadi (javobsiz: ${durBetween(e.dm_sent_at, null)}).`,
-         tone: 'text-red-600',
+         tone: 'text-blue-600',
       }
    const acc = fmtTime(e.accepted_at)
    const wait = durBetween(e.dm_sent_at, e.accepted_at)
-   if (e.solved_at) {
-      // Marked solved BUT the pilgrim came back = a false close — the strongest evidence.
-      if (e.reopened_count > 0)
-         return {
-            text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}) va ${fmtTime(e.solved_at)} da «hal qildi» deb belgiladi — LEKIN ziyoratchi qayta so'radi, aslida hal bo'lmagan.`,
-            tone: 'text-red-600',
-         }
+   if (e.reopened_count > 0)   // 🔴 accepted, but the pilgrim came back -> false completion
       return {
-         text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}) va ${fmtTime(e.solved_at)} da hal qildi.`,
-         tone: 'text-emerald-600',
+         text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi — hal bo'lmagan.`,
+         tone: 'text-red-600',
       }
-   }
-   return {
-      text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}), lekin hali hal qilmagan (ochiq: ${durBetween(e.accepted_at, null)}).`,
-      tone: 'text-red-600',
+   if (e.parent_request_id && !e.reopen_dismissed)   // 🟡 accepted follow-up (already a repeat)
+      return {
+         text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}) — qayta so'rov, bajarildi.`,
+         tone: 'text-amber-600',
+      }
+   return {   // 🟢 clean single-pass completion
+      text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}) — bajarildi.`,
+      tone: 'text-emerald-600',
    }
 }
 
@@ -452,9 +581,10 @@ const staffLogs = computed(() => {
          const sib = r.recipients.find((o: any) =>
             o.telegram_id !== rec.telegram_id && (o.accepted_at || o.flagged_at))
          s.entries.push({
-            text: r.text, parent_request_id: r.parent_request_id, message_link: r.message_link,
+            id: r.id, text: r.text, parent_request_id: r.parent_request_id,
+            reopen_dismissed: r.reopen_dismissed, message_link: r.message_link,
             created_at: r.created_at, delivered: rec.delivered, it_verdict: rec.it_verdict,
-            dm_sent_at: rec.dm_sent_at, accepted_at: rec.accepted_at, solved_at: rec.solved_at,
+            dm_sent_at: rec.dm_sent_at, accepted_at: rec.accepted_at,
             flagged_at: rec.flagged_at, released_at: rec.released_at, reopened_count: rec.reopened_count,
             claimed_by: sib
                ? { name: nameById.get(sib.telegram_id) || sib.username || ('ID ' + sib.telegram_id),
@@ -491,15 +621,17 @@ function setPeriod(p: string) {
 async function load() {
    loading.value = true
    try {
-      const [rep, wrk, reqs, sr, st] = await Promise.all([
+      const [rep, wrk, ts, reqs, sr, st] = await Promise.all([
          api.get(`/control/report?period=${period.value}`),
          api.get(`/control/workers?period=${period.value}`),
+         api.get(`/control/timeseries?period=${period.value}`),
          api.get(`/control/requests?period=${period.value}&limit=50`),
          api.get('/control/staff-readiness'),
          api.get('/control/settings'),
       ])
       report.value = rep.data
       workers.value = wrk.data
+      timeseries.value = ts.data
       requests.value = reqs.data
       staffReadiness.value = sr.data
       form.value = {
@@ -512,6 +644,7 @@ async function load() {
    } catch {
       report.value = null
       workers.value = []
+      timeseries.value = []
       requests.value = []
       staffReadiness.value = []
    } finally {
@@ -527,22 +660,6 @@ const errorKinds = computed(() => {
       .map(([code, count]) => ({ label: KIND_LABELS[code] || code, count }))
       .sort((a, b) => b.count - a.count)
 })
-
-/** Feature #3 — download the per-worker sheet as CSV (via axios so the JWT is sent). */
-async function exportCsv() {
-   exporting.value = true
-   try {
-      const res = await api.get(`/control/export?period=${period.value}`, { responseType: 'blob' })
-      const url = URL.createObjectURL(res.data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `nazorat_${period.value}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
-   } finally {
-      exporting.value = false
-   }
-}
 
 /** Feature #6 — dismiss a falsely auto-detected repeat, then refresh the evidence. */
 async function dismissReopen(id: number) {
