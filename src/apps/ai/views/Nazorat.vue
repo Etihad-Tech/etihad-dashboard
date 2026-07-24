@@ -34,7 +34,7 @@
             </div>
 
             <!-- trend: how the buckets move over time (line graph, not just totals) -->
-            <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up">
+            <div class="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 animate-fade-up">
                <div class="flex items-baseline justify-between gap-3 mb-4">
                   <div>
                      <h3 class="text-sm font-semibold text-gray-900">Vaqt bo'yicha dinamika</h3>
@@ -43,7 +43,7 @@
                      </p>
                   </div>
                </div>
-               <div v-if="trendLabels.length" class="h-72">
+               <div v-if="trendLabels.length" class="h-56 sm:h-72">
                   <Line :data="trendData" :options="trendOptions" :plugins="[crosshairPlugin]" />
                </div>
                <div v-else class="py-12 text-center text-gray-400 text-sm">
