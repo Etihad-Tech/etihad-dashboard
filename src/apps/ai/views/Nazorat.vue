@@ -23,13 +23,45 @@
             <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
          </div>
 
+         <div v-else-if="loadError"
+            class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm animate-fade-up">
+            <p class="font-medium text-red-800 mb-1">Ma'lumotni yuklab bo'lmadi</p>
+            <p class="text-red-700 mb-3">
+               Bu «murojaat yo'q» degani EMAS — server javob bermadi yoki ruxsat yetmadi.
+            </p>
+            <button @click="load"
+               class="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg">
+               Qayta urinish
+            </button>
+         </div>
+
          <template v-else>
-            <!-- headline numbers -->
+            <!-- MUROJAATLAR — counted per NEED -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-up">
-               <div v-for="(c, i) in cards" :key="i" class="bg-white rounded-2xl border border-gray-200 p-4">
+               <div v-for="(c, i) in needCards" :key="i" class="bg-white rounded-2xl border border-gray-200 p-4">
                   <p class="text-xs text-gray-500">{{ c.label }}</p>
                   <p class="text-2xl font-bold mt-1" :class="c.tone">{{ c.value }}</p>
                   <p v-if="c.hint" class="text-[11px] text-gray-400 mt-1">{{ c.hint }}</p>
+               </div>
+            </div>
+
+            <!-- XODIM JAVOBLARI — counted per WORKER, not per need. Kept in its own
+                 titled block because a need sent to the whole crew produces one row per
+                 member: these numbers are NOT shares of "Murojaatlar" above. -->
+            <div class="animate-fade-up">
+               <div class="mb-2">
+                  <h3 class="text-base font-semibold text-gray-900">Xodim javoblari</h3>
+                  <p class="text-[11px] text-gray-400">
+                     Har bir xodim uchun alohida sanaladi — bitta murojaat butun jamoaga
+                     yuborilsa, har bir xodim uchun bittadan yoziladi
+                  </p>
+               </div>
+               <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div v-for="(c, i) in workerCards" :key="i" class="bg-white rounded-2xl border border-gray-200 p-4">
+                     <p class="text-xs text-gray-500">{{ c.label }}</p>
+                     <p class="text-2xl font-bold mt-1" :class="c.tone">{{ c.value }}</p>
+                     <p v-if="c.hint" class="text-[11px] text-gray-400 mt-1">{{ c.hint }}</p>
+                  </div>
                </div>
             </div>
 
@@ -39,7 +71,8 @@
                   <div>
                      <h3 class="text-sm font-semibold text-gray-900">Vaqt bo'yicha dinamika</h3>
                      <p class="text-[11px] text-gray-400 mt-0.5">
-                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha holatlar
+                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha xodim javoblari
+                        (Makka/Madina vaqti)
                      </p>
                   </div>
                </div>
@@ -60,20 +93,36 @@
                </p>
             </div>
 
-            <!-- #4: active staff the bot can't reach yet (never pressed Start) -->
+            <!-- needs that reached NOBODY — no crew for that city, or none DM-able -->
+            <div v-if="report && report.unassigned"
+               class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm animate-fade-up">
+               <p class="font-medium text-red-800 mb-1">
+                  {{ report.unassigned }} ta murojaat hech kimga yetmadi
+               </p>
+               <p class="text-red-700">
+                  Bu shahar uchun xodim biriktirilmagan yoki hech biriga DM yuborib bo'lmadi —
+                  ziyoratchining so'rovi hech kimga topshirilmagan. Xodimlar ro'yxatini
+                  va quyidagi «Start» ogohlantirishini tekshiring.
+               </p>
+            </div>
+
+            <!-- #4: active staff / leaders the bot can't reach yet (never pressed Start) -->
             <div v-if="staffReadiness.length"
                class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm animate-fade-up">
                <p class="font-medium text-red-800 mb-1">
-                  {{ staffReadiness.length }} ta faol xodimga DM yuborib bo'lmaydi
+                  {{ staffReadiness.length }} ta faol xodim/ellikboshiga DM yuborib bo'lmaydi
                </p>
                <p class="text-red-700 mb-2">
                   Ular botni «Start» qilmagan — murojaatlar ularga umuman bormaydi. Har biri botga
-                  <code class="bg-white px-1 rounded">/start</code> yozishi kerak.
+                  <code class="bg-white px-1 rounded">/start</code> yozishi kerak
+                  (yoki Xodimlar sahifasida ularning Telegram ID raqamini kiriting).
                </p>
                <div class="flex flex-wrap gap-1.5">
                   <span v-for="(s, i) in staffReadiness" :key="i"
                      class="text-xs px-2 py-0.5 bg-white border border-red-200 rounded-lg text-red-700">
-                     {{ s.username || s.name || '—' }} · {{ s.location }}
+                     {{ s.username || s.name || '—' }}
+                     <template v-if="s.location"> · {{ s.location }}</template>
+                     <template v-if="s.role === 'ellikboshi'"> · Ellikboshi</template>
                   </span>
                </div>
             </div>
@@ -222,11 +271,26 @@
                         </div>
                      </div>
                   </div>
+                  <!-- The jurnal is built from the last `reqLimit` murojaat, so say so
+                       rather than let a truncated list read as the whole period. -->
+                  <div v-if="requestsTruncated"
+                     class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                     <span>
+                        Faqat oxirgi {{ requests.length }} ta murojaat ko'rsatilmoqda —
+                        yuqoridagi jadval esa butun davrni sanaydi.
+                     </span>
+                     <button v-if="reqLimit < MAX_REQ_LIMIT" @click="loadMoreRequests"
+                        class="px-3 py-1 border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50">
+                        Ko'proq yuklash
+                     </button>
+                  </div>
                </div>
             </div>
 
-            <!-- tuning -->
-            <div class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up">
+            <!-- tuning — ADMIN ONLY: these fields decide who turns red, and the toggle
+                 can stop the recording entirely, so the nazoratchi does not get them
+                 (the API enforces it too; this only avoids showing a button that 403s) -->
+            <div v-if="isAdmin" class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up">
                <h3 class="text-base font-semibold text-gray-900 mb-1">Sozlamalar</h3>
                <p class="text-xs text-gray-500 mb-4">
                   Bir xil so'rov qayta kelganda: xodim uchun oyna tugagach — yangi so'rov;
@@ -282,11 +346,15 @@ import {
 } from 'chart.js'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
+import { useAuthStore } from '../../../stores/auth'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
 interface Report {
-   requests: number; dms: number; delivered: number; undelivered: number
+   // per NEED
+   requests: number; unassigned: number
+   // per RECIPIENT ROW (one per worker the need was DM'd to)
+   dms: number; delivered: number; undelivered: number
    accepted: number; never_accepted: number; completed: number; re_requests: number
    reopened: number; avg_response_seconds: number | null
    flagged: number; bot_mistakes: number; flags_neutral: number; flags_pending: number
@@ -299,7 +367,8 @@ interface Worker {
    flagged: number; flags_confirmed: number; flags_neutral: number
    avg_response_seconds: number | null
 }
-interface StaffReady { role: string; location: string; username: string | null; name: string | null }
+// `location` is null for an ellikboshi — a leader belongs to a group, not a city.
+interface StaffReady { role: string; location: string | null; username: string | null; name: string | null }
 
 // Xatolik taxonomy labels — codes mirror server IT_ERROR_KINDS (bot/services/control.py).
 const KIND_LABELS: Record<string, string> = {
@@ -328,6 +397,19 @@ const filterRole = ref('')          // '' = all, else 'staff' | 'ellikboshi'
 const filterName = ref('')          // matches name OR username (case-insensitive)
 const requests = ref<any[]>([])
 const staffReadiness = ref<StaffReady[]>([])
+const loadError = ref(false)
+
+// Drill-down paging. The per-staff jurnal is built from these rows, so a silent cap
+// would make a truncated log look like the worker's whole period.
+const REQ_PAGE = 200
+const MAX_REQ_LIMIT = 500          // the API's own ceiling
+const reqLimit = ref(REQ_PAGE)
+const requestsTruncated = computed(() => requests.value.length >= reqLimit.value)
+
+// Only the admin may tune the control system (the API enforces it; this hides the form).
+const auth = useAuthStore()
+const isAdmin = computed(() => !auth.role || auth.role === 'admin')
+
 const form = ref({
    staff_repeat_window_hours: 6,
    ellikboshi_repeat_window_hours: 0,
@@ -352,11 +434,35 @@ function fmtTime(iso: string | null): string {
    return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
 }
 
-const cards = computed(() => {
+/** Counted per NEED (one pilgrim request = 1), whatever the crew size. */
+const needCards = computed(() => {
    const r = report.value
    if (!r) return []
    return [
-      { label: 'Murojaatlar', value: r.requests, tone: 'text-gray-900' },
+      {
+         label: 'Murojaatlar', value: r.requests, tone: 'text-gray-900',
+         hint: `${r.delivered} ta xodim kartochkasi yuborildi`,
+      },
+      { label: 'O\'rtacha javob vaqti', value: dur(r.avg_response_seconds), tone: 'text-gray-900' },
+      {
+         label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes, tone: 'text-indigo-600',
+         hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : '',
+      },
+      {
+         label: 'Asossiz «Xatolik»', value: r.flags_neutral,
+         tone: r.flags_neutral ? 'text-red-600' : 'text-gray-900',
+         hint: 'IT neytral deb topgan',
+      },
+   ]
+})
+
+/** Counted per WORKER: a need sent to the whole crew yields one row per member, so
+ *  these deliberately do NOT sum to "Murojaatlar" — they are rendered under their own
+ *  heading for exactly that reason. */
+const workerCards = computed(() => {
+   const r = report.value
+   if (!r) return []
+   return [
       {
          label: 'Bajarildi', value: r.completed, tone: 'text-emerald-600',
          hint: 'Qabul qilindi, ziyoratchi qayta so\'ramadi',
@@ -375,16 +481,6 @@ const cards = computed(() => {
          tone: r.never_accepted ? 'text-blue-600' : 'text-gray-900',
          hint: 'Yetib borgan, lekin qabul qilinmagan',
       },
-      { label: 'O\'rtacha javob vaqti', value: dur(r.avg_response_seconds), tone: 'text-gray-900' },
-      {
-         label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes, tone: 'text-indigo-600',
-         hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : '',
-      },
-      {
-         label: 'Asossiz «Xatolik»', value: r.flags_neutral,
-         tone: r.flags_neutral ? 'text-red-600' : 'text-gray-900',
-         hint: 'IT neytral deb topgan',
-      },
    ]
 })
 
@@ -397,13 +493,17 @@ const TREND_SERIES = [
    { key: 'never_accepted', label: 'Javobsiz', color: '#3b82f6' },
 ] as const
 
-/** X-axis labels: hour for the day period, else day/month — matching the Dashboard. */
+/** X-axis labels: hour for the day period, else day/month. Rendered in SAUDI time
+ *  (Asia/Riyadh) because that is how the server groups them — the crew and the pilgrims
+ *  are there, so an evening in Makka must not straddle two labels for a viewer in
+ *  Tashkent. */
+const SAUDI_TZ = 'Asia/Riyadh'
 const trendLabels = computed(() =>
    timeseries.value.map((t) => {
       const d = new Date(t.period)
       return period.value === 'day'
-         ? d.toLocaleTimeString('uz', { hour: '2-digit', minute: '2-digit' })
-         : d.toLocaleDateString('uz', { day: '2-digit', month: '2-digit' })
+         ? d.toLocaleTimeString('uz', { hour: '2-digit', minute: '2-digit', timeZone: SAUDI_TZ })
+         : d.toLocaleDateString('uz', { day: '2-digit', month: '2-digit', timeZone: SAUDI_TZ })
    }),
 )
 
@@ -620,12 +720,13 @@ function setPeriod(p: string) {
 
 async function load() {
    loading.value = true
+   loadError.value = false
    try {
       const [rep, wrk, ts, reqs, sr, st] = await Promise.all([
          api.get(`/control/report?period=${period.value}`),
          api.get(`/control/workers?period=${period.value}`),
          api.get(`/control/timeseries?period=${period.value}`),
-         api.get(`/control/requests?period=${period.value}&limit=50`),
+         api.get(`/control/requests?period=${period.value}&limit=${reqLimit.value}`),
          api.get('/control/staff-readiness'),
          api.get('/control/settings'),
       ])
@@ -642,6 +743,10 @@ async function load() {
          is_enabled: st.data.is_enabled,
       }
    } catch {
+      // Surfaced, not swallowed: an empty page that means "the request failed" reads
+      // exactly like one that means "nothing happened this period" — and on an evidence
+      // panel those two are opposites.
+      loadError.value = true
       report.value = null
       workers.value = []
       timeseries.value = []
@@ -650,6 +755,12 @@ async function load() {
    } finally {
       loading.value = false
    }
+}
+
+/** The drill-down is capped; pull the next page when the office needs more of it. */
+function loadMoreRequests() {
+   reqLimit.value = Math.min(MAX_REQ_LIMIT, reqLimit.value + REQ_PAGE)
+   load()
 }
 
 /** Feature #1 — the confirmed-mistake breakdown as [{label, count}], biggest first. */

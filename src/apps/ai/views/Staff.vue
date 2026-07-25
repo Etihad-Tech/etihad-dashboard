@@ -58,7 +58,10 @@
                     {{ s.username }}
                     <span v-if="s.name" class="text-gray-400 font-normal">· {{ s.name }}</span>
                   </p>
-                  <p class="text-xs text-gray-500">{{ roleMeta(s.role).label }}</p>
+                  <p class="text-xs text-gray-500">
+                    {{ roleMeta(s.role).label }}
+                    <span v-if="s.telegram_id" class="text-gray-400">· ID {{ s.telegram_id }}</span>
+                  </p>
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
@@ -127,6 +130,18 @@
             <p class="text-[11px] text-gray-400">
               Ishchi guruh uchun «Ikkala shahar» tanlang (bir jamoa); shifokor/aeroport uchun aniq shaharni tanlang.
             </p>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                Telegram ID (ixtiyoriy)
+              </label>
+              <input v-model.number="form.telegram_id" type="number" placeholder="Masalan: 123456789"
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
+              <p class="text-[11px] text-gray-400 mt-1.5">
+                Nazorat kartochkalari shaxsiy xabar orqali boradi. ID kiritilsa, bot bu
+                xodimga username o'zgarsa ham yeta oladi. Bo'sh qoldirilsa — xodim botga
+                o'zi «/start» yozishi shart, aks holda unga murojaat bormaydi.
+              </p>
+            </div>
             <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
           </div>
           <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
@@ -155,6 +170,11 @@ interface Staff {
   location: string
   username: string
   name: string | null
+  // Optional numeric id. The @mention always uses the username, but the bot's PRIVATE
+  // messages (the Nazorat accountability cards) need an id — filling this in makes the
+  // DM work even when the bot has never seen this person post, and survives a username
+  // change. Without it the bot can only reach people who pressed /start themselves.
+  telegram_id: number | null
   is_active: boolean
 }
 
@@ -205,19 +225,24 @@ const grouped = computed(() => {
 const modalOpen = ref(false)
 const modalEditId = ref<number | null>(null)
 const formError = ref('')
-const form = ref({ username: '', name: '', role: 'ishchi_guruh', location: 'all' })
+const form = ref<{
+  username: string; name: string; role: string; location: string; telegram_id: number | null
+}>({ username: '', name: '', role: 'ishchi_guruh', location: 'all', telegram_id: null })
 
 function openAdd() {
   modalEditId.value = null
   formError.value = ''
-  form.value = { username: '', name: '', role: 'ishchi_guruh', location: 'all' }
+  form.value = { username: '', name: '', role: 'ishchi_guruh', location: 'all', telegram_id: null }
   modalOpen.value = true
 }
 
 function openEdit(s: Staff) {
   modalEditId.value = s.id
   formError.value = ''
-  form.value = { username: s.username, name: s.name || '', role: s.role, location: s.location }
+  form.value = {
+    username: s.username, name: s.name || '', role: s.role, location: s.location,
+    telegram_id: s.telegram_id ?? null,
+  }
   modalOpen.value = true
 }
 
@@ -235,6 +260,9 @@ async function saveModal() {
     name: form.value.name.trim() || null,
     role: form.value.role,
     location: form.value.location,
+    // 0 clears it on the server ("send a value to set, 0 to clear"), so an emptied
+    // field removes the stored id instead of silently keeping the old one.
+    telegram_id: form.value.telegram_id || 0,
   }
   try {
     if (modalEditId.value) {
