@@ -140,6 +140,7 @@ const NAV_GROUPS = [
   { title: 'Xodimlar', items: [
     { to: '/ai/staff', label: 'Xodimlar', icon: 'users' },
     { to: '/ai/ellikboshi', label: 'Ellikboshilar', icon: 'user' },
+    { to: '/ai/nazorat', label: 'Nazorat', icon: 'eye' },
     { to: '/ai/admins', label: 'Adminlar', icon: 'user-shield' },
     { to: '/ai/qora-royxat', label: "Qora ro'yxat", icon: 'user-slash' },
   ] },
@@ -159,6 +160,8 @@ function allowed(to: string): boolean {
   if (auth.role === 'qa') return ['/ai/qa', '/ai/groups', '/ai/templates'].includes(to)
   // mingboshi: leaders + staff + inquiry routing + hotels management
   if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/hotels'].includes(to)
+  // nazoratchi (controller): the Nazorat panel and nothing else.
+  if (auth.role === 'nazoratchi') return to === '/ai/nazorat'
   return true
 }
 // Groups with their items filtered by role; empty groups dropped.
@@ -168,7 +171,7 @@ const visibleGroups = computed(() =>
     .filter(g => g.items.length > 0)
 )
 // qa now also manages the main Guruhlar page ('/'), so it keeps the "Bosh sahifa" link.
-const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'mingboshi')
+const showHome = computed(() => auth.role !== 'flight' && auth.role !== 'mingboshi' && auth.role !== 'nazoratchi')
 
 function handleLogout() {
   auth.logout()
