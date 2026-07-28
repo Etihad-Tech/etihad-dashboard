@@ -1,11 +1,18 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between animate-fade-up">
-        <h2 class="text-2xl font-bold text-gray-900">Maqtov shablonlari</h2>
+      <div class="flex items-start justify-between gap-4 animate-fade-up">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Maqtov shablonlari</h2>
+          <p class="text-sm text-gray-500 mt-1 max-w-2xl">
+            Ziyoratchi rahmat aytganda bot shu shablonlardan javob beradi — safarning oxirgi 2 kuni
+            (oxirgi to'liq kun va uchib ketish kuni) hamda safar tugagandan keyingi kunlarda.
+            Safar davomida esa qisqa umumiy javob yuboradi.
+          </p>
+        </div>
         <button
           @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
+          class="flex items-center gap-2 shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
         >
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
           Yangi shablon
