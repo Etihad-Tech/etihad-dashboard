@@ -157,7 +157,11 @@ const router = createRouter({
 
 // Where each role lands, and which paths it may reach. Managers (flight/qa) are
 // confined to their one panel; admin (and team-only/legacy, role null) unchanged.
-const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', nazoratchi: '/ai/nazorat', admin: '/' }
+const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', nazoratchi: '/ai/nazorat', nazoratchi_staff: '/ai/nazorat', nazoratchi_ellikboshi: '/ai/nazorat', admin: '/' }
+
+// The three controller logins are identical to the router — same single panel; they
+// differ only in WHICH population the API lets each of them read.
+const NAZORATCHI_ROLES = ['nazoratchi', 'nazoratchi_staff', 'nazoratchi_ellikboshi']
 
 // The mingboshi manages leaders, staff, inquiry routing, and the hotels list.
 const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/hotels']
@@ -170,8 +174,8 @@ function roleAllows(path: string, role: string | null): boolean {
   if (role === 'flight') return path === '/ai/reyslar'
   if (role === 'qa') return QA_PATHS.includes(path)
   if (role === 'mingboshi') return MINGBOSHI_PATHS.includes(path)
-  // The nazoratchi (controller) sees ONLY the Nazorat panel.
-  if (role === 'nazoratchi') return path === '/ai/nazorat'
+  // A nazoratchi (controller) sees ONLY the Nazorat panel.
+  if (role && NAZORATCHI_ROLES.includes(role)) return path === '/ai/nazorat'
   return true
 }
 
@@ -184,7 +188,8 @@ router.beforeEach((to) => {
   if (to.meta.guest && auth.isAuthenticated) {
     return home
   }
-  if (auth.isAuthenticated && (auth.role === 'flight' || auth.role === 'qa' || auth.role === 'mingboshi' || auth.role === 'nazoratchi') && !roleAllows(to.path, auth.role)) {
+  const gated = ['flight', 'qa', 'mingboshi', ...NAZORATCHI_ROLES]
+  if (auth.isAuthenticated && auth.role && gated.includes(auth.role) && !roleAllows(to.path, auth.role)) {
     return home
   }
 })
