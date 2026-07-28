@@ -24,8 +24,8 @@
             <select v-model="filterGroup" @change="load"
                class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white max-w-[240px]">
                <option value="">Barcha guruhlar</option>
-               <option v-for="g in groupOptions" :key="g.chat_id" :value="String(g.chat_id)">
-                  {{ groupLabel(g) }}
+               <option v-for="g in groupChoices" :key="g.chat_id" :value="String(g.chat_id)">
+                  {{ g.label }}
                </option>
             </select>
             <select v-model="filterCity" @change="load"
@@ -117,8 +117,8 @@
                   <div>
                      <h3 class="text-sm font-semibold text-gray-900">Vaqt bo'yicha dinamika</h3>
                      <p class="text-[11px] text-gray-400 mt-0.5">
-                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha xodim javoblari
-                        (Makka/Madina vaqti)
+                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha
+                        {{ personWordLower }} javoblari (Makka/Madina vaqti)
                      </p>
                   </div>
                </div>
@@ -134,7 +134,7 @@
                class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800 animate-fade-up">
                <p class="font-medium mb-1">{{ report.undelivered }} ta xabar yetib bormadi</p>
                <p class="text-amber-700">
-                  Bu xodimlar botni «Start» qilmagan — ularning javob bermagani o'zlarining aybi emas
+                  Ular botni «Start» qilmagan — javob bermagani o'zlarining aybi emas
                   va hisobotda ularga yozilmaydi.
                </p>
             </div>
@@ -217,7 +217,8 @@
                </div>
                <div v-if="filteredWorkers.length === 0"
                   class="bg-white rounded-2xl border border-gray-200 py-12 text-center text-gray-400 text-sm">
-                  {{ workers.length === 0 ? 'Bu davrda murojaat bo\'lmagan' : 'Filtrga mos xodim topilmadi' }}
+                  {{ workers.length === 0 ? 'Bu davrda murojaat bo\'lmagan'
+                     : 'Filtrga mos ' + personWordLower + ' topilmadi' }}
                </div>
                <div v-else class="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
                   <table class="w-full text-sm min-w-[640px]">
@@ -287,7 +288,8 @@
                <div v-if="showRequests">
                   <div v-if="staffLogs.length === 0"
                      class="bg-white rounded-2xl border border-gray-200 py-12 text-center text-gray-400 text-sm">
-                     {{ workers.length === 0 ? 'Bu davrda murojaat bo\'lmagan' : 'Filtrga mos xodim topilmadi' }}
+                     {{ workers.length === 0 ? 'Bu davrda murojaat bo\'lmagan'
+                     : 'Filtrga mos ' + personWordLower + ' topilmadi' }}
                   </div>
                   <!-- compact list of names; tap a name to open that xodim's log -->
                   <div v-else class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
@@ -525,6 +527,21 @@ function groupLabel(g: { chat_id: number; title: string | null; cities?: string[
    const cities = (g.cities || []).map(cityLabel).filter(Boolean)
    return cities.length ? `${name} · ${cities.join(', ')}` : name
 }
+
+/** The Guruh dropdown. Two groups CAN carry the same Telegram title, and two identical
+ *  options would leave the reader unable to tell which slice they picked — so a repeated
+ *  label falls back to the chat id, which is always unique. */
+const groupChoices = computed(() => {
+   const seen = new Map<string, number>()
+   for (const g of groupOptions.value) {
+      const l = groupLabel(g)
+      seen.set(l, (seen.get(l) || 0) + 1)
+   }
+   return groupOptions.value.map((g) => {
+      const l = groupLabel(g)
+      return { chat_id: g.chat_id, label: (seen.get(l) || 0) > 1 ? `${l} · ${g.chat_id}` : l }
+   })
+})
 
 /** "Makka · 3 guruh" — where a worker's needs came from this period. */
 function whereLabel(w: Worker): string {
