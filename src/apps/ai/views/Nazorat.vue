@@ -3,10 +3,8 @@
       <div class="space-y-6">
          <div class="flex items-center justify-between gap-4 flex-wrap animate-fade-up">
             <div>
-               <h2 class="text-2xl font-bold text-gray-900">Nazorat</h2>
-               <p class="text-sm text-gray-500 mt-1">
-                  Xodimlar va ellikboshilar murojaatlarni qanday bajarayotgani — dalillar bilan
-               </p>
+               <h2 class="text-2xl font-bold text-gray-900">{{ scopeTitle }}</h2>
+               <p class="text-sm text-gray-500 mt-1">{{ scopeSubtitle }}</p>
             </div>
             <div class="flex items-center gap-2">
                <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
@@ -17,6 +15,32 @@
                   </button>
                </div>
             </div>
+         </div>
+
+         <!-- WHICH SLICE of the trip everything below describes. Applied on the SERVER,
+              so the cards, the trend, the table and the jurnal can never end up
+              describing different slices. -->
+         <div class="flex flex-wrap items-center gap-2 animate-fade-up">
+            <select v-model="filterGroup" @change="load"
+               class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white max-w-[240px]">
+               <option value="">Barcha guruhlar</option>
+               <option v-for="g in groupOptions" :key="g.chat_id" :value="String(g.chat_id)">
+                  {{ groupLabel(g) }}
+               </option>
+            </select>
+            <select v-model="filterCity" @change="load"
+               class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white">
+               <option value="">Ikkala shahar</option>
+               <option value="makka">Makka</option>
+               <option value="madina">Madina</option>
+            </select>
+            <button v-if="filterGroup || filterCity" @click="clearSlice"
+               class="text-xs text-gray-500 hover:text-gray-800 underline">
+               Filtrni tozalash
+            </button>
+            <span v-if="filterGroup || filterCity" class="text-[11px] text-gray-400">
+               Quyidagi barcha raqamlar faqat shu tanlov bo'yicha
+            </span>
          </div>
 
          <div v-if="loading" class="flex justify-center py-12">
@@ -50,10 +74,10 @@
                  member: these numbers are NOT shares of "Murojaatlar" above. -->
             <div class="animate-fade-up">
                <div class="mb-2">
-                  <h3 class="text-base font-semibold text-gray-900">Xodim javoblari</h3>
+                  <h3 class="text-base font-semibold text-gray-900">{{ personWord }} javoblari</h3>
                   <p class="text-[11px] text-gray-400">
-                     Har bir xodim uchun alohida sanaladi — bitta murojaat butun jamoaga
-                     yuborilsa, har bir xodim uchun bittadan yoziladi
+                     Har bir {{ personWordLower }} uchun alohida sanaladi — bitta murojaat
+                     butun jamoaga yuborilsa, har biri uchun bittadan yoziladi
                   </p>
                </div>
                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -62,6 +86,28 @@
                      <p class="text-2xl font-bold mt-1" :class="c.tone">{{ c.value }}</p>
                      <p v-if="c.hint" class="text-[11px] text-gray-400 mt-1">{{ c.hint }}</p>
                   </div>
+               </div>
+
+               <!-- The four colours in one place. «Takroriy so'rov» and «Bajarilmagan»
+                    are the two ends of the SAME event (the pilgrim asked twice) seen
+                    from different legs of the chain, which is exactly what nobody could
+                    tell from the old near-identical names. -->
+               <div class="mt-3 bg-white rounded-2xl border border-gray-200 p-4">
+                  <p class="text-xs font-semibold text-gray-900 mb-2">Ranglar nimani bildiradi</p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                     <div v-for="l in LEGEND" :key="l.label" class="flex gap-2">
+                        <span class="shrink-0">{{ l.dot }}</span>
+                        <p class="text-xs text-gray-600">
+                           <span class="font-medium" :class="l.tone">{{ l.label }}</span>
+                           — {{ l.text }}
+                        </p>
+                     </div>
+                  </div>
+                  <p class="text-[11px] text-gray-400 mt-3">
+                     Ziyoratchi bitta narsani ikki marta so'rasa, u BITTA hodisa ikkita
+                     raqam beradi: birinchi murojaatni olgan xodimga 🔴 Bajarilmagan,
+                     ikkinchisini olganga 🟡 Takroriy so'rov.
+                  </p>
                </div>
             </div>
 
@@ -103,6 +149,10 @@
                   Bu shahar uchun xodim biriktirilmagan yoki hech biriga DM yuborib bo'lmadi —
                   ziyoratchining so'rovi hech kimga topshirilmagan. Xodimlar ro'yxatini
                   va quyidagi «Start» ogohlantirishini tekshiring.
+                  <span class="block mt-1 text-red-600/80">
+                     Bu raqam lavozim bo'yicha ajratilmaydi: hech kimga bormagan murojaatda
+                     mas'ul yo'q, shuning uchun u ikkala nazoratchida ham ko'rinadi.
+                  </span>
                </p>
             </div>
 
@@ -110,7 +160,9 @@
             <div v-if="staffReadiness.length"
                class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm animate-fade-up">
                <p class="font-medium text-red-800 mb-1">
-                  {{ staffReadiness.length }} ta faol xodim/ellikboshiga DM yuborib bo'lmaydi
+                  {{ staffReadiness.length }} ta faol
+                  {{ scope === 'all' ? 'xodim/ellikboshiga' : personWordLower + 'ga' }}
+                  DM yuborib bo'lmaydi
                </p>
                <p class="text-red-700 mb-2">
                   Ular botni «Start» qilmagan — murojaatlar ularga umuman bormaydi. Har biri botga
@@ -146,9 +198,11 @@
             <!-- per-worker evidence sheet -->
             <div class="animate-fade-up">
                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                  <h3 class="text-base font-semibold text-gray-900">Xodimlar nazorati</h3>
+                  <h3 class="text-base font-semibold text-gray-900">{{ personWord }}lar nazorati</h3>
                   <div class="flex flex-wrap items-center gap-2">
-                     <select v-model="filterRole"
+                     <!-- Only the combined account ever sees both lavozim in the data;
+                          for a scoped controller this dropdown would have one option. -->
+                     <select v-if="scope === 'all'" v-model="filterRole"
                         class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white">
                         <option value="">Barcha lavozimlar</option>
                         <option value="staff">Xodim</option>
@@ -170,14 +224,15 @@
                      <thead>
                         <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
                            <th class="px-4 py-3 font-medium">Username</th>
-                           <th class="px-3 py-3 font-medium">Lavozim</th>
+                           <th v-if="scope === 'all'" class="px-3 py-3 font-medium">Lavozim</th>
                            <th class="px-4 py-3 font-medium">Ism</th>
-                           <th class="px-3 py-3 font-medium text-center">Murojaatlar</th>
+                           <th class="px-3 py-3 font-medium" title="Qaysi shaharlarda va nechta guruhda ishlagan">Qayerda</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Shu odamga yuborilgan kartochkalar soni">Murojaatlar</th>
                            <th class="px-3 py-3 font-medium text-center">Qabul</th>
-                           <th class="px-3 py-3 font-medium text-center" title="Yetib borgan, lekin xodim qabul qilmagan">Javobsiz</th>
-                           <th class="px-3 py-3 font-medium text-center" title="Qabul qilindi, ziyoratchi qayta so'ramadi">Bajarildi</th>
-                           <th class="px-3 py-3 font-medium text-center" title="Ikkinchi marta so'ralgan, xodim qabul qilgan">Qayta so'rov</th>
-                           <th class="px-3 py-3 font-medium text-center" title="Qabul qilingan, lekin ziyoratchi qayta so'ragan — hal bo'lmagan">Qayta so'ralgan</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Yetib borgan, lekin qabul qilinmagan">🔵 Javobsiz</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Qabul qilindi, ziyoratchi qayta so'ramadi">🟢 Bajarildi</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Ziyoratchi ilgari so'ragan edi — shu odam ikkinchi so'rovni qabul qildi">🟡 Takroriy so'rov</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Qabul qilgan, LEKIN ziyoratchi qayta so'ragan — aslida hal qilinmagan">🔴 Bajarilmagan</th>
                         </tr>
                      </thead>
                      <tbody>
@@ -186,13 +241,14 @@
                            <td class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
                               {{ w.username || ('ID ' + w.telegram_id) }}
                            </td>
-                           <td class="px-3 py-3">
+                           <td v-if="scope === 'all'" class="px-3 py-3">
                               <span class="text-xs px-2 py-0.5 rounded-lg"
                                  :class="w.role === 'ellikboshi' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-700'">
                                  {{ w.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim' }}
                               </span>
                            </td>
                            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">{{ w.name || '—' }}</td>
+                           <td class="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">{{ whereLabel(w) }}</td>
                            <td class="px-3 py-3 text-center text-gray-600">{{ w.dms }}</td>
                            <td class="px-3 py-3 text-center text-gray-600">{{ w.accepted }}</td>
                            <td class="px-3 py-3 text-center"
@@ -220,7 +276,9 @@
             <!-- drill-down -->
             <div class="animate-fade-up">
                <div class="flex items-center justify-between mb-3">
-                  <h3 class="text-base font-semibold text-gray-900">Har bir xodim bo'yicha jurnal</h3>
+                  <h3 class="text-base font-semibold text-gray-900">
+                     Har bir {{ personWordLower }} bo'yicha jurnal
+                  </h3>
                   <button @click="showRequests = !showRequests"
                      class="text-xs font-medium text-gray-500 hover:text-gray-800">
                      {{ showRequests ? 'Yashirish' : 'Ko\'rsatish' }}
@@ -241,7 +299,7 @@
                               <span class="text-sm font-semibold text-gray-900 truncate">
                                  {{ s.name || s.username || ('ID ' + s.telegram_id) }}
                               </span>
-                              <span class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                              <span v-if="scope === 'all'" class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
                                  :class="s.role === 'ellikboshi' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-700'">
                                  {{ s.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim' }}
                               </span>
@@ -253,8 +311,16 @@
                               class="border-l-2 pl-3"
                               :class="e.parent_request_id && !e.reopen_dismissed ? 'border-amber-200' : 'border-gray-200'">
                               <p class="text-sm text-gray-900">
-                                 <span v-if="e.parent_request_id && !e.reopen_dismissed" class="text-amber-600 font-medium">🔁 Qayta so'rov · </span>
+                                 <span v-if="e.parent_request_id && !e.reopen_dismissed" class="text-amber-600 font-medium">🔁 Takroriy so'rov · </span>
                                  {{ e.text || '—' }}
+                              </p>
+                              <!-- WHERE it came from. The controller was not in that
+                                   chat, so a request text on its own is unreadable. -->
+                              <p class="text-[11px] text-gray-500 mt-0.5 flex flex-wrap gap-x-2">
+                                 <span class="font-medium text-gray-600">{{ e.group_label }}</span>
+                                 <span v-if="e.city">· {{ cityLabel(e.city) }}</span>
+                                 <span v-if="e.room_no">· {{ e.room_no }}-xona</span>
+                                 <span v-if="e.pilgrim_username">· {{ e.pilgrim_username }}</span>
                               </p>
                               <p class="text-xs mt-0.5" :class="e.sum.tone">
                                  {{ e.sum.text }}
@@ -366,7 +432,11 @@ interface Worker {
    completed: number; re_requests: number; reopened: number; released: number
    flagged: number; flags_confirmed: number; flags_neutral: number
    avg_response_seconds: number | null
+   // Where this person actually worked, from the needs themselves — "7 murojaat" reads
+   // very differently across nine groups than inside one.
+   cities: string[]; group_count: number
 }
+interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 // `location` is null for an ellikboshi — a leader belongs to a group, not a city.
 interface StaffReady { role: string; location: string | null; username: string | null; name: string | null }
 
@@ -385,6 +455,26 @@ const PERIODS = [
    { value: 'month', label: 'Oylik' },
 ]
 
+// The four colour buckets spelled out once, in words an ordinary reader can act on.
+// 🟡 and 🔴 used to be called "Qayta so'rov" and "Qayta so'ralgan", which are the same
+// two words in the same order — nobody could tell them apart, and they are opposites:
+// one is credit for handling a follow-up, the other is blame for a false "done".
+const LEGEND = [
+   { dot: '🟢', label: 'Bajarildi', tone: 'text-emerald-600',
+     text: "qabul qildi, ziyoratchi qayta so'ramadi" },
+   { dot: '🟡', label: "Takroriy so'rov", tone: 'text-amber-600',
+     text: "ziyoratchi ilgari ham so'ragan edi — shu odam ikkinchi so'rovni qabul qildi" },
+   { dot: '🔴', label: 'Bajarilmagan', tone: 'text-red-600',
+     text: "qabul qilgan, LEKIN ziyoratchi qayta so'radi — aslida hal qilinmagan" },
+   { dot: '🔵', label: 'Javobsiz', tone: 'text-blue-600',
+     text: 'kartochka yetib bordi, lekin umuman qabul qilinmadi' },
+]
+
+const CITY_LABELS: Record<string, string> = { makka: 'Makka', madina: 'Madina' }
+function cityLabel(c: string | null): string {
+   return c ? (CITY_LABELS[c] || c) : ''
+}
+
 const period = ref('day')
 const loading = ref(false)
 const saving = ref(false)
@@ -395,9 +485,53 @@ const workers = ref<Worker[]>([])
 const timeseries = ref<{ period: string; completed: number; re_requests: number; reopened: number; never_accepted: number }[]>([])
 const filterRole = ref('')          // '' = all, else 'staff' | 'ellikboshi'
 const filterName = ref('')          // matches name OR username (case-insensitive)
+// Slice filters — sent to the SERVER, so every number on the page moves together.
+const filterGroup = ref('')         // '' = all groups, else the chat_id as a string
+const filterCity = ref('')          // '' = both, else 'makka' | 'madina'
+const groupOptions = ref<GroupOption[]>([])
 const requests = ref<any[]>([])
 const staffReadiness = ref<StaffReady[]>([])
 const loadError = ref(false)
+
+// Which population this LOGIN may see: 'staff' | 'ellikboshi' | 'all'. Comes from the
+// API (the token decides it), never from a dropdown — a scoped controller cannot widen
+// their own view, and the page must not label itself as something it is not. Until the
+// first load answers, assume the narrowest honest thing: nothing role-specific.
+const scope = ref<'staff' | 'ellikboshi' | 'all'>('all')
+const isStaffScope = computed(() => scope.value === 'staff')
+const isLeaderScope = computed(() => scope.value === 'ellikboshi')
+
+/** "Xodim" / "Ellikboshi" — the word for one person in this account's population. */
+const personWord = computed(() => (isLeaderScope.value ? 'Ellikboshi' : 'Xodim'))
+const personWordLower = computed(() => personWord.value.toLowerCase())
+
+const scopeTitle = computed(() =>
+   isStaffScope.value ? 'Nazorat — Xodimlar'
+      : isLeaderScope.value ? 'Nazorat — Ellikboshilar'
+         : 'Nazorat',
+)
+const scopeSubtitle = computed(() =>
+   isStaffScope.value
+      ? "Ishchi guruh murojaatlarni qanday bajarayotgani — dalillar bilan"
+      : isLeaderScope.value
+         ? "Ellikboshilar murojaatlarni qanday bajarayotgani — dalillar bilan"
+         : "Xodimlar va ellikboshilar murojaatlarni qanday bajarayotgani — dalillar bilan",
+)
+
+/** Group name for the filter dropdown; falls back to the raw id when a group has no
+ *  title saved (never show an empty option — an unnamed group is still a real one). */
+function groupLabel(g: { chat_id: number; title: string | null; cities?: string[] }): string {
+   const name = g.title || `Guruh ${g.chat_id}`
+   const cities = (g.cities || []).map(cityLabel).filter(Boolean)
+   return cities.length ? `${name} · ${cities.join(', ')}` : name
+}
+
+/** "Makka · 3 guruh" — where a worker's needs came from this period. */
+function whereLabel(w: Worker): string {
+   const cities = (w.cities || []).map(cityLabel).filter(Boolean).join(', ')
+   const groups = w.group_count ? `${w.group_count} guruh` : ''
+   return [cities, groups].filter(Boolean).join(' · ') || '—'
+}
 
 // Drill-down paging. The per-staff jurnal is built from these rows, so a silent cap
 // would make a truncated log look like the worker's whole period.
@@ -441,7 +575,7 @@ const needCards = computed(() => {
    return [
       {
          label: 'Murojaatlar', value: r.requests, tone: 'text-gray-900',
-         hint: `${r.delivered} ta xodim kartochkasi yuborildi`,
+         hint: `${r.delivered} ta ${personWordLower.value} kartochkasi yetib bordi`,
       },
       { label: 'O\'rtacha javob vaqti', value: dur(r.avg_response_seconds), tone: 'text-gray-900' },
       {
@@ -464,20 +598,20 @@ const workerCards = computed(() => {
    if (!r) return []
    return [
       {
-         label: 'Bajarildi', value: r.completed, tone: 'text-emerald-600',
+         label: '🟢 Bajarildi', value: r.completed, tone: 'text-emerald-600',
          hint: 'Qabul qilindi, ziyoratchi qayta so\'ramadi',
       },
       {
-         label: 'Qayta so\'rov', value: r.re_requests,
+         label: '🟡 Takroriy so\'rov', value: r.re_requests,
          tone: r.re_requests ? 'text-amber-600' : 'text-gray-900',
-         hint: 'Ikkinchi marta so\'ralgan, qabul qilingan',
+         hint: 'Ikkinchi so\'rovni qabul qilgan',
       },
       {
-         label: 'Qayta so\'ralgan', value: r.reopened, tone: r.reopened ? 'text-red-600' : 'text-gray-900',
-         hint: 'Qabul qilingan, lekin hal bo\'lmagan',
+         label: '🔴 Bajarilmagan', value: r.reopened, tone: r.reopened ? 'text-red-600' : 'text-gray-900',
+         hint: 'Qabul qilgan, lekin ziyoratchi qayta so\'ragan',
       },
       {
-         label: 'Javobsiz qolgan', value: r.never_accepted,
+         label: '🔵 Javobsiz qolgan', value: r.never_accepted,
          tone: r.never_accepted ? 'text-blue-600' : 'text-gray-900',
          hint: 'Yetib borgan, lekin qabul qilinmagan',
       },
@@ -488,8 +622,8 @@ const workerCards = computed(() => {
 // mirror the card tones: 🟢 completed, 🟡 re_requests, 🔴 reopened, 🔵 never_accepted.
 const TREND_SERIES = [
    { key: 'completed', label: 'Bajarildi', color: '#10b981' },
-   { key: 're_requests', label: "Qayta so'rov", color: '#f59e0b' },
-   { key: 'reopened', label: "Qayta so'ralgan", color: '#ef4444' },
+   { key: 're_requests', label: "Takroriy so'rov", color: '#f59e0b' },
+   { key: 'reopened', label: 'Bajarilmagan', color: '#ef4444' },
    { key: 'never_accepted', label: 'Javobsiz', color: '#3b82f6' },
 ] as const
 
@@ -623,11 +757,14 @@ function durBetween(fromIso: string | null, toIso: string | null): string {
  *  🟢 completed, 🟡 accepted-re-request, 🔴 reopened. */
 function entrySummary(e: any): { text: string; tone: string } {
    const sent = fmtTime(e.dm_sent_at)
+   // "Xodim" / "Ellikboshi" — the same sentence, addressed to whoever this account
+   // actually watches, so a leaders' controller never reads about "xodimlar".
+   const who = personWord.value
    if (!e.delivered)
-      return { text: 'Xodimga yetib bormadi.', tone: 'text-gray-400' }
+      return { text: `${who}ga yetib bormadi.`, tone: 'text-gray-400' }
    if (e.flagged_at)
       return {
-         text: `${sent} da yuborildi. Xodim «Xatolik» deb belgiladi`
+         text: `${sent} da yuborildi. ${who} «Xatolik» deb belgiladi`
             + (e.it_verdict ? ` (IT: ${e.it_verdict}).` : " (IT hali ko'rmagan)."),
          tone: 'text-indigo-600',
       }
@@ -635,29 +772,29 @@ function entrySummary(e: any): { text: string; tone: string } {
       const c = e.claimed_by
       const verb = c && c.flagged ? '«Xatolik» deb belgiladi' : 'qabul qildi'
       return {
-         text: `${sent} da yuborildi. Boshqa xodim ${verb}${c ? ` (${c.name})` : ''}.`,
+         text: `${sent} da yuborildi. Boshqa ${personWordLower.value} ${verb}${c ? ` (${c.name})` : ''}.`,
          tone: 'text-gray-400',
       }
    }
    if (!e.accepted_at)   // 🔵 delivered but never taken
       return {
-         text: `${sent} da yuborildi. Xodim hali qabul qilmadi (javobsiz: ${durBetween(e.dm_sent_at, null)}).`,
+         text: `${sent} da yuborildi. ${who} hali qabul qilmadi (javobsiz: ${durBetween(e.dm_sent_at, null)}).`,
          tone: 'text-blue-600',
       }
    const acc = fmtTime(e.accepted_at)
    const wait = durBetween(e.dm_sent_at, e.accepted_at)
    if (e.reopened_count > 0)   // 🔴 accepted, but the pilgrim came back -> false completion
       return {
-         text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi — hal bo'lmagan.`,
+         text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi — bajarilmagan.`,
          tone: 'text-red-600',
       }
    if (e.parent_request_id && !e.reopen_dismissed)   // 🟡 accepted follow-up (already a repeat)
       return {
-         text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}) — qayta so'rov, bajarildi.`,
+         text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}) — takroriy so'rov, bajarildi.`,
          tone: 'text-amber-600',
       }
    return {   // 🟢 clean single-pass completion
-      text: `${sent} da yuborildi. Xodim ${acc} da qabul qildi (${wait}) — bajarildi.`,
+      text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}) — bajarildi.`,
       tone: 'text-emerald-600',
    }
 }
@@ -683,6 +820,9 @@ const staffLogs = computed(() => {
          s.entries.push({
             id: r.id, text: r.text, parent_request_id: r.parent_request_id,
             reopen_dismissed: r.reopen_dismissed, message_link: r.message_link,
+            // Context the reader needs to make sense of the text at all.
+            group_label: r.group_title || `Guruh ${r.chat_id}`,
+            city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
             created_at: r.created_at, delivered: rec.delivered, it_verdict: rec.it_verdict,
             dm_sent_at: rec.dm_sent_at, accepted_at: rec.accepted_at,
             flagged_at: rec.flagged_at, released_at: rec.released_at, reopened_count: rec.reopened_count,
@@ -718,23 +858,45 @@ function setPeriod(p: string) {
    load()
 }
 
+/** The chosen slice as a query string — appended to every read so the whole page always
+ *  describes the same group / city. */
+const sliceQuery = computed(() => {
+   const parts = [`period=${period.value}`]
+   if (filterGroup.value) parts.push(`chat_id=${encodeURIComponent(filterGroup.value)}`)
+   if (filterCity.value) parts.push(`city=${encodeURIComponent(filterCity.value)}`)
+   return parts.join('&')
+})
+
+function clearSlice() {
+   filterGroup.value = ''
+   filterCity.value = ''
+   load()
+}
+
 async function load() {
    loading.value = true
    loadError.value = false
    try {
-      const [rep, wrk, ts, reqs, sr, st] = await Promise.all([
-         api.get(`/control/report?period=${period.value}`),
-         api.get(`/control/workers?period=${period.value}`),
-         api.get(`/control/timeseries?period=${period.value}`),
-         api.get(`/control/requests?period=${period.value}&limit=${reqLimit.value}`),
+      const q = sliceQuery.value
+      const [rep, wrk, ts, reqs, sr, st, sc, grp] = await Promise.all([
+         api.get(`/control/report?${q}`),
+         api.get(`/control/workers?${q}`),
+         api.get(`/control/timeseries?${q}`),
+         api.get(`/control/requests?${q}&limit=${reqLimit.value}`),
          api.get('/control/staff-readiness'),
          api.get('/control/settings'),
+         api.get('/control/scope'),
+         // Deliberately NOT sliced: the group list must keep offering the other groups,
+         // otherwise picking one would leave you unable to pick a different one.
+         api.get(`/control/groups?period=${period.value}`),
       ])
       report.value = rep.data
       workers.value = wrk.data
       timeseries.value = ts.data
       requests.value = reqs.data
       staffReadiness.value = sr.data
+      scope.value = sc.data?.scope || 'all'
+      groupOptions.value = grp.data
       form.value = {
          staff_repeat_window_hours: st.data.staff_repeat_window_hours,
          ellikboshi_repeat_window_hours: st.data.ellikboshi_repeat_window_hours,
@@ -752,6 +914,7 @@ async function load() {
       timeseries.value = []
       requests.value = []
       staffReadiness.value = []
+      groupOptions.value = []
    } finally {
       loading.value = false
    }
