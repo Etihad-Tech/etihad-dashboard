@@ -462,8 +462,17 @@ interface Worker {
    staff_role: string | null
 }
 interface GroupOption { chat_id: number; title: string | null; cities: string[] }
-// `location` is null for an ellikboshi — a leader belongs to a group, not a city.
-interface StaffReady { role: string; location: string | null; username: string | null; name: string | null }
+// `location` is null for an ellikboshi — a leader belongs to a GROUP, not a city, and
+// `group` is that group's title (null for crew). Which group still assigns them is the
+// one fact that makes the warning actionable: the fix is on the Guruhlar page.
+interface StaffReady {
+   role: string; location: string | null; username: string | null; name: string | null
+   group?: string | null
+   // false = this group still names a leader who is no longer in the Ellikboshilar
+   // pool. Deleting them there does not clear the group's assignment, so the bot
+   // would still be DMing a removed person.
+   in_pool?: boolean
+}
 
 /** The four outcomes, defined ONCE — the split bar, the legend, the chart, the table
  *  headers and the per-row bars all read from here, so a colour or a wording can never
@@ -629,9 +638,18 @@ const problems = computed(() => {
       key: 'readiness', value: staffReadiness.value.length, label: 'DM yuborib bo\'lmaydi',
       color: '#a16207',
       hint: 'Botni «Start» qilmagan — murojaatlar ularga umuman bormaydi. Har biri botga '
-         + '/start yozishi kerak (yoki Xodimlar sahifasida Telegram ID raqamini kiriting).',
+         + '/start yozishi kerak (yoki Xodimlar sahifasida Telegram ID raqamini kiriting). '
+         + 'Ellikboshi qaysi guruhga biriktirilgani qavs ichida — endi kerak bo\'lmasa, '
+         + 'Guruhlar sahifasidan o\'zgartiring.',
+      // Say WHERE each one is still assigned. A bare @username left the office asking
+      // why somebody they had already removed was on the page — the answer is always
+      // "a group still names them".
       people: staffReadiness.value.map((s) =>
-         (s.username || s.name || '—') + (s.location ? ` · ${cityLabel(s.location)}` : '')),
+         (s.username || s.name || '—')
+         + (s.location ? ` · ${cityLabel(s.location)}` : '')
+         + (s.group ? ` · ${s.group}` : '')
+         + (s.role === 'ellikboshi' && s.in_pool === false
+            ? " · ro'yxatdan o'chirilgan" : '')),
    })
    if (r.flags_neutral) out.push({
       key: 'flags_neutral', value: r.flags_neutral, label: 'Asossiz «Xatolik»',
