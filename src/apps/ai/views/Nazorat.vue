@@ -135,8 +135,19 @@
                <p class="font-medium mb-1">{{ report.undelivered }} ta xabar yetib bormadi</p>
                <p class="text-amber-700">
                   Ular botni «Start» qilmagan — javob bermagani o'zlarining aybi emas
-                  va hisobotda ularga yozilmaydi.
+                  va hisobotda ularga yozilmaydi. Jadvalda bu «Hisobga olinmagan»
+                  ustunida ko'rinadi.
                </p>
+               <!-- Name them. A bare count leaves the office guessing WHO to chase, and
+                    the readiness check cannot predict this case: a telegram_id typed into
+                    the staff row looks reachable, but Telegram still refuses a DM to
+                    someone who never pressed Start privately. -->
+               <div v-if="undeliveredPeople.length" class="flex flex-wrap gap-1.5 mt-2">
+                  <span v-for="(p, i) in undeliveredPeople" :key="i"
+                     class="text-xs px-2 py-0.5 bg-white border border-amber-200 rounded-lg text-amber-800">
+                     {{ p }}
+                  </span>
+               </div>
             </div>
 
             <!-- needs that reached NOBODY — no crew for that city, or none DM-able -->
@@ -225,7 +236,7 @@
                      <thead>
                         <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
                            <th class="px-4 py-3 font-medium">Username</th>
-                           <th v-if="scope === 'all'" class="px-3 py-3 font-medium">Lavozim</th>
+                           <th class="px-3 py-3 font-medium" title="Shifokorga faqat sog'liq murojaatlari, aeroport xodimiga faqat aeroport murojaatlari boradi — shuning uchun ularning soni kam bo'lishi normal">Vazifa</th>
                            <th class="px-4 py-3 font-medium">Ism</th>
                            <th class="px-3 py-3 font-medium" title="Qaysi shaharlarda va nechta guruhda ishlagan">Qayerda</th>
                            <th class="px-3 py-3 font-medium text-center" title="Shu odamga yuborilgan kartochkalar soni">Murojaatlar</th>
@@ -234,6 +245,7 @@
                            <th class="px-3 py-3 font-medium text-center" title="Qabul qilindi, ziyoratchi qayta so'ramadi">🟢 Bajarildi</th>
                            <th class="px-3 py-3 font-medium text-center" title="Ziyoratchi ilgari so'ragan edi — shu odam ikkinchi so'rovni qabul qildi">🟡 Takroriy so'rov</th>
                            <th class="px-3 py-3 font-medium text-center" title="Qabul qilgan, LEKIN ziyoratchi qayta so'ragan — aslida hal qilinmagan">🔴 Bajarilmagan</th>
+                           <th class="px-3 py-3 font-medium text-center" title="Bu odamning zimmasidan chiqqan kartochkalar: yetib bormagan, boshqa xodim olgan yoki «Xatolik» deb belgilangan. Ular hech qaysi rangga qo'shilmaydi.">Hisobga olinmagan</th>
                         </tr>
                      </thead>
                      <tbody>
@@ -242,10 +254,10 @@
                            <td class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
                               {{ w.username || ('ID ' + w.telegram_id) }}
                            </td>
-                           <td v-if="scope === 'all'" class="px-3 py-3">
-                              <span class="text-xs px-2 py-0.5 rounded-lg"
+                           <td class="px-3 py-3">
+                              <span class="text-xs px-2 py-0.5 rounded-lg whitespace-nowrap"
                                  :class="w.role === 'ellikboshi' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-700'">
-                                 {{ w.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim' }}
+                                 {{ jobLabel(w) }}
                               </span>
                            </td>
                            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">{{ w.name || '—' }}</td>
@@ -268,10 +280,25 @@
                               :class="w.reopened ? 'text-red-600 font-semibold' : 'text-gray-400'">
                               {{ w.reopened }}
                            </td>
+                           <!-- Without this the row simply does not add up: a card that
+                                never arrived / a colleague took / was flagged leaves every
+                                colour column at 0, so "1 murojaat" then six zeros reads as
+                                broken data instead of "it never became their job". -->
+                           <td class="px-3 py-3 text-center" :title="uncountedHint(w)"
+                              :class="uncounted(w) ? 'text-gray-600' : 'text-gray-400'">
+                              {{ uncounted(w) }}
+                           </td>
                         </tr>
                      </tbody>
                   </table>
                </div>
+               <p class="text-[11px] text-gray-400 mt-2">
+                  Har bir qatorda: <b>Murojaatlar = Qabul + Javobsiz + Hisobga olinmagan</b>,
+                  <b>Qabul = Bajarildi + Takroriy so'rov + Bajarilmagan</b>.
+                  Sonlar xodimlar o'rtasida turlicha bo'lishi normal: kartochka faqat
+                  <b>o'sha paytdagi shahar jamoasiga</b> yuboriladi, shifokorga esa faqat
+                  sog'liq murojaatlari — hammaga hamma murojaat bormaydi.
+               </p>
             </div>
 
             <!-- drill-down -->
@@ -437,6 +464,9 @@ interface Worker {
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
+   // Their JOB from the staff table (ishchi_guruh / doctor / airport), NOT the
+   // control-system role. A doctor only ever receives health needs.
+   staff_role: string | null
 }
 interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 // `location` is null for an ellikboshi — a leader belongs to a group, not a city.
@@ -542,6 +572,39 @@ const groupChoices = computed(() => {
       return { chat_id: g.chat_id, label: (seen.get(l) || 0) > 1 ? `${l} · ${g.chat_id}` : l }
    })
 })
+
+// staff.role -> a job an ordinary reader recognises. The job is WHY two people's
+// numbers differ: the doctor is deliberately kept out of the whole-crew tag and only
+// receives health needs, the airport contact only airport ones.
+const JOB_LABELS: Record<string, string> = {
+   ishchi_guruh: 'Ishchi guruh',
+   doctor: 'Shifokor',
+   airport: 'Aeroport',
+}
+function jobLabel(w: Worker): string {
+   if (w.role === 'ellikboshi') return 'Ellikboshi'
+   const j = w.staff_role
+   return j ? (JOB_LABELS[j] || j) : 'Xodim'
+}
+
+/** Cards that left this person's accountability: never arrived, a colleague claimed it
+ *  first, or they marked it a bot error. In none of the four colour buckets — so without
+ *  this the row's own numbers do not add up to its "Murojaatlar". */
+function uncounted(w: Worker): number {
+   return (w.undelivered || 0) + (w.released || 0) + (w.flagged || 0)
+}
+function uncountedHint(w: Worker): string {
+   return `Yetib bormadi: ${w.undelivered || 0} · Boshqa xodim oldi: ${w.released || 0}`
+      + ` · «Xatolik» deb belgilangan: ${w.flagged || 0}`
+}
+
+/** Who the bot actually FAILED to reach this period. `staff-readiness` only predicts
+ *  this (and misses anyone whose staff row carries a telegram_id they never activated
+ *  by pressing Start); an undelivered card is the proof it really happened. */
+const undeliveredPeople = computed(() =>
+   workers.value.filter((w) => w.undelivered > 0)
+      .map((w) => `${personLabel(w)} (${w.undelivered})`),
+)
 
 /** "Makka · 3 guruh" — where a worker's needs came from this period. */
 function whereLabel(w: Worker): string {
