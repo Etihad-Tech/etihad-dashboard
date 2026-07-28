@@ -233,16 +233,12 @@
                            <th class="px-3 py-3 font-medium text-right" title="Shu odamga yuborilgan kartochkalar soni">Murojaat</th>
                            <th class="px-3 py-3 font-medium text-right">Qabul</th>
                            <th class="px-4 py-3 font-medium">Natija</th>
-                           <th v-for="b in BUCKETS" :key="b.key" class="px-3 py-3 font-medium text-right"
-                              :title="b.hint">
+                           <th v-for="(b, bi) in BUCKETS" :key="b.key" class="py-3 font-medium text-right"
+                              :class="bi === BUCKETS.length - 1 ? 'px-5' : 'px-3'" :title="b.hint">
                               <span class="inline-flex items-center gap-1.5">
                                  <span class="w-1.5 h-1.5 rounded-full" :style="{ background: b.color }"></span>
                                  {{ b.short }}
                               </span>
-                           </th>
-                           <th class="px-5 py-3 font-medium text-right"
-                              title="Bu odamning zimmasidan chiqqan kartochkalar: yetib bormagan, boshqa xodim olgan yoki «Xatolik» deb belgilangan. Ular hech qaysi rangga qo'shilmaydi.">
-                              Hisobga olinmagan
                            </th>
                         </tr>
                      </thead>
@@ -274,22 +270,21 @@
                            </td>
                            <!-- Values in ink, identity from the dot in the header: an
                                 amber numeral on white is unreadable at this size. -->
-                           <td v-for="b in BUCKETS" :key="b.key" class="px-3 py-3.5 text-right tabular-nums"
-                              :class="(w as any)[b.key] ? 'text-gray-900 font-medium' : 'text-gray-400'">
+                           <td v-for="(b, bi) in BUCKETS" :key="b.key" class="py-3.5 text-right tabular-nums"
+                              :class="[bi === BUCKETS.length - 1 ? 'px-5' : 'px-3',
+                                       (w as any)[b.key] ? 'text-gray-900 font-medium' : 'text-gray-400']">
                               {{ (w as any)[b.key] }}
-                           </td>
-                           <td class="px-5 py-3.5 text-right tabular-nums" :title="uncountedHint(w)"
-                              :class="uncounted(w) ? 'text-gray-600' : 'text-gray-400'">
-                              {{ uncounted(w) }}
                            </td>
                         </tr>
                      </tbody>
                   </table>
                </div>
                <p class="text-[13px] text-gray-500 mt-3 leading-relaxed">
-                  Har bir qatorda: <b>Murojaat = Qabul + Javobsiz + Hisobga olinmagan</b>,
-                  <b>Qabul = Bajarildi + Takroriy so'rov + Bajarilmagan</b>.
-                  Sonlar {{ personWordLower }}lar o'rtasida turlicha bo'lishi normal: kartochka faqat
+                  Har bir qatorda <b>Qabul = Bajarildi + Takroriy so'rov + Bajarilmagan</b>.
+                  Qabul va Javobsiz yig'indisi Murojaatdan kam bo'lishi mumkin — ba'zi kartochkalar
+                  {{ personWordLower }}ning zimmasidan chiqib ketadi (boshqasi qabul qilgan yoki
+                  umuman yetib bormagan); ular «Natija» ustunida <b>kulrang</b> ko'rinadi.
+                  Sonlar {{ personWordLower }}lar o'rtasida turlicha bo'lishi ham normal: kartochka faqat
                   <b>o'sha paytdagi shahar jamoasiga</b> yuboriladi, shifokorga esa faqat sog'liq
                   murojaatlari — hammaga hamma murojaat bormaydi.
                </p>
@@ -815,19 +810,18 @@ function jobLabel(w: Worker): string {
 }
 
 /** Cards that left this person's accountability: never arrived, a colleague claimed it
- *  first, or they marked it a bot error. In none of the four colour buckets — so without
- *  this the row's own numbers do not add up to its "Murojaat". */
+ *  first, or they marked it a bot error. They belong to none of the four colour buckets.
+ *  Owner removed the numeric column for these (2026-07-28) — the count is now carried
+ *  only by the gray tail of the row's Natija bar and by its tooltip, which names the
+ *  three causes in plain words instead of one abstract heading. */
 function uncounted(w: Worker): number {
    return (w.undelivered || 0) + (w.released || 0) + (w.flagged || 0)
 }
-function uncountedHint(w: Worker): string {
-   return `Yetib bormadi: ${w.undelivered || 0} · Boshqa xodim oldi: ${w.released || 0}`
-      + ` · «Xatolik» deb belgilangan: ${w.flagged || 0}`
-}
 
 /** One row's composition as a mini bar — lets a long sheet be scanned for "who is
- *  mostly red" without reading every number. Uncounted cards ride along in gray so the
- *  bar spans the row's whole Murojaat count, exactly like the arithmetic note says. */
+ *  mostly red" without reading every number. The cards that left their accountability
+ *  ride along in gray, so the bar always spans the row's whole Murojaat count and a
+ *  short coloured bar is visibly "most of this was never theirs". */
 function rowSegments(w: Worker) {
    const total = w.dms || 1
    const segs: { key: string; color: string; value: number }[] = BUCKETS
@@ -836,8 +830,13 @@ function rowSegments(w: Worker) {
    return segs.filter((s) => s.value > 0).map((s) => ({ ...s, pct: (s.value / total) * 100 }))
 }
 function rowSplitHint(w: Worker): string {
-   return BUCKETS.map((b) => `${b.label}: ${(w as any)[b.key]}`).join(' · ')
-      + ` · Hisobga olinmagan: ${uncounted(w)}`
+   const parts = BUCKETS.map((b) => `${b.label}: ${(w as any)[b.key]}`)
+   // Spelled out rather than summed under a heading: "boshqa xodim oldi" is a fact
+   // anyone can act on, "hisobga olinmagan" was a word people had to ask about.
+   if (w.released) parts.push(`Boshqa xodim oldi: ${w.released}`)
+   if (w.undelivered) parts.push(`Yetib bormadi: ${w.undelivered}`)
+   if (w.flagged) parts.push(`«Xatolik» deb belgilangan: ${w.flagged}`)
+   return parts.join(' · ')
 }
 
 /** Who the bot actually FAILED to reach this period. `staff-readiness` only predicts
