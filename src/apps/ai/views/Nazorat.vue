@@ -73,16 +73,78 @@
                     to six, and a divided grid leaves a visible empty cell whenever the
                     last row is short. -->
                <div class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                  <div v-for="p in problems" :key="p.key" class="card p-5 relative overflow-hidden">
+                  <!-- «Javobsiz qolgan» opens: a number nobody can act on is only half
+                       the story, so tapping it names the messages and the people who
+                       did not take them. The other tiles stay plain — they either
+                       already list their people, or there is nothing to drill into. -->
+                  <component :is="p.key === 'never_accepted' ? 'button' : 'div'"
+                     v-for="p in problems" :key="p.key" type="button"
+                     class="card p-5 relative overflow-hidden text-left w-full"
+                     :class="p.key === 'never_accepted' ? 'hover:bg-gray-50/70 transition-colors' : ''"
+                     @click="p.key === 'never_accepted' && (showUnanswered = !showUnanswered)">
                      <span class="absolute left-0 top-0 bottom-0 w-[3px]" :style="{ background: p.color }"></span>
                      <div class="flex items-baseline gap-2">
                         <span class="text-[32px] leading-none font-semibold tracking-tight"
                            :style="{ color: p.color }">{{ p.value }}</span>
                         <span class="text-sm font-medium text-gray-900">{{ p.label }}</span>
+                        <span v-if="p.key === 'never_accepted'"
+                           class="ml-auto text-[13px] font-medium text-gray-500 whitespace-nowrap">
+                           {{ showUnanswered ? 'Yashirish' : "Ko'rish" }}
+                        </span>
                      </div>
                      <p class="text-[13px] text-gray-500 mt-2 leading-snug">{{ p.hint }}</p>
                      <div v-if="p.people && p.people.length" class="flex flex-wrap gap-1.5 mt-3">
                         <span v-for="(who, i) in p.people" :key="i" class="chip">{{ who }}</span>
+                     </div>
+                  </component>
+               </div>
+
+               <!-- WHICH messages, and WHO did not take them. One block per message,
+                    because a crew need is sent to several people at once and the
+                    question is always "who ignored this one". -->
+               <div v-if="showUnanswered" class="card p-5">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                     <h4 class="text-sm font-semibold text-gray-900">Javobsiz qolgan murojaatlar</h4>
+                     <p v-if="report && report.never_accepted > unansweredNeeds.length"
+                        class="text-[13px] text-gray-500">
+                        Jami {{ report.never_accepted }} ta kartochka · quyida oxirgi
+                        {{ unansweredNeeds.length }} ta murojaat
+                     </p>
+                  </div>
+                  <div v-if="!unansweredNeeds.length"
+                     class="flex flex-wrap items-center gap-3 py-2 text-[13px] text-gray-500">
+                     <span>Bu murojaatlar ko'rsatilayotgan oxirgi {{ requests.length }} tadan tashqarida.</span>
+                     <button v-if="reqLimit < MAX_REQ_LIMIT" @click="loadMoreRequests" class="btn-ghost">
+                        Ko'proq yuklash
+                     </button>
+                  </div>
+                  <div v-else class="divide-y divide-gray-100 -mx-5">
+                     <div v-for="n in unansweredNeeds" :key="n.id" class="px-5 py-3">
+                        <p class="text-sm text-gray-900 leading-snug">{{ n.text || '—' }}</p>
+                        <p class="flex flex-wrap gap-x-2 gap-y-1 mt-1.5 text-xs text-gray-500">
+                           <span>{{ fmtDateTime(n.created_at) }}</span>
+                           <span class="font-medium text-gray-700">· {{ n.group_label }}</span>
+                           <span v-if="n.city">· {{ cityLabel(n.city) }}</span>
+                           <span v-if="n.room_no">· {{ n.room_no }}-xona</span>
+                           <span v-if="n.pilgrim_username">· {{ n.pilgrim_username }}</span>
+                           <a v-if="n.message_link" :href="n.message_link" target="_blank"
+                              class="text-gray-500 hover:text-gray-900 underline underline-offset-2">
+                              Xabarni ko'rish
+                           </a>
+                        </p>
+                        <!-- The people it reached who never took it, each with the JOB
+                             that explains why they were the ones asked. -->
+                        <div class="flex flex-wrap gap-1.5 mt-2">
+                           <span class="text-xs text-gray-500 mr-0.5">Qabul qilmadi:</span>
+                           <span v-for="w in n.ignored" :key="w.telegram_id"
+                              class="chip inline-flex items-center gap-1.5">
+                              {{ w.name }}
+                              <span class="badge"
+                                 :class="w.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">
+                                 {{ w.job }}
+                              </span>
+                           </span>
+                        </div>
                      </div>
                   </div>
                </div>
@@ -160,31 +222,49 @@
                </div>
             </section>
 
-            <!-- ──────────────── 4. TREND ──────────────── -->
+            <!-- ──────────────── 4. TREND — one line PER PERSON ────────────────
+                 Owner asked for this to be per worker rather than per outcome colour:
+                 "who was carrying the work, and when". The three measures are a client
+                 -side switch over one payload, so changing it costs no round trip. -->
             <section class="card p-5 animate-fade-up">
                <div class="flex flex-wrap items-start justify-between gap-3">
                   <div>
                      <h3 class="text-base font-semibold text-gray-900">Vaqt bo'yicha dinamika</h3>
                      <p class="text-[13px] text-gray-500 mt-0.5">
-                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha
-                        {{ personWordLower }} javoblari · Makka/Madina vaqti
+                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha har bir
+                        {{ personWordLower }} · Makka/Madina vaqti
                      </p>
                   </div>
-                  <!-- Own legend rather than chart.js's, so it matches the split bar
-                       above it exactly — same dots, same order, same wording. -->
-                  <div class="flex flex-wrap gap-x-4 gap-y-1.5">
-                     <span v-for="b in BUCKETS" :key="b.key" class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full" :style="{ background: b.color }"></span>
-                        <span class="text-[13px] text-gray-600">{{ b.label }}</span>
-                     </span>
+                  <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                     <button v-for="m in TREND_METRICS" :key="m.key" @click="trendMetric = m.key"
+                        class="px-3 py-1 text-[13px] font-medium rounded-lg transition-all"
+                        :class="trendMetric === m.key
+                           ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5'
+                           : 'text-gray-500 hover:text-gray-900'"
+                        :title="m.hint">
+                        {{ m.label }}
+                     </button>
                   </div>
                </div>
-               <div v-if="trendLabels.length" class="h-64 sm:h-72 mt-5">
-                  <Line :data="trendData" :options="trendOptions" :plugins="[crosshairPlugin]" />
+               <!-- Legend is mandatory here: with up to eight people, identity can never
+                    rest on colour alone. Names, in the same order as the lines. -->
+               <div v-if="workerSeries.length" class="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+                  <span v-for="w in workerSeries" :key="w.key" class="flex items-center gap-1.5">
+                     <span class="w-2 h-2 rounded-full" :style="{ background: w.color }"></span>
+                     <span class="text-[13px] text-gray-600">{{ w.label }}</span>
+                  </span>
+               </div>
+               <div v-if="trendLabels.length && workerSeries.length" class="h-64 sm:h-72 mt-4">
+                  <Line :data="workerTrendData" :options="trendOptions" :plugins="[crosshairPlugin]" />
                </div>
                <div v-else class="py-16 text-center text-gray-400 text-sm">
                   Bu davr uchun ma'lumot yo'q
                </div>
+               <p v-if="foldedWorkerCount" class="text-[13px] text-gray-500 mt-3">
+                  Eng faol {{ MAX_TREND_SERIES }} tasi alohida ko'rsatilgan; qolgan
+                  {{ foldedWorkerCount }} ta {{ personWordLower }} «Boshqalar» chizig'ida
+                  jamlangan.
+               </p>
             </section>
 
             <!-- confirmed bot mistakes, by kind -->
@@ -530,9 +610,16 @@ const loading = ref(false)
 const saving = ref(false)
 const savedMsg = ref('')
 const showRequests = ref(true)
+// Is the «Javobsiz qolgan» tile expanded? Closed by default — the tile is a
+// headline first, a drill-down only when asked.
+const showUnanswered = ref(false)
 const report = ref<Report | null>(null)
 const workers = ref<Worker[]>([])
 const timeseries = ref<{ period: string; completed: number; re_requests: number; reopened: number; never_accepted: number }[]>([])
+// Per-person activity over time — one row per (bucket, person); somebody with nothing
+// in a bucket is simply absent from it.
+const workerTimeseries = ref<{ period: string; telegram_id: number; username: string | null;
+   role: string; dms: number; accepted: number; never_accepted: number }[]>([])
 const filterRole = ref('')          // '' = all, else 'staff' | 'ellikboshi'
 const filterName = ref('')          // matches name OR username (case-insensitive)
 // Slice filters — sent to the SERVER, so every number on the page moves together.
@@ -600,6 +687,15 @@ function dur(s: number | null): string {
 function fmtTime(iso: string | null): string {
    if (!iso) return '—'
    return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Date + time — this list can span a whole month, so the day matters here in a way it
+ *  does not inside one worker's jurnal. */
+function fmtDateTime(iso: string | null): string {
+   if (!iso) return '—'
+   const d = new Date(iso)
+   return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' })
+      + ' ' + d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
 }
 
 /** ── THE LEAD ──────────────────────────────────────────────────────────────
@@ -698,29 +794,139 @@ const contextStats = computed(() => {
    ]
 })
 
+/** The needs behind «Javobsiz qolgan», each with the people it reached who never took
+ *  it — and the JOB each of them holds, which is what explains why they were asked.
+ *
+ *  Built from the drill-down rather than a new endpoint: a blue card is exactly a
+ *  recipient that was DELIVERED, not flagged, not released and never accepted — the same
+ *  four conditions the server counts — so the two can never disagree. Newest first.
+ *  Grouped by MESSAGE, because a crew need goes to several people at once and the
+ *  question being asked is "who ignored this one". */
+const unansweredNeeds = computed(() => {
+   const byId = new Map(workers.value.map((w) => [w.telegram_id, w]))
+   const out: any[] = []
+   for (const r of requests.value) {
+      const ignored = (r.recipients || []).filter((rec: any) =>
+         rec.delivered && !rec.accepted_at && !rec.flagged_at && !rec.released_at)
+      if (!ignored.length) continue
+      out.push({
+         id: r.id, text: r.text, created_at: r.created_at,
+         group_label: r.group_title || `Guruh ${r.chat_id}`,
+         city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
+         message_link: r.message_link,
+         ignored: ignored.map((rec: any) => {
+            const w = byId.get(rec.telegram_id)
+            return {
+               telegram_id: rec.telegram_id,
+               name: (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id),
+               role: rec.role,
+               job: w ? jobLabel(w) : (rec.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim'),
+            }
+         }),
+      })
+   }
+   return out
+})
+
 // ── Trend ────────────────────────────────────────────────────────────────────
 /** X-axis labels: hour for the day period, else day/month. Rendered in SAUDI time
  *  (Asia/Riyadh) because that is how the server groups them — the crew and the pilgrims
  *  are there, so an evening in Makka must not straddle two labels for a viewer in
  *  Tashkent. */
 const SAUDI_TZ = 'Asia/Riyadh'
+
+/** Every bucket present in the per-worker payload, oldest first. Built from the worker
+ *  series rather than the colour one because a person with no cards in a bucket is
+ *  simply absent from it — the x-axis is the union, not any one person's rows. */
+const trendPeriods = computed(() =>
+   [...new Set(workerTimeseries.value.map((t) => t.period))].sort(),
+)
 const trendLabels = computed(() =>
-   timeseries.value.map((t) => {
-      const d = new Date(t.period)
+   trendPeriods.value.map((p) => {
+      const d = new Date(p)
       return period.value === 'day'
          ? d.toLocaleTimeString('uz', { hour: '2-digit', minute: '2-digit', timeZone: SAUDI_TZ })
          : d.toLocaleDateString('uz', { day: '2-digit', month: '2-digit', timeZone: SAUDI_TZ })
    }),
 )
 
-const trendData = computed(() => ({
+const TREND_METRICS = [
+   { key: 'dms', label: 'Murojaat', hint: 'Shu odamga yetib borgan kartochkalar' },
+   { key: 'accepted', label: 'Qabul', hint: 'Shu odam qabul qilganlari' },
+   { key: 'never_accepted', label: 'Javobsiz', hint: 'Yetib borgan, lekin qabul qilinmagan' },
+] as const
+const trendMetric = ref<'dms' | 'accepted' | 'never_accepted'>('dms')
+
+// Categorical palette for the per-person lines, in FIXED slot order — the order is the
+// colour-blind-safety mechanism, not decoration, so it is never shuffled or cycled.
+// Validated against this white surface with the dataviz checker: lightness band, chroma
+// floor, adjacent-pair CVD separation (worst 9.1) and the normal-vision floor (19.6) all
+// pass. Three slots sit under 3:1 contrast, which is why the legend below the title is
+// mandatory and the worker table underneath doubles as the table view.
+const WORKER_COLORS = [
+   '#2a78d6', '#eb6834', '#1baf7a', '#eda100',
+   '#e87ba4', '#008300', '#4a3aa7', '#e34948',
+]
+// Past this many people the lines stop being readable and the palette stops being
+// CVD-safe, so the tail folds into one "Boshqalar" line rather than inventing hues.
+const MAX_TREND_SERIES = 8
+
+/** One line per person: the busiest MAX_TREND_SERIES by the chosen measure, with the
+ *  remainder summed into a single grey "Boshqalar". Colour follows the PERSON, so
+ *  switching the measure never repaints who is who. */
+const workerSeries = computed(() => {
+   const totals = new Map<number, number>()
+   for (const t of workerTimeseries.value) {
+      totals.set(t.telegram_id,
+         (totals.get(t.telegram_id) || 0) + ((t as any)[trendMetric.value] || 0))
+   }
+   const ranked = [...totals.entries()].filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1]).map(([id]) => id)
+   const named = ranked.slice(0, MAX_TREND_SERIES)
+   const folded = new Set(ranked.slice(MAX_TREND_SERIES))
+   const nameById = new Map(workers.value.map((w) => [w.telegram_id, personLabel(w)]))
+   const byPeriod = (id: number) => {
+      const m = new Map<string, number>()
+      for (const t of workerTimeseries.value) {
+         if (t.telegram_id !== id) continue
+         m.set(t.period, (m.get(t.period) || 0) + ((t as any)[trendMetric.value] || 0))
+      }
+      return trendPeriods.value.map((p) => m.get(p) || 0)
+   }
+   const out = named.map((id, i) => ({
+      key: String(id),
+      label: nameById.get(id) || ('ID ' + id),
+      color: WORKER_COLORS[i % WORKER_COLORS.length],
+      data: byPeriod(id),
+   }))
+   if (folded.size) {
+      const m = new Map<string, number>()
+      for (const t of workerTimeseries.value) {
+         if (!folded.has(t.telegram_id)) continue
+         m.set(t.period, (m.get(t.period) || 0) + ((t as any)[trendMetric.value] || 0))
+      }
+      out.push({
+         key: 'other', label: 'Boshqalar', color: '#9ca3af',
+         data: trendPeriods.value.map((p) => m.get(p) || 0),
+      })
+   }
+   return out
+})
+const foldedWorkerCount = computed(() => {
+   const active = new Set(workerTimeseries.value
+      .filter((t) => ((t as any)[trendMetric.value] || 0) > 0)
+      .map((t) => t.telegram_id))
+   return Math.max(0, active.size - MAX_TREND_SERIES)
+})
+
+const workerTrendData = computed(() => ({
    labels: trendLabels.value,
-   datasets: BUCKETS.map((b) => ({
-      label: b.label,
-      data: timeseries.value.map((t) => (t as any)[b.key] ?? 0),
-      borderColor: b.color,
-      backgroundColor: b.color,
-      pointBackgroundColor: b.color,
+   datasets: workerSeries.value.map((w) => ({
+      label: w.label,
+      data: w.data,
+      borderColor: w.color,
+      backgroundColor: w.color,
+      pointBackgroundColor: w.color,
       pointBorderWidth: 0,
       pointHoverBorderColor: '#ffffff',
       pointHoverBorderWidth: 3,
@@ -1035,10 +1241,11 @@ async function load() {
    loadError.value = false
    try {
       const q = sliceQuery.value
-      const [rep, wrk, ts, reqs, sr, st, sc, grp] = await Promise.all([
+      const [rep, wrk, ts, wts, reqs, sr, st, sc, grp] = await Promise.all([
          api.get(`/control/report?${q}`),
          api.get(`/control/workers?${q}`),
          api.get(`/control/timeseries?${q}`),
+         api.get(`/control/worker-timeseries?${q}`),
          api.get(`/control/requests?${q}&limit=${reqLimit.value}`),
          api.get('/control/staff-readiness'),
          api.get('/control/settings'),
@@ -1050,6 +1257,7 @@ async function load() {
       report.value = rep.data
       workers.value = wrk.data
       timeseries.value = ts.data
+      workerTimeseries.value = wts.data
       requests.value = reqs.data
       staffReadiness.value = sr.data
       scope.value = sc.data?.scope || 'all'
@@ -1069,6 +1277,7 @@ async function load() {
       report.value = null
       workers.value = []
       timeseries.value = []
+      workerTimeseries.value = []
       requests.value = []
       staffReadiness.value = []
       groupOptions.value = []
