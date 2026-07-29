@@ -108,7 +108,7 @@
                  because a blank city IS the usual answer to "why did this happen":
                  outside the group's day map there is no city, and with no city there
                  is no crew to hand the need to. -->
-            <section v-if="unassignedRequests.length" class="card p-5 animate-fade-up">
+            <section v-if="report && report.unassigned" class="card p-5 animate-fade-up">
                <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
                   <h3 class="text-base font-semibold text-gray-900">
                      Hech kimga yetmagan murojaatlar
@@ -118,11 +118,24 @@
                      bermagani uchun emas, balki topshiriladigan odam topilmagani uchun.
                   </p>
                </div>
-               <p v-if="report && report.unassigned > unassignedRequests.length"
+               <p v-if="report.unassigned > unassignedRequests.length"
                   class="text-[13px] text-gray-500 mb-3">
-                  Jami {{ report.unassigned }} ta · quyida oxirgi
+                  Jami {{ report.unassigned }} ta · quyida
                   {{ unassignedRequests.length }} tasi ko'rsatilmoqda.
                </p>
+               <!-- The card counts the WHOLE period; this list is built from the capped
+                    drill-down. When the cap hides them all, say so and offer the next
+                    page — an empty list under a non-zero number reads as a broken page. -->
+               <div v-if="!unassignedRequests.length"
+                  class="flex flex-wrap items-center gap-3 py-2 text-[13px] text-gray-500">
+                  <span>
+                     Bu murojaatlar ko'rsatilayotgan oxirgi {{ requests.length }} ta
+                     murojaatdan tashqarida qoldi.
+                  </span>
+                  <button v-if="reqLimit < MAX_REQ_LIMIT" @click="loadMoreRequests" class="btn-ghost">
+                     Ko'proq yuklash
+                  </button>
+               </div>
                <div class="divide-y divide-gray-100 -mx-5">
                   <div v-for="u in unassignedRequests" :key="u.id" class="px-5 py-3">
                      <p class="text-sm text-gray-900 leading-snug">{{ u.text || '—' }}</p>
