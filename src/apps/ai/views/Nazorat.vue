@@ -101,6 +101,58 @@
                </div>
             </section>
 
+            <!-- The needs behind the «Hech kimga yetmagan» figure. Without this the
+                 tile is a bare number with nowhere to go: these needs have no
+                 recipient, so the per-person jurnal below cannot show them — they
+                 belong to nobody. The CITY is printed even when it is missing,
+                 because a blank city IS the usual answer to "why did this happen":
+                 outside the group's day map there is no city, and with no city there
+                 is no crew to hand the need to. -->
+            <section v-if="unassignedRequests.length" class="card p-5 animate-fade-up">
+               <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                  <h3 class="text-base font-semibold text-gray-900">
+                     Hech kimga yetmagan murojaatlar
+                  </h3>
+                  <p class="text-[13px] text-gray-500">
+                     Bu murojaatlar hech bir xodimga topshirilmagan — hech kim javob
+                     bermagani uchun emas, balki topshiriladigan odam topilmagani uchun.
+                  </p>
+               </div>
+               <p v-if="report && report.unassigned > unassignedRequests.length"
+                  class="text-[13px] text-gray-500 mb-3">
+                  Jami {{ report.unassigned }} ta · quyida oxirgi
+                  {{ unassignedRequests.length }} tasi ko'rsatilmoqda.
+               </p>
+               <div class="divide-y divide-gray-100 -mx-5">
+                  <div v-for="u in unassignedRequests" :key="u.id" class="px-5 py-3">
+                     <p class="text-sm text-gray-900 leading-snug">{{ u.text || '—' }}</p>
+                     <p class="flex flex-wrap gap-x-2 gap-y-1 mt-1.5 text-xs text-gray-500">
+                        <span>{{ fmtDateTime(u.created_at) }}</span>
+                        <span class="font-medium text-gray-700">· {{ u.group_title || ('Guruh ' + u.chat_id) }}</span>
+                        <!-- No city = outside the day map = no crew could be chosen. -->
+                        <span v-if="u.location">· {{ cityLabel(u.location) }}</span>
+                        <span v-else class="font-medium" :style="{ color: BUCKETS[2].color }">
+                           · shahar aniqlanmagan
+                        </span>
+                        <span v-if="u.need_type">· {{ needLabel(u.need_type) }}</span>
+                        <span v-if="u.room_no">· {{ u.room_no }}-xona</span>
+                        <span v-if="u.pilgrim_username">· {{ u.pilgrim_username }}</span>
+                        <a v-if="u.message_link" :href="u.message_link" target="_blank"
+                           class="text-gray-500 hover:text-gray-900 underline underline-offset-2">
+                           Xabarni ko'rish
+                        </a>
+                     </p>
+                  </div>
+               </div>
+               <p class="text-[13px] text-gray-500 mt-4 pt-4 border-t border-gray-100 leading-relaxed">
+                  <b>Shahar aniqlanmagan</b> bo'lsa — o'sha kun guruhning kun jadvaliga
+                  (Guruhlar sahifasi) kirmaydi, shuning uchun bot qaysi shahar jamoasiga
+                  berishni bilmagan. <b>Sog'liq</b> murojaati faqat shifokorga boradi —
+                  ishchi guruhga emas, shuning uchun shifokor biriktirilmagan yoki
+                  botni «Start» qilmagan bo'lsa, murojaat hech kimga yetmaydi.
+               </p>
+            </section>
+
             <!-- ──────────────── 2. THE SPLIT ────────────────
                  One proportional bar instead of four equal cards: the question is
                  "how did the work end up", and that is a composition, not four
@@ -510,6 +562,19 @@ function cityLabel(c: string | null): string {
    return c ? (CITY_LABELS[c] || c) : ''
 }
 
+// need_type as the bot recorded it. Shown on the unassigned list because "health"
+// is its own routing path — those go to the doctor ALONE, never to the crew, so a
+// health need can reach nobody while the whole ishchi guruh is correctly set up.
+const NEED_LABELS: Record<string, string> = {
+   room: 'Xona xizmati',
+   health: "Sog'liq",
+   leader: 'Ellikboshi',
+   airport: 'Aeroport',
+}
+function needLabel(n: string | null): string {
+   return n ? (NEED_LABELS[n] || n) : ''
+}
+
 // Xatolik taxonomy labels — codes mirror server IT_ERROR_KINDS (bot/services/control.py).
 const KIND_LABELS: Record<string, string> = {
    wp: "Noto'g'ri shaxs",
@@ -601,6 +666,22 @@ function fmtTime(iso: string | null): string {
    if (!iso) return '—'
    return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
 }
+
+/** Date + time — the unassigned list can span a whole month, so the day matters there
+ *  in a way it does not inside one worker's jurnal. */
+function fmtDateTime(iso: string | null): string {
+   if (!iso) return '—'
+   const d = new Date(iso)
+   return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' })
+      + ' ' + d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** The needs behind the «Hech kimga yetmagan» card: recorded, but handed to nobody.
+ *  They have no recipient, so they are invisible in the per-person jurnal — this is
+ *  the only place they can be read. Newest first. */
+const unassignedRequests = computed(() =>
+   requests.value.filter((r: any) => !r.recipients || r.recipients.length === 0),
+)
 
 /** ── THE LEAD ──────────────────────────────────────────────────────────────
  *  Everything on this page that is a PROBLEM, biggest first, and nothing else.
