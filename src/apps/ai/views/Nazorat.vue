@@ -222,50 +222,107 @@
                </div>
             </section>
 
-            <!-- ──────────────── 4. TREND — one line PER PERSON ────────────────
-                 Owner asked for this to be per worker rather than per outcome colour:
-                 "who was carrying the work, and when". The three measures are a client
-                 -side switch over one payload, so changing it costs no round trip. -->
-            <section class="card p-5 animate-fade-up">
-               <div class="flex flex-wrap items-start justify-between gap-3">
+            <!-- ──────────────── 4. RANKING ────────────────
+                 Replaced the time-series chart (owner, 2026-07-29): "who is more
+                 completing request, who is most low working". A trend line answered
+                 "when", which nobody was asking; a ranking answers "who", which is what
+                 this panel is for. Ranked rows are also the right form for comparing
+                 people — one line per person stops being readable past about four.
+
+                 ONE WINDOW PER POPULATION, never a mixed board: a crew member and an
+                 ellikboshi do not receive comparable work (the crew get every
+                 room/service need for their city, a leader only their own group's
+                 questions), so ranking them against each other would say nothing. -->
+            <div class="animate-fade-up">
+               <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
                   <div>
-                     <h3 class="text-base font-semibold text-gray-900">Vaqt bo'yicha dinamika</h3>
-                     <p class="text-[13px] text-gray-500 mt-0.5">
-                        {{ period === 'day' ? 'Soatlar' : 'Kunlar' }} bo'yicha har bir
-                        {{ personWordLower }} · Makka/Madina vaqti
-                     </p>
+                     <h3 class="text-base font-semibold text-gray-900">Reyting</h3>
+                     <p class="text-[13px] text-gray-500 mt-0.5">{{ rankSort.hint }}</p>
                   </div>
                   <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-                     <button v-for="m in TREND_METRICS" :key="m.key" @click="trendMetric = m.key"
+                     <button v-for="m in RANK_MODES" :key="m.key" @click="rankMode = m.key"
                         class="px-3 py-1 text-[13px] font-medium rounded-lg transition-all"
-                        :class="trendMetric === m.key
+                        :class="rankMode === m.key
                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-black/5'
-                           : 'text-gray-500 hover:text-gray-900'"
-                        :title="m.hint">
+                           : 'text-gray-500 hover:text-gray-900'">
                         {{ m.label }}
                      </button>
                   </div>
                </div>
-               <!-- Legend is mandatory here: with up to eight people, identity can never
-                    rest on colour alone. Names, in the same order as the lines. -->
-               <div v-if="workerSeries.length" class="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
-                  <span v-for="w in workerSeries" :key="w.key" class="flex items-center gap-1.5">
-                     <span class="w-2 h-2 rounded-full" :style="{ background: w.color }"></span>
-                     <span class="text-[13px] text-gray-600">{{ w.label }}</span>
-                  </span>
-               </div>
-               <div v-if="trendLabels.length && workerSeries.length" class="h-64 sm:h-72 mt-4">
-                  <Line :data="workerTrendData" :options="trendOptions" :plugins="[crosshairPlugin]" />
-               </div>
-               <div v-else class="py-16 text-center text-gray-400 text-sm">
+
+               <div v-if="!hasRanking" class="card py-14 text-center text-gray-400 text-sm">
                   Bu davr uchun ma'lumot yo'q
                </div>
-               <p v-if="foldedWorkerCount" class="text-[13px] text-gray-500 mt-3">
-                  Eng faol {{ MAX_TREND_SERIES }} tasi alohida ko'rsatilgan; qolgan
-                  {{ foldedWorkerCount }} ta {{ personWordLower }} «Boshqalar» chizig'ida
-                  jamlangan.
+               <div v-else class="grid gap-3" :class="rankGroups.length > 1 ? 'xl:grid-cols-2' : ''">
+                  <section v-for="g in rankGroups" :key="g.key" class="card p-5">
+                     <h4 class="text-sm font-semibold text-gray-900">{{ g.title }}</h4>
+                     <p class="text-[13px] text-gray-500 mt-0.5">
+                        {{ g.rows.length }} ta · {{ rankSort.unit }} bo'yicha
+                     </p>
+
+                     <ol class="mt-4 space-y-2.5">
+                        <li v-for="(w, i) in g.rows" :key="w.telegram_id"
+                           class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
+                           :class="w.tone === 'good' ? 'bg-emerald-50/60'
+                              : w.tone === 'bad' ? 'bg-red-50/50' : 'hover:bg-gray-50'">
+                           <!-- The tint judges the VALUE, not the position: topping a
+                                weak list is not the same as doing well, and a green "1"
+                                beside a red 44% would contradict itself. -->
+                           <span class="w-7 h-7 shrink-0 grid place-items-center rounded-full text-[13px] font-semibold tabular-nums"
+                              :class="w.tone === 'good' ? 'bg-emerald-600 text-white'
+                                 : w.tone === 'bad' ? 'bg-red-500 text-white'
+                                 : 'bg-gray-100 text-gray-600'">
+                              {{ i + 1 }}
+                           </span>
+
+                           <div class="min-w-0 flex-1">
+                              <div class="flex items-center gap-2 min-w-0">
+                                 <span class="text-sm font-medium text-gray-900 truncate">{{ w.name }}</span>
+                                 <span class="badge shrink-0"
+                                    :class="w.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">{{ w.job }}</span>
+                              </div>
+                              <!-- Same four colours as everywhere else, so a row here and
+                                   a row in the table below read identically. -->
+                              <div class="flex gap-0.5 h-1.5 mt-1.5 w-full max-w-[300px]" :title="w.splitHint">
+                                 <div v-for="sg in w.segments" :key="sg.key" class="rounded-[2px]"
+                                    :style="{ width: sg.pct + '%', background: sg.color }"></div>
+                              </div>
+                              <p class="text-xs text-gray-500 mt-1">{{ w.detail }}</p>
+                           </div>
+
+                           <div class="text-right shrink-0">
+                              <p class="text-lg font-semibold tabular-nums leading-none"
+                                 :style="{ color: w.headlineColor }">{{ w.headline }}</p>
+                              <p class="text-[11px] text-gray-400 mt-1">{{ rankSort.unit }}</p>
+                           </div>
+                        </li>
+                     </ol>
+
+                     <!-- Too few cards to rank fairly. Shown, never hidden: "received
+                          almost nothing" is itself worth seeing, but one lucky card must
+                          not put somebody at the top. -->
+                     <div v-if="g.unranked.length" class="mt-4 pt-4 border-t border-gray-100">
+                        <p class="text-[13px] text-gray-500 mb-2">
+                           Reyting uchun kam ma'lumot ({{ MIN_RANK_CARDS }} tadan kam kartochka):
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                           <span v-for="w in g.unranked" :key="w.telegram_id"
+                              class="chip inline-flex items-center gap-1.5">
+                              {{ w.name }}
+                              <span class="text-gray-400">{{ w.accountable }} ta</span>
+                           </span>
+                        </div>
+                     </div>
+                  </section>
+               </div>
+
+               <p class="text-[13px] text-gray-500 mt-3 leading-relaxed">
+                  Reyting faqat <b>o'z zimmasida qolgan</b> kartochkalar bo'yicha: boshqa
+                  xodim olgan, yetib bormagan yoki «Xatolik» deb belgilangan kartochkalar
+                  hisobga olinmaydi — shuning uchun ko'p kartochka olgan odam kam olganidan
+                  avtomatik past turmaydi.
                </p>
-            </section>
+            </div>
 
             <!-- confirmed bot mistakes, by kind -->
             <section v-if="errorKinds.length" class="card p-5 animate-fade-up">
@@ -507,16 +564,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Line } from 'vue-chartjs'
-import {
-   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
-   Tooltip, Legend, Filler, type ChartOptions, type Plugin,
-} from 'chart.js'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
 interface Report {
    // per NEED
@@ -616,10 +666,6 @@ const showUnanswered = ref(false)
 const report = ref<Report | null>(null)
 const workers = ref<Worker[]>([])
 const timeseries = ref<{ period: string; completed: number; re_requests: number; reopened: number; never_accepted: number }[]>([])
-// Per-person activity over time — one row per (bucket, person); somebody with nothing
-// in a bucket is simply absent from it.
-const workerTimeseries = ref<{ period: string; telegram_id: number; username: string | null;
-   role: string; dms: number; accepted: number; never_accepted: number }[]>([])
 const filterRole = ref('')          // '' = all, else 'staff' | 'ellikboshi'
 const filterName = ref('')          // matches name OR username (case-insensitive)
 // Slice filters — sent to the SERVER, so every number on the page moves together.
@@ -828,175 +874,120 @@ const unansweredNeeds = computed(() => {
    return out
 })
 
-// ── Trend ────────────────────────────────────────────────────────────────────
-/** X-axis labels: hour for the day period, else day/month. Rendered in SAUDI time
- *  (Asia/Riyadh) because that is how the server groups them — the crew and the pilgrims
- *  are there, so an evening in Makka must not straddle two labels for a viewer in
- *  Tashkent. */
-const SAUDI_TZ = 'Asia/Riyadh'
+// ── Ranking ─────────────────────────────────────────────────────────────────
+// Replaced the per-time chart. Ranked bars are the right form for comparing PEOPLE;
+// a line per person stops being readable past about four of them, and "when" was
+// never the question this panel exists to answer.
 
-/** Every bucket present in the per-worker payload, oldest first. Built from the worker
- *  series rather than the colour one because a person with no cards in a bucket is
- *  simply absent from it — the x-axis is the union, not any one person's rows. */
-const trendPeriods = computed(() =>
-   [...new Set(workerTimeseries.value.map((t) => t.period))].sort(),
-)
-const trendLabels = computed(() =>
-   trendPeriods.value.map((p) => {
-      const d = new Date(p)
-      return period.value === 'day'
-         ? d.toLocaleTimeString('uz', { hour: '2-digit', minute: '2-digit', timeZone: SAUDI_TZ })
-         : d.toLocaleDateString('uz', { day: '2-digit', month: '2-digit', timeZone: SAUDI_TZ })
+const RANK_MODES = [
+   {
+      key: 'rate', label: 'Javob darajasi',
+      hint: "Zimmasida qolgan kartochkalarning necha foizini qabul qilgan — yuqoridan pastga",
+      unit: 'javob darajasi',
+   },
+   {
+      key: 'completed', label: 'Bajarilgan',
+      hint: "Eng ko'p bajargan — ziyoratchi qayta so'ramagan kartochkalar soni",
+      unit: 'bajarildi',
+   },
+   {
+      key: 'never_accepted', label: 'Javobsiz',
+      hint: "Eng ko'p javobsiz qoldirgan birinchi — kim ortda qolayotgani",
+      unit: 'javobsiz',
+   },
+] as const
+const rankMode = ref<'rate' | 'completed' | 'never_accepted'>('rate')
+const rankSort = computed(() => RANK_MODES.find((m) => m.key === rankMode.value)!)
+
+// Below this many accountable cards a percentage is noise — one lucky card would put
+// somebody at 100% above a person who handled forty. They are listed separately rather
+// than hidden, because "received almost nothing" is itself worth seeing.
+const MIN_RANK_CARDS = 3
+
+/** Everyone with their ranking figures. ACCOUNTABLE = accepted + never_accepted: the
+ *  cards that stayed theirs. Released / undelivered / flagged are excluded, so somebody
+ *  is never marked down for a card a colleague took first or one that never arrived. */
+const rankRows = computed(() =>
+   filteredWorkers.value.map((w) => {
+      const accountable = (w.accepted || 0) + (w.never_accepted || 0)
+      const rate = accountable ? (w.accepted || 0) / accountable : 0
+      const total = w.dms || 1
+      const segments = BUCKETS
+         .map((b) => ({ key: b.key as string, color: b.color as string, value: (w as any)[b.key] as number }))
+         .concat([{ key: 'other', color: '#e5e7eb', value: uncounted(w) }])
+         .filter((sg) => sg.value > 0)
+         .map((sg) => ({ ...sg, pct: (sg.value / total) * 100 }))
+      return {
+         telegram_id: w.telegram_id,
+         name: personLabel(w),
+         role: w.role,
+         job: jobLabel(w),
+         accountable,
+         rate,
+         completed: w.completed || 0,
+         never_accepted: w.never_accepted || 0,
+         segments,
+         splitHint: rowSplitHint(w),
+         detail: `${w.accepted || 0}/${accountable} qabul · ${w.completed || 0} bajarildi`
+            + ` · ${w.never_accepted || 0} javobsiz` + (whereLabel(w) !== '—' ? ` · ${whereLabel(w)}` : ''),
+      }
    }),
 )
 
-const TREND_METRICS = [
-   { key: 'dms', label: 'Murojaat', hint: 'Shu odamga yetib borgan kartochkalar' },
-   { key: 'accepted', label: 'Qabul', hint: 'Shu odam qabul qilganlari' },
-   { key: 'never_accepted', label: 'Javobsiz', hint: 'Yetib borgan, lekin qabul qilinmagan' },
-] as const
-const trendMetric = ref<'dms' | 'accepted' | 'never_accepted'>('dms')
-
-// Categorical palette for the per-person lines, in FIXED slot order — the order is the
-// colour-blind-safety mechanism, not decoration, so it is never shuffled or cycled.
-// Validated against this white surface with the dataviz checker: lightness band, chroma
-// floor, adjacent-pair CVD separation (worst 9.1) and the normal-vision floor (19.6) all
-// pass. Three slots sit under 3:1 contrast, which is why the legend below the title is
-// mandatory and the worker table underneath doubles as the table view.
-const WORKER_COLORS = [
-   '#2a78d6', '#eb6834', '#1baf7a', '#eda100',
-   '#e87ba4', '#008300', '#4a3aa7', '#e34948',
-]
-// Past this many people the lines stop being readable and the palette stops being
-// CVD-safe, so the tail folds into one "Boshqalar" line rather than inventing hues.
-const MAX_TREND_SERIES = 8
-
-/** One line per person: the busiest MAX_TREND_SERIES by the chosen measure, with the
- *  remainder summed into a single grey "Boshqalar". Colour follows the PERSON, so
- *  switching the measure never repaints who is who. */
-const workerSeries = computed(() => {
-   const totals = new Map<number, number>()
-   for (const t of workerTimeseries.value) {
-      totals.set(t.telegram_id,
-         (totals.get(t.telegram_id) || 0) + ((t as any)[trendMetric.value] || 0))
-   }
-   const ranked = [...totals.entries()].filter(([, v]) => v > 0)
-      .sort((a, b) => b[1] - a[1]).map(([id]) => id)
-   const named = ranked.slice(0, MAX_TREND_SERIES)
-   const folded = new Set(ranked.slice(MAX_TREND_SERIES))
-   const nameById = new Map(workers.value.map((w) => [w.telegram_id, personLabel(w)]))
-   const byPeriod = (id: number) => {
-      const m = new Map<string, number>()
-      for (const t of workerTimeseries.value) {
-         if (t.telegram_id !== id) continue
-         m.set(t.period, (m.get(t.period) || 0) + ((t as any)[trendMetric.value] || 0))
+/** Best first for the two "good" measures, worst first for Javobsiz — in every mode the
+ *  TOP of the list is the person the reader is looking for. */
+function rankList(rows: any[]) {
+   const m = rankMode.value
+   const sorted = [...rows].sort((a, b) =>
+      m === 'rate' ? (b.rate - a.rate) || (b.completed - a.completed)
+         : m === 'completed' ? (b.completed - a.completed) || (b.rate - a.rate)
+            : (b.never_accepted - a.never_accepted) || (a.rate - b.rate))
+   return sorted.map((r) => {
+      // Tone is a judgement on the VALUE, never on the position. Being top of a list
+      // is not the same as doing well: with a weak team the best response rate can
+      // still be poor, and a green "1" beside a red 44% would flatly contradict itself.
+      const tone: 'good' | 'bad' | 'plain' =
+         m === 'never_accepted' ? (r.never_accepted ? 'bad' : 'good')
+            : m === 'completed' ? (r.completed ? 'good' : 'plain')
+               : r.rate >= 0.8 ? 'good' : r.rate < 0.5 ? 'bad' : 'plain'
+      return {
+         ...r,
+         tone,
+         headline: m === 'rate' ? `${Math.round(r.rate * 100)}%`
+            : m === 'completed' ? String(r.completed) : String(r.never_accepted),
+         headlineColor: tone === 'good' ? BUCKETS[0].color
+            : tone === 'bad' ? (m === 'never_accepted' ? BUCKETS[3].color : BUCKETS[2].color)
+               : '#6b7280',
       }
-      return trendPeriods.value.map((p) => m.get(p) || 0)
-   }
-   const out = named.map((id, i) => ({
-      key: String(id),
-      label: nameById.get(id) || ('ID ' + id),
-      color: WORKER_COLORS[i % WORKER_COLORS.length],
-      data: byPeriod(id),
-   }))
-   if (folded.size) {
-      const m = new Map<string, number>()
-      for (const t of workerTimeseries.value) {
-         if (!folded.has(t.telegram_id)) continue
-         m.set(t.period, (m.get(t.period) || 0) + ((t as any)[trendMetric.value] || 0))
-      }
-      out.push({
-         key: 'other', label: 'Boshqalar', color: '#9ca3af',
-         data: trendPeriods.value.map((p) => m.get(p) || 0),
-      })
-   }
-   return out
-})
-const foldedWorkerCount = computed(() => {
-   const active = new Set(workerTimeseries.value
-      .filter((t) => ((t as any)[trendMetric.value] || 0) > 0)
-      .map((t) => t.telegram_id))
-   return Math.max(0, active.size - MAX_TREND_SERIES)
-})
-
-const workerTrendData = computed(() => ({
-   labels: trendLabels.value,
-   datasets: workerSeries.value.map((w) => ({
-      label: w.label,
-      data: w.data,
-      borderColor: w.color,
-      backgroundColor: w.color,
-      pointBackgroundColor: w.color,
-      pointBorderWidth: 0,
-      pointHoverBorderColor: '#ffffff',
-      pointHoverBorderWidth: 3,
-      pointRadius: 0,
-      pointHoverRadius: 5,
-      borderWidth: 2,
-      tension: 0.4,
-      fill: false,
-      borderCapStyle: 'round' as CanvasLineCap,
-      borderJoinStyle: 'round' as CanvasLineJoin,
-   })),
-}))
-
-const trendOptions: ChartOptions<'line'> = {
-   responsive: true,
-   maintainAspectRatio: false,
-   layout: { padding: { top: 8, right: 8, left: 2 } },
-   interaction: { mode: 'index', intersect: false, axis: 'x' },
-   plugins: {
-      // Our own legend sits in the section header — one legend for the bar and the
-      // chart, so they can never disagree.
-      legend: { display: false },
-      tooltip: {
-         backgroundColor: 'rgba(17, 24, 39, 0.96)',
-         padding: 12, cornerRadius: 10,
-         titleColor: '#9ca3af', titleFont: { size: 11, weight: 600 },
-         bodyColor: '#f9fafb', bodyFont: { size: 12, weight: 500 },
-         bodySpacing: 6, boxPadding: 6, usePointStyle: true,
-         caretSize: 0, caretPadding: 12, displayColors: true,
-         borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1,
-      },
-   },
-   scales: {
-      x: {
-         grid: { display: false },
-         border: { display: false },
-         ticks: {
-            color: '#9ca3af', font: { size: 12 }, padding: 10,
-            maxRotation: 0, autoSkipPadding: 24,
-         },
-      },
-      y: {
-         beginAtZero: true, grace: '30%',
-         border: { display: false },
-         grid: { color: 'rgba(17, 24, 39, 0.04)' },
-         ticks: { color: '#9ca3af', font: { size: 12 }, padding: 12, stepSize: 1, precision: 0 },
-      },
-   },
+   })
 }
 
-// A soft dashed vertical guide at the hovered point — pairs with the index tooltip so all
-// four series read at the same moment. Drawn under the points, over the lines.
-const crosshairPlugin: Plugin<'line'> = {
-   id: 'nazoratCrosshair',
-   afterDatasetsDraw(chart) {
-      const first = chart.getActiveElements()[0]
-      if (!first) return
-      const x = (first.element as PointElement).x
-      const { ctx, chartArea } = chart
-      ctx.save()
-      ctx.beginPath()
-      ctx.setLineDash([3, 4])
-      ctx.lineWidth = 1
-      ctx.strokeStyle = 'rgba(17, 24, 39, 0.18)'
-      ctx.moveTo(x, chartArea.top)
-      ctx.lineTo(x, chartArea.bottom)
-      ctx.stroke()
-      ctx.restore()
-   },
-}
+/** One board per POPULATION, never a mixed one. A crew member and an ellikboshi do not
+ *  receive comparable work — the crew get every room/service need for their city, a
+ *  leader only their own group's leader questions — so ranking them against each other
+ *  would say nothing. The combined `nazoratchi` account therefore gets two boards; a
+ *  scoped controller (or the Lavozim filter) gets the single one it is entitled to.
+ *  Within a board the job badge stays visible, because a doctor's inbox is narrower
+ *  again and the reader has to be able to see that. */
+const rankGroups = computed(() => {
+   const byVolume = (a: any, b: any) => b.accountable - a.accountable
+   const build = (key: string, title: string, rows: any[]) => ({
+      key, title,
+      rows: rankList(rows.filter((r) => r.accountable >= MIN_RANK_CARDS)),
+      // Too few cards to rank fairly — kept beside their own board, not pooled with
+      // the other population's.
+      unranked: rows.filter((r) => r.accountable < MIN_RANK_CARDS).sort(byVolume),
+   })
+   if (scope.value !== 'all' || filterRole.value) {
+      return [build('one', `${personWord.value}lar`, rankRows.value)]
+   }
+   return [
+      build('staff', 'Xodimlar', rankRows.value.filter((r) => r.role !== 'ellikboshi')),
+      build('ellikboshi', 'Ellikboshilar', rankRows.value.filter((r) => r.role === 'ellikboshi')),
+   ].filter((g) => g.rows.length || g.unranked.length)
+})
+const hasRanking = computed(() =>
+   rankGroups.value.some((g) => g.rows.length || g.unranked.length))
 
 // ── People ───────────────────────────────────────────────────────────────────
 /** Display label for a worker/recipient — the DASHBOARD name if entered, else @username. */
@@ -1241,11 +1232,10 @@ async function load() {
    loadError.value = false
    try {
       const q = sliceQuery.value
-      const [rep, wrk, ts, wts, reqs, sr, st, sc, grp] = await Promise.all([
+      const [rep, wrk, ts, reqs, sr, st, sc, grp] = await Promise.all([
          api.get(`/control/report?${q}`),
          api.get(`/control/workers?${q}`),
          api.get(`/control/timeseries?${q}`),
-         api.get(`/control/worker-timeseries?${q}`),
          api.get(`/control/requests?${q}&limit=${reqLimit.value}`),
          api.get('/control/staff-readiness'),
          api.get('/control/settings'),
@@ -1257,7 +1247,6 @@ async function load() {
       report.value = rep.data
       workers.value = wrk.data
       timeseries.value = ts.data
-      workerTimeseries.value = wts.data
       requests.value = reqs.data
       staffReadiness.value = sr.data
       scope.value = sc.data?.scope || 'all'
@@ -1277,7 +1266,6 @@ async function load() {
       report.value = null
       workers.value = []
       timeseries.value = []
-      workerTimeseries.value = []
       requests.value = []
       staffReadiness.value = []
       groupOptions.value = []
