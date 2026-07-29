@@ -77,19 +77,20 @@
                        the story, so tapping it names the messages and the people who
                        did not take them. The other tiles stay plain — they either
                        already list their people, or there is nothing to drill into. -->
-                  <component :is="p.key === 'never_accepted' ? 'button' : 'div'"
+                  <component :is="TAPPABLE.includes(p.key) ? 'button' : 'div'"
                      v-for="p in problems" :key="p.key" type="button"
                      class="card p-5 relative overflow-hidden text-left w-full"
-                     :class="p.key === 'never_accepted' ? 'hover:bg-gray-50/70 transition-colors' : ''"
-                     @click="p.key === 'never_accepted' && (showUnanswered = !showUnanswered)">
+                     :class="[TAPPABLE.includes(p.key) ? 'hover:bg-gray-50/70 transition-colors' : '',
+                              p.key === 'aggressive' ? 'ring-1 ring-red-200' : '']"
+                     @click="onTileTap(p.key)">
                      <span class="absolute left-0 top-0 bottom-0 w-[3px]" :style="{ background: p.color }"></span>
                      <div class="flex items-baseline gap-2">
                         <span class="text-[32px] leading-none font-semibold tracking-tight"
                            :style="{ color: p.color }">{{ p.value }}</span>
                         <span class="text-sm font-medium text-gray-900">{{ p.label }}</span>
-                        <span v-if="p.key === 'never_accepted'"
+                        <span v-if="TAPPABLE.includes(p.key)"
                            class="ml-auto text-[13px] font-medium text-gray-500 whitespace-nowrap">
-                           {{ showUnanswered ? 'Yashirish' : "Ko'rish" }}
+                           {{ tileOpen(p.key) ? 'Yashirish' : "Ko'rish" }}
                         </span>
                      </div>
                      <p class="text-[13px] text-gray-500 mt-2 leading-snug">{{ p.hint }}</p>
@@ -97,6 +98,49 @@
                         <span v-for="(who, i) in p.people" :key="i" class="chip">{{ who }}</span>
                      </div>
                   </component>
+               </div>
+
+               <!-- THE ALARM ITSELF. Group, time, the message, and the ellikboshi who
+                    has to settle it. Staff are deliberately never named here, even when
+                    the complaint is about something the crew did: an aggressive
+                    complaint has to be resolved immediately and the person answerable
+                    is the crew leader (owner, 2026-07-29). -->
+               <div v-if="showAggressive" class="card p-5 ring-1 ring-red-200">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                     <h4 class="text-sm font-semibold text-gray-900">Keskin etirozlar</h4>
+                     <p v-if="aggressive.total > aggressive.items.length"
+                        class="text-[13px] text-gray-500">
+                        Jami {{ aggressive.total }} ta · quyida oxirgi {{ aggressive.items.length }} tasi
+                     </p>
+                  </div>
+                  <p v-if="filterCity" class="text-[13px] text-gray-500 mb-2">
+                     Diqqat: bu ro'yxat shahar bo'yicha ajratilmaydi — xabarda shahar
+                     saqlanmaydi. Guruh filtri esa ishlaydi.
+                  </p>
+                  <div class="divide-y divide-gray-100 -mx-5">
+                     <div v-for="a in aggressive.items" :key="a.id" class="px-5 py-3">
+                        <p class="text-sm text-gray-900 leading-snug">{{ a.text || '—' }}</p>
+                        <p class="flex flex-wrap gap-x-2 gap-y-1 mt-1.5 text-xs text-gray-500">
+                           <span>{{ fmtDateTime(a.created_at) }}</span>
+                           <span class="font-medium text-gray-700">
+                              · {{ a.group_title || ('Guruh ' + a.chat_id) }}
+                           </span>
+                           <span v-if="a.pilgrim_username">· {{ a.pilgrim_username }}</span>
+                        </p>
+                        <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                           <span class="text-xs text-gray-500 mr-0.5">Mas'ul:</span>
+                           <span v-if="a.ellikboshi" class="chip inline-flex items-center gap-1.5">
+                              {{ a.ellikboshi }}
+                              <span class="badge badge-indigo">Ellikboshi</span>
+                           </span>
+                           <!-- No leader on the group is itself the finding: there is
+                                nobody to hand an urgent complaint to. -->
+                           <span v-else class="text-xs font-medium" :style="{ color: BUCKETS[2].color }">
+                              guruhga ellikboshi biriktirilmagan
+                           </span>
+                        </div>
+                     </div>
+                  </div>
                </div>
 
                <!-- WHICH messages, and WHO did not take them. One block per message,
@@ -663,6 +707,23 @@ const showRequests = ref(true)
 // Is the «Javobsiz qolgan» tile expanded? Closed by default — the tile is a
 // headline first, a drill-down only when asked.
 const showUnanswered = ref(false)
+// The red «Etiroz» alarm: complaints that carried real hostility. Its own payload —
+// it comes from the saved MESSAGES, not from the request/recipient tables, because a
+// complaint does not always open a control request.
+const aggressive = ref<{ total: number; items: any[] }>({ total: 0, items: [] })
+const showAggressive = ref(false)
+
+// Which attention tiles open when tapped. The rest either already list their people
+// or have nothing behind them to show.
+const TAPPABLE = ['aggressive', 'never_accepted']
+function tileOpen(key: string): boolean {
+   return key === 'aggressive' ? showAggressive.value
+      : key === 'never_accepted' ? showUnanswered.value : false
+}
+function onTileTap(key: string) {
+   if (key === 'aggressive') showAggressive.value = !showAggressive.value
+   else if (key === 'never_accepted') showUnanswered.value = !showUnanswered.value
+}
 const report = ref<Report | null>(null)
 const workers = ref<Worker[]>([])
 const timeseries = ref<{ period: string; completed: number; re_requests: number; reopened: number; never_accepted: number }[]>([])
@@ -753,6 +814,15 @@ const problems = computed(() => {
    const r = report.value
    if (!r) return [] as any[]
    const out: any[] = []
+   // FIRST, always. An aggressive complaint has to be settled immediately, so it
+   // outranks every other exception on the page — and unlike the rest it is not a
+   // statistic about anyone's performance, it is a live alarm.
+   if (aggressive.value.total) out.push({
+      key: 'aggressive', value: aggressive.value.total, label: 'Etiroz — keskin',
+      color: BUCKETS[2].color,
+      hint: "Ziyoratchi keskin norozilik bildirgan. Darhol hal qilinishi kerak — "
+         + "mas'ul: guruhning ellikboshisi.",
+   })
    if (r.never_accepted) out.push({
       key: 'never_accepted', value: r.never_accepted, label: 'Javobsiz qolgan',
       color: BUCKETS[3].color,
@@ -1221,6 +1291,11 @@ const sliceQuery = computed(() => {
    return parts.join('&')
 })
 
+/** The alarm honours the Guruh filter but not the Shahar one — see the fetch. */
+const aggressiveGroupParam = computed(() =>
+   filterGroup.value ? `&chat_id=${encodeURIComponent(filterGroup.value)}` : '',
+)
+
 function clearSlice() {
    filterGroup.value = ''
    filterCity.value = ''
@@ -1232,10 +1307,13 @@ async function load() {
    loadError.value = false
    try {
       const q = sliceQuery.value
-      const [rep, wrk, ts, reqs, sr, st, sc, grp] = await Promise.all([
+      const [rep, wrk, ts, agg, reqs, sr, st, sc, grp] = await Promise.all([
          api.get(`/control/report?${q}`),
          api.get(`/control/workers?${q}`),
          api.get(`/control/timeseries?${q}`),
+         // Group filter only — a saved message carries no city, so slicing it by one
+         // would either drop real alarms or claim a city it does not know.
+         api.get(`/control/aggressive?period=${period.value}${aggressiveGroupParam.value}`),
          api.get(`/control/requests?${q}&limit=${reqLimit.value}`),
          api.get('/control/staff-readiness'),
          api.get('/control/settings'),
@@ -1247,6 +1325,7 @@ async function load() {
       report.value = rep.data
       workers.value = wrk.data
       timeseries.value = ts.data
+      aggressive.value = agg.data
       requests.value = reqs.data
       staffReadiness.value = sr.data
       scope.value = sc.data?.scope || 'all'
@@ -1266,6 +1345,7 @@ async function load() {
       report.value = null
       workers.value = []
       timeseries.value = []
+      aggressive.value = { total: 0, items: [] }
       requests.value = []
       staffReadiness.value = []
       groupOptions.value = []
