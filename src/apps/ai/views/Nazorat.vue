@@ -621,12 +621,11 @@ const problems = computed(() => {
       color: BUCKETS[2].color,
       hint: "Qabul qilingan edi, lekin ziyoratchi qayta so'radi — aslida hal bo'lmagan.",
    })
-   if (r.unassigned) out.push({
-      key: 'unassigned', value: r.unassigned, label: 'Hech kimga yetmagan',
-      color: BUCKETS[2].color,
-      hint: 'Bu shahar uchun xodim biriktirilmagan yoki hech biriga DM yuborib bo\'lmadi. '
-         + 'Lavozim bo\'yicha ajratilmaydi — mas\'ul yo\'q, shuning uchun ikkala nazoratchida ham ko\'rinadi.',
-   })
+   // «Hech kimga yetmagan» (report.unassigned) is deliberately NOT shown. Owner rule,
+   // stated three times: this panel is for the CREW and the ELLIKBOSHI, and a need that
+   // reached nobody has no recipient — so there is no person it is a statistic about.
+   // The API still returns the number; nothing on this page reads it. Unreachable
+   // people surface below as «DM yuborib bo'lmaydi», which IS about them.
    if (r.undelivered) out.push({
       key: 'undelivered', value: r.undelivered, label: 'Yetib bormagan',
       color: '#a16207',
