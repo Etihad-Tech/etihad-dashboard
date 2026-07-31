@@ -207,15 +207,13 @@ export function useNazoratView() {
       [...new Set(s.workers.map(personLabel))].sort((a, b) => a.localeCompare(b)),
    )
 
-   /** Who the bot actually FAILED to reach this period. `staff-readiness` only predicts
-    *  this; an undelivered card is the proof it really happened. */
-   const undeliveredPeople = computed(() =>
-      s.workers.filter((w) => w.undelivered > 0)
-         .map((w) => `${personLabel(w)} (${w.undelivered})`),
-   )
-
    /** Everything on this panel that is a PROBLEM, biggest first, and nothing else.
-    *  A clean period renders the calm state instead, never an empty red box. */
+    *  A clean period renders the calm state instead, never an empty red box.
+    *
+    *  The wording is deliberately as short as it can be while still saying the thing
+    *  that makes each one actionable — these are notifications now, read in a panel and
+    *  dismissed, not paragraphs read on the main screen. Each one keeps exactly one
+    *  fact beyond its own label: what happened, or what to do about it. */
    const problems = computed(() => {
       const r = s.report
       if (!r) return [] as any[]
@@ -223,33 +221,28 @@ export function useNazoratView() {
       if (r.never_accepted) out.push({
          key: 'never_accepted', value: r.never_accepted, label: 'Javobsiz qolgan',
          color: BUCKETS[3].color,
-         hint: `Kartochka yetib bordi, lekin ${personWordLower.value} umuman qabul qilmadi.`,
+         hint: `Yetib bordi, ${personWordLower.value} qabul qilmadi.`,
       })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
          color: BUCKETS[2].color,
-         hint: "Qabul qilingan edi, lekin ziyoratchi qayta so'radi — aslida hal bo'lmagan.",
+         hint: "Ziyoratchi qayta so'radi — hal bo'lmagan.",
       })
       // «Hech kimga yetmagan» (report.unassigned) is deliberately NOT shown. Owner rule:
       // this panel is for the CREW and the ELLIKBOSHI, and a need that reached nobody has
       // no recipient — so there is no person it is a statistic about.
-      if (r.undelivered) out.push({
-         key: 'undelivered', value: r.undelivered, label: 'Yetib bormagan',
-         color: '#a16207',
-         hint: 'Ular botni «Start» qilmagan — javob bermagani o\'zlarining aybi emas '
-            + 'va hisobotda ularga yozilmaydi.',
-         people: undeliveredPeople.value,
-      })
+      //
+      // «Yetib bormagan» (report.undelivered) is not shown either — owner, 2026-07-31:
+      // it says almost the same thing as «DM yuborib bo'lmaydi» one line below it, and
+      // two notices for one problem is worse than one. The undelivered COUNT is not lost:
+      // it still rides in the gray tail of every Natija bar, in that bar's tooltip, and
+      // spelled out on the person's own screen.
       if (s.staffReadiness.length) out.push({
          key: 'readiness', value: s.staffReadiness.length, label: 'DM yuborib bo\'lmaydi',
          color: '#a16207',
-         hint: 'Botni «Start» qilmagan — murojaatlar ularga umuman bormaydi. Har biri botga '
-            + '/start yozishi kerak (yoki Xodimlar sahifasida Telegram ID raqamini kiriting). '
-            + 'Ellikboshi qaysi guruhga biriktirilgani qavs ichida — endi kerak bo\'lmasa, '
-            + 'Guruhlar sahifasidan o\'zgartiring.',
-         // Say WHERE each one is still assigned. A bare @username left the office asking
-         // why somebody they had already removed was on the page — the answer is always
-         // "a group still names them".
+         // Owner's wording, 2026-07-31. It reads as a label for the chips right under
+         // it rather than as a sentence about them, which is why it ends in a colon.
+         hint: 'Botga start bermaganlar:',
          people: s.staffReadiness.map((r2) =>
             (r2.username || r2.name || '—')
             + (r2.location ? ` · ${cityLabel(r2.location)}` : '')
@@ -260,10 +253,20 @@ export function useNazoratView() {
       if (r.flags_neutral) out.push({
          key: 'flags_neutral', value: r.flags_neutral, label: 'Asossiz «Xatolik»',
          color: '#a16207',
-         hint: 'Xodim «bot xatosi» dedi, IT esa neytral deb topdi — da\'vo tasdiqlanmadi.',
+         hint: '«Bot xatosi» dedi, IT tasdiqlamadi.',
       })
       return out
    })
+
+   /** What the bell actually shows: the problems that have not been cleared AT THEIR
+    *  CURRENT VALUE. A cleared notice returns by itself the moment its number moves. */
+   const activeProblems = computed(() =>
+      problems.value.filter((p: any) => s.dismissed[p.key] !== p.value))
+
+   /** Cleared, and still true. Counted so the panel can say so rather than showing an
+    *  empty list that reads as "nothing is wrong" — those are opposite things. */
+   const clearedCount = computed(() =>
+      problems.value.length - activeProblems.value.length)
 
    const bucketTotal = computed(() => {
       const r = s.report
@@ -610,7 +613,8 @@ export function useNazoratView() {
    return {
       personWord, personWordLower, scopeTitle, isStaffScope, isLeaderScope,
       groupChoices, filteredWorkers, workerNameOptions,
-      problems, bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds,
+      problems, activeProblems, clearedCount,
+      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds,
       rankSort, rankGroups, hasRanking,
       feed, journalPeople, unansweredNeeds, entriesFor,
    }

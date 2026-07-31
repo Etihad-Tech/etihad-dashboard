@@ -51,6 +51,8 @@ import {
    faRankingStar,
    faListUl,
    faRotateRight,
+   faBell,
+   faCheck,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -61,7 +63,7 @@ library.add(
    faUser, faCircleQuestion, faTag, faLocationDot, faUserDoctor,
    faPlaneArrival, faBroom, faUserShield, faVideo, faUserSlash, faHotel,
    faClockRotateLeft, faCircleCheck, faCircleExclamation, faCircleInfo,
-   faGaugeHigh, faRankingStar, faListUl, faRotateRight,
+   faGaugeHigh, faRankingStar, faListUl, faRotateRight, faBell, faCheck,
 )
 
 const app = createApp(App)

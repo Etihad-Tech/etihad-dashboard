@@ -88,6 +88,38 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const reqLimit = ref(REQ_PAGE)
    const requestsTruncated = computed(() => requests.value.length >= reqLimit.value)
 
+   /** Cleared notifications, as `key -> the value it held when it was cleared`.
+    *
+    *  Storing the VALUE and not just the key is the whole safeguard. These are live
+    *  counts, not messages: «36 Javobsiz qolgan» is a fact about the period, and a
+    *  «clear» that hid it permanently would let a worsening situation sit invisible
+    *  behind a calm bell. Cleared at 36, it stays hidden while it is still 36 and comes
+    *  straight back at 37 — or when the period or the slice changes the number.
+    *
+    *  Kept in localStorage so it survives a reload, the way a phone app's badge does. */
+   const DISMISS_KEY = 'nazorat_dismissed'
+   function readDismissed(): Record<string, number> {
+      try {
+         const raw = localStorage.getItem(DISMISS_KEY)
+         return raw ? JSON.parse(raw) : {}
+      } catch { return {} }
+   }
+   const dismissed = ref<Record<string, number>>(readDismissed())
+
+   function persistDismissed() {
+      try { localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed.value)) } catch { /* private mode */ }
+   }
+   function dismissProblems(items: { key: string; value: number }[]) {
+      const next = { ...dismissed.value }
+      for (const i of items) next[i.key] = i.value
+      dismissed.value = next
+      persistDismissed()
+   }
+   function restoreProblems() {
+      dismissed.value = {}
+      persistDismissed()
+   }
+
    const form = ref({
       staff_repeat_window_hours: 6,
       ellikboshi_repeat_window_hours: 0,
@@ -216,8 +248,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
       report, workers, groupOptions, staffReadiness, scope,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,
-      form, sliceQuery,
+      form, sliceQuery, dismissed,
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
-      dismissReopen, save,
+      dismissProblems, restoreProblems, dismissReopen, save,
    }
 })

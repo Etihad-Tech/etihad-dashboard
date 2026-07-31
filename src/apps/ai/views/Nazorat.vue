@@ -20,6 +20,19 @@
                </h2>
 
                <div class="ml-auto flex items-center gap-1 shrink-0">
+                  <!-- The exceptions live here now instead of on top of the main screen.
+                       The badge is the whole point: the panel is worth opening only when
+                       it has something in it. -->
+                  <button @click="showBell = true"
+                     class="w-9 h-9 grid place-items-center rounded-full active:bg-gray-100"
+                     :class="activeProblems.length ? 'text-gray-700' : 'text-gray-400'"
+                     :title="activeProblems.length ? `${activeProblems.length} ta diqqat talab qiladigan holat` : 'Yangi bildirishnoma yo\'q'">
+                     <span class="relative inline-flex">
+                        <font-awesome-icon icon="bell" class="w-4 h-4" />
+                        <span v-if="activeProblems.length" class="n-bell-badge">{{ activeProblems.length }}</span>
+                     </span>
+                     <span class="sr-only">Diqqat talab qiladi</span>
+                  </button>
                   <button @click="refresh" class="w-9 h-9 grid place-items-center rounded-full text-gray-400 active:bg-gray-100"
                      :class="s.loading ? 'animate-spin' : ''" title="Yangilash">
                      <font-awesome-icon icon="rotate-right" class="w-4 h-4" />
@@ -109,24 +122,24 @@
          <nav v-if="!isDesktop && !isDetail" class="nazorat-tabbar">
             <router-link v-for="t in TABS" :key="t.to" :to="t.to"
                :class="route.path === t.to ? 'is-active' : ''">
-               <span class="relative inline-flex">
-                  <font-awesome-icon :icon="t.icon" class="w-5 h-5" />
-                  <span v-if="t.key === 'holat' && problems.length" class="n-tab-dot"></span>
-               </span>
+               <font-awesome-icon :icon="t.icon" class="w-5 h-5" />
                {{ t.label }}
             </router-link>
          </nav>
+
+         <Ogohlantirishlar v-if="showBell" @close="showBell = false" />
       </div>
    </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
 import Jurnal from './nazorat/Jurnal.vue'
+import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
 import { useNazoratStore } from '../stores/nazorat'
 import { useAuthStore } from '../../../stores/auth'
 import { PERIODS, useNazoratView } from './nazorat/shared'
@@ -136,7 +149,7 @@ const s = useNazoratStore()
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const { scopeTitle, personWord, groupChoices, problems } = useNazoratView()
+const { scopeTitle, personWord, groupChoices, activeProblems } = useNazoratView()
 
 const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
@@ -146,6 +159,12 @@ const TABS = [
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
+
+// The notifications panel. Closed by navigating as well as by the ✕ — leaving a sheet
+// hanging over a screen the reader has already moved away from is how a panel starts
+// feeling like a bug.
+const showBell = ref(false)
+watch(() => route.path, () => (showBell.value = false))
 
 /** Which arrangement to render. A media query rather than `lg:hidden`, because the two
  *  arrangements mount DIFFERENT component instances — with CSS alone a desktop would
