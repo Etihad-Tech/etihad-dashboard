@@ -13,9 +13,17 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value || !!teamToken.value)
 
   async function login(user: string, password: string): Promise<boolean> {
+    // Both apis are asked because an admin needs a token from each. Every other account
+    // exists on only one of them, so the other WILL answer 401 — that is expected, and
+    // api/index.ts deliberately does not treat a 401 from this call as a session expiry.
+    //
+    // allSettled waits for BOTH, so a single unreachable api would otherwise hang the
+    // login until the browser's own (minutes-long) timeout. The timeout is set per call
+    // rather than on the instance because these same instances carry AI-answer requests
+    // that are legitimately slow.
     const results = await Promise.allSettled([
-      aiApi.post('/auth/login', { username: user, password }),
-      teamApi.post('/api/auth/login', { username: user, password }),
+      aiApi.post('/auth/login', { username: user, password }, { timeout: 15000 }),
+      teamApi.post('/api/auth/login', { username: user, password }, { timeout: 15000 }),
     ])
 
     let success = false
