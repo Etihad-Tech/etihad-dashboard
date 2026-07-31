@@ -66,7 +66,10 @@
       </div>
     </aside>
 
-    <div class="sticky top-0 z-30 flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3 lg:hidden">
+    <div
+      v-if="!hideMobileChrome"
+      class="sticky top-0 z-30 flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3 lg:hidden"
+    >
       <div class="flex items-center gap-3">
         <img src="/logo.svg" alt="Etihad" class="w-6 h-6 rounded-full border border-amber-300/60 p-0.5" />
         <span class="text-sm font-bold text-gray-900">Etihad AI Support</span>
@@ -91,7 +94,7 @@
       </button>
     </div>
 
-    <main class="lg:ml-60 p-4 sm:p-6 lg:p-8">
+    <main class="lg:ml-60 lg:p-8" :class="hideMobileChrome ? 'lg:pt-8' : 'p-4 sm:p-6'">
       <slot />
     </main>
   </div>
@@ -164,10 +167,16 @@ function allowed(to: string): boolean {
   if (auth.role === 'mingboshi') return ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/hotels'].includes(to)
   // nazoratchi (controller): the Nazorat panel and nothing else. All three variants —
   // the combined account and the two scoped ones (staff / ellikboshi) — get the same
-  // single page; the API decides which population's evidence it fills with.
-  if (isNazoratchi.value) return to === '/ai/nazorat'
+  // single page; the API decides which population's evidence it fills with. Matched as a
+  // subtree because that page is now several routes (its tabs, the per-person screen).
+  if (isNazoratchi.value) return to.startsWith('/ai/nazorat')
   return true
 }
+
+// A controller's whole app is one panel, so on a phone the sidebar would be a drawer
+// holding a single link — and the hamburger that opens it a permanent 56px of nothing.
+// The panel draws its own title bar and bottom tabs instead. The desktop sidebar stays.
+const hideMobileChrome = isNazoratchi
 // Groups with their items filtered by role; empty groups dropped.
 const visibleGroups = computed(() =>
   NAV_GROUPS
