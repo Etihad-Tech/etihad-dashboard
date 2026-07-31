@@ -96,10 +96,18 @@ const router = createRouter({
       name: 'AiAuditLog',
       component: () => import('../apps/ai/views/AuditLog.vue'),
     },
+    // The Nazorat panel is three screens behind one shell (bottom tab bar on a phone,
+    // one scroll on a desktop) plus a per-person screen. They are real routes rather
+    // than local state so the phone's back gesture works and a screen can be linked.
     {
       path: '/ai/nazorat',
-      name: 'AiNazorat',
       component: () => import('../apps/ai/views/Nazorat.vue'),
+      children: [
+        { path: '', name: 'AiNazorat', component: () => import('../apps/ai/views/nazorat/Holat.vue') },
+        { path: 'reyting', name: 'AiNazoratReyting', component: () => import('../apps/ai/views/nazorat/Reyting.vue') },
+        { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
+        { path: 'xodim/:id', name: 'AiNazoratXodim', component: () => import('../apps/ai/views/nazorat/Xodim.vue') },
+      ],
     },
 
     {
@@ -174,8 +182,10 @@ function roleAllows(path: string, role: string | null): boolean {
   if (role === 'flight') return path === '/ai/reyslar'
   if (role === 'qa') return QA_PATHS.includes(path)
   if (role === 'mingboshi') return MINGBOSHI_PATHS.includes(path)
-  // A nazoratchi (controller) sees ONLY the Nazorat panel.
-  if (role && NAZORATCHI_ROLES.includes(role)) return path === '/ai/nazorat'
+  // A nazoratchi (controller) sees ONLY the Nazorat panel — but that panel is now
+  // several routes (its tabs and the per-person screen), so this must match the whole
+  // subtree. An exact match bounced the controller back home on the first tab tap.
+  if (role && NAZORATCHI_ROLES.includes(role)) return path.startsWith('/ai/nazorat')
   return true
 }
 
