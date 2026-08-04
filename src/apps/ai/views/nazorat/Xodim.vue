@@ -8,37 +8,42 @@
          <!-- The numbers that used to sit in the wide table's row. Here they are a grid
               a thumb can read, instead of seven columns behind a sideways scroll. -->
          <section class="card p-4">
-            <div class="flex items-center gap-2 min-w-0">
-               <h2 class="text-lg font-semibold text-gray-900 truncate">{{ personLabel(worker) }}</h2>
-               <span class="badge shrink-0"
-                  :class="worker.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">
-                  {{ jobLabel(worker) }}
+            <div class="flex items-center gap-3 min-w-0">
+               <span class="n-avatar" :class="isLeaderLevel(worker) ? 'n-avatar-leader' : ''">
+                  {{ initials(personLabel(worker)) }}
                </span>
+               <div class="min-w-0 flex-1">
+                  <!-- The name WRAPS rather than truncates, the same rule the ranking
+                       rows follow: «Nurmuhammad Rahim…» is the screen hiding the one
+                       thing it is about. -->
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                     <h2 class="text-[17px] font-bold text-gray-900 leading-tight">{{ personLabel(worker) }}</h2>
+                     <span class="badge shrink-0"
+                        :class="isLeaderLevel(worker) ? 'badge-indigo' : 'badge-amber'">
+                        {{ jobLabel(worker) }}
+                     </span>
+                  </div>
+                  <p class="text-[12.5px] text-gray-500 mt-0.5">
+                     <span v-if="worker.name && worker.username">{{ worker.username }} · </span>
+                     {{ whereLabel(worker) }}
+                     <!-- The standing assignment: how many groups are pinned to this
+                          leader (owner, 2026-08-04). Absent for the crew, who serve a
+                          city rather than a set of groups. -->
+                     <span v-if="assignedGroupsLabel(worker)"> · {{ assignedGroupsLabel(worker) }}</span>
+                  </p>
+               </div>
             </div>
-            <p class="text-[13px] text-gray-500 mt-0.5">
-               <span v-if="worker.name && worker.username">{{ worker.username }} · </span>
-               {{ whereLabel(worker) }}
-            </p>
 
-            <div v-if="worker.dms" class="flex gap-0.5 h-2.5 mt-3" :title="rowSplitHint(worker)">
+            <div v-if="worker.dms" class="flex gap-0.5 h-2.5 mt-3.5" :title="rowSplitHint(worker)">
                <div v-for="sg in rowSegments(worker)" :key="sg.key" class="rounded-[2px]"
                   :style="{ width: sg.pct + '%', background: sg.color }"></div>
             </div>
 
-            <div class="grid grid-cols-3 gap-x-3 mt-4">
-               <div>
-                  <p class="text-[11px] text-gray-500">Murojaat</p>
-                  <p class="text-lg font-semibold text-gray-900 tabular-nums leading-tight">{{ worker.dms }}</p>
-               </div>
-               <div>
-                  <p class="text-[11px] text-gray-500">Qabul</p>
-                  <p class="text-lg font-semibold text-gray-900 tabular-nums leading-tight">{{ worker.accepted }}</p>
-               </div>
-               <div>
-                  <p class="text-[11px] text-gray-500">O'rtacha javob</p>
-                  <p class="text-lg font-semibold text-gray-900 tabular-nums leading-tight">
-                     {{ dur(worker.avg_response_seconds) }}
-                  </p>
+            <div class="grid grid-cols-3 gap-2 mt-3.5">
+               <div v-for="t in headTiles" :key="t.label" class="n-tile !p-2.5 !shadow-none"
+                  style="outline-color: #f1f2f6">
+                  <p class="n-tile-label">{{ t.label }}</p>
+                  <p class="n-tile-value mt-0.5">{{ t.value }}</p>
                </div>
             </div>
 
@@ -50,7 +55,7 @@
                      <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ background: b.color }"></span>
                      {{ b.short }}
                   </p>
-                  <p class="text-lg font-semibold tabular-nums leading-tight"
+                  <p class="text-lg font-bold tabular-nums leading-tight"
                      :class="(worker as any)[b.key] ? 'text-gray-900' : 'text-gray-300'">
                      {{ (worker as any)[b.key] }}
                   </p>
@@ -69,7 +74,7 @@
          <!-- Their own log. Here the full sentence is the RIGHT form: on this screen the
               question really is "what did this person do about it", so "boshqa xodim
               qabul qildi" is an answer rather than the noise it was in a shared feed. -->
-         <h3 class="text-[15px] font-semibold text-gray-900 px-1 pt-1">Jurnal</h3>
+         <h3 class="n-h px-1 pt-1">Jurnal</h3>
 
          <div v-if="s.requestsLoading" class="card py-14 flex justify-center">
             <span class="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></span>
@@ -121,8 +126,8 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNazoratStore, MAX_REQ_LIMIT } from '../../stores/nazorat'
 import {
-   BUCKETS, cityLabel, dur, jobLabel, personLabel,
-   rowSegments, rowSplitHint, uncounted, whereLabel, useNazoratView,
+   BUCKETS, assignedGroupsLabel, cityLabel, dur, initials, isLeaderLevel, jobLabel,
+   personLabel, rowSegments, rowSplitHint, uncounted, whereLabel, useNazoratView,
 } from './shared'
 
 const s = useNazoratStore()
@@ -132,6 +137,17 @@ const { personWordLower, entriesFor } = useNazoratView()
 const telegramId = computed(() => Number(route.params.id))
 const worker = computed(() => s.workers.find((w) => w.telegram_id === telegramId.value) || null)
 const entries = computed(() => entriesFor(telegramId.value))
+
+/** The three headline figures as tiles — same numbers, same order as before. */
+const headTiles = computed(() => {
+   const w = worker.value
+   if (!w) return []
+   return [
+      { label: 'Murojaat', value: String(w.dms) },
+      { label: 'Qabul', value: String(w.accepted) },
+      { label: "O'rtacha javob", value: dur(w.avg_response_seconds) },
+   ]
+})
 
 onMounted(() => s.loadRequests())
 </script>

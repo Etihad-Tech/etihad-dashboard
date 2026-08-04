@@ -8,7 +8,7 @@
 
       <div class="n-sheet card absolute overflow-hidden flex flex-col">
          <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
-            <h3 class="text-[15px] font-semibold text-gray-900">Diqqat talab qiladi</h3>
+            <h3 class="n-h">Diqqat talab qiladi</h3>
             <span v-if="activeProblems.length" class="chip tabular-nums">{{ activeProblems.length }}</span>
             <button v-if="activeProblems.length" @click="s.dismissProblems(activeProblems)"
                class="ml-auto text-[13px] font-medium text-gray-500 active:text-gray-900">
@@ -118,7 +118,7 @@
                                     class="chip inline-flex items-center gap-1.5">
                                     {{ w.name }}
                                     <span class="badge"
-                                       :class="w.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">
+                                       :class="w.leaderLevel ? 'badge-indigo' : 'badge-amber'">
                                        {{ w.job }}
                                     </span>
                                  </span>

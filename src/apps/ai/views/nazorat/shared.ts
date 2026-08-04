@@ -65,6 +65,45 @@ export function jobLabel(w: { role: string; staff_role?: string | null }): strin
    return j ? (JOB_LABELS[j] || j) : 'Xodim'
 }
 
+/** Whose BOARD a person belongs on — an owner decision (2026-08-04), and a presentation
+ *  one only: the doctor is counted with the ellikboshilar, not with the crew.
+ *
+ *  The reason is the same one that already keeps the doctor out of the whole-crew tag:
+ *  they receive ONLY health needs, so a handful of cards against a crew member's forty
+ *  reads as neglect on a shared board when in fact they were never sent the other work.
+ *  They stay a doctor everywhere it matters — the badge still says «Shifokor», the bot's
+ *  routing and answers are untouched — this decides one thing, which list they are
+ *  ranked in. */
+export function isLeaderLevel(p: { role: string; staff_role?: string | null }): boolean {
+   return p.role === 'ellikboshi' || p.staff_role === 'doctor'
+}
+
+/** The lavozim dropdown, honouring the same regrouping — picking «Ellikboshi» must
+ *  return exactly the people the Ellikboshilar board holds, or the two disagree. */
+export function matchesRoleFilter(
+   p: { role: string; staff_role?: string | null }, filter: string,
+): boolean {
+   if (!filter) return true
+   return filter === 'ellikboshi' ? isLeaderLevel(p) : !isLeaderLevel(p)
+}
+
+/** Up to two initials for the avatar disc. Falls back to the @username, and then to a
+ *  dot rather than an empty circle — a row with no letters at all still needs an anchor. */
+export function initials(name: string): string {
+   const words = (name || '').replace(/^@/, '').trim().split(/[\s._-]+/).filter(Boolean)
+   if (!words.length) return '•'
+   const letters = words.slice(0, 2).map((w) => w[0]).join('')
+   return letters.toUpperCase()
+}
+
+/** "2 guruh biriktirilgan" — how many groups are PINNED to this leader right now.
+ *  Empty for the crew, who are assigned to a city rather than to groups (the API sends
+ *  null for them, so "0 guruh" is never printed as if it were a measurement). */
+export function assignedGroupsLabel(w: { assigned_groups?: number | null }): string {
+   const n = w.assigned_groups
+   return n === null || n === undefined ? '' : `${n} guruh biriktirilgan`
+}
+
 /** Display label for a worker/recipient — the DASHBOARD name if entered, else @username. */
 export function personLabel(
    p: { name?: string | null; username?: string | null; telegram_id: number },
@@ -131,10 +170,15 @@ export function rowSplitHint(w: Worker): string {
    return parts.join(' · ')
 }
 
-/** "Makka · 3 guruh" — where a worker's needs came from this period. */
+/** "Makka · 3 guruh" — where a worker's needs came from this period.
+ *
+ *  NOT the same number as `assigned_groups`: this one is measured from the needs
+ *  themselves ("their work came from 3 groups this period"), that one is the standing
+ *  assignment ("4 groups are pinned to them"). A leader with four groups pinned and
+ *  needs from one is a real and different picture, so both are shown. */
 export function whereLabel(w: Worker): string {
    const cities = (w.cities || []).map(cityLabel).filter(Boolean).join(', ')
-   const groups = w.group_count ? `${w.group_count} guruh` : ''
+   const groups = w.group_count ? `${w.group_count} guruhdan` : ''
    return [cities, groups].filter(Boolean).join(' · ') || '—'
 }
 
@@ -194,10 +238,12 @@ export function useNazoratView() {
       })
    })
 
-   /** Workers filtered by the lavozim (role) dropdown and the chosen name. */
+   /** Workers filtered by the lavozim (role) dropdown and the chosen name. The lavozim
+    *  test goes through matchesRoleFilter so it agrees with the boards below — where the
+    *  doctor is ranked with the ellikboshilar. */
    const filteredWorkers = computed(() =>
       s.workers.filter((w) => {
-         if (s.filterRole && w.role !== s.filterRole) return false
+         if (!matchesRoleFilter(w, s.filterRole)) return false
          if (s.filterName && personLabel(w) !== s.filterName) return false
          return true
       }),
@@ -297,12 +343,17 @@ export function useNazoratView() {
       if (!r) return []
       return [
          {
-            label: 'Murojaatlar', value: r.requests,
+            key: 'requests', label: 'Murojaatlar', value: r.requests,
+            icon: 'comments', color: '#6c5ce7',
             hint: `${r.delivered} ta ${personWordLower.value} kartochkasi yetib bordi`,
          },
-         { label: "O'rtacha javob vaqti", value: dur(r.avg_response_seconds), hint: 'DM → Qabul' },
          {
-            label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
+            key: 'avg', label: "O'rtacha javob vaqti", value: dur(r.avg_response_seconds),
+            icon: 'clock', color: '#0891b2', hint: 'DM → Qabul',
+         },
+         {
+            key: 'mistakes', label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
+            icon: 'triangle-exclamation', color: '#e11d48',
             hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : 'IT tasdiqlagan',
          },
       ]
@@ -336,12 +387,19 @@ export function useNazoratView() {
          return {
             telegram_id: w.telegram_id,
             name: personLabel(w),
+            initials: initials(personLabel(w)),
             role: w.role,
+            leaderLevel: isLeaderLevel(w),
             job: jobLabel(w),
+            // How many groups are PINNED to this leader (owner request 2026-08-04) —
+            // the standing assignment, which is what says whether a light period was a
+            // light LOAD or just a quiet one. Empty for the crew, who serve a city.
+            assigned: assignedGroupsLabel(w),
             accountable,
             rate,
             completed: w.completed || 0,
             never_accepted: w.never_accepted || 0,
+            avg_response_seconds: w.avg_response_seconds,
             segments,
             splitHint: rowSplitHint(w),
             detail: `${w.accepted || 0}/${accountable} qabul · ${w.completed || 0} bajarildi`
@@ -392,9 +450,11 @@ export function useNazoratView() {
       if (s.scope !== 'all' || s.filterRole) {
          return [build('one', `${personWord.value}lar`, rankRows.value)]
       }
+      // The doctor rides with the ellikboshilar (see isLeaderLevel) — they receive only
+      // health needs, so their handful of cards would read as neglect on the crew's board.
       return [
-         build('staff', 'Xodimlar', rankRows.value.filter((r) => r.role !== 'ellikboshi')),
-         build('ellikboshi', 'Ellikboshilar', rankRows.value.filter((r) => r.role === 'ellikboshi')),
+         build('staff', 'Xodimlar', rankRows.value.filter((r) => !r.leaderLevel)),
+         build('ellikboshi', 'Ellikboshilar', rankRows.value.filter((r) => r.leaderLevel)),
       ].filter((g) => g.rows.length || g.unranked.length)
    })
 
@@ -422,23 +482,26 @@ export function useNazoratView() {
 
       if (!reached.length) {
          return { key: 'undelivered', label: 'Yetib bormadi', color: '#9ca3af',
+            icon: 'plane-arrival',
             detail: `${recs.length} ta ${personWordLower.value}ga yuborib bo'lmadi` }
       }
       if (taker) {
          const wait = durBetween(taker.dm_sent_at, taker.accepted_at)
          if (taker.reopened_count > 0) {
             return { key: 'reopened', label: 'Bajarilmagan', color: BUCKETS[2].color,
+               icon: 'circle-exclamation',
                detail: `${nameOf(taker)} qabul qildi — ziyoratchi qayta so'radi` }
          }
          if (r.parent_request_id && !r.reopen_dismissed) {
             return { key: 're_requests', label: "Takroriy so'rov", color: BUCKETS[1].color,
-               detail: `${nameOf(taker)} · ${wait}` }
+               icon: 'arrows-rotate', detail: `${nameOf(taker)} · ${wait}` }
          }
          return { key: 'completed', label: 'Bajarildi', color: BUCKETS[0].color,
-            detail: `${nameOf(taker)} · ${wait}` }
+            icon: 'circle-check', detail: `${nameOf(taker)} · ${wait}` }
       }
       if (flagger) {
          return { key: 'flagged', label: 'Xatolik', color: '#6366f1',
+            icon: 'triangle-exclamation',
             detail: `${nameOf(flagger)} belgiladi`
                + (flagger.it_verdict ? ` · IT: ${flagger.it_verdict}` : " · IT hali ko'rmagan") }
       }
@@ -446,6 +509,7 @@ export function useNazoratView() {
       const oldest = reached.reduce((a, b) =>
          new Date(a.dm_sent_at || 0) < new Date(b.dm_sent_at || 0) ? a : b)
       return { key: 'never_accepted', label: 'Javobsiz', color: BUCKETS[3].color,
+         icon: 'clock',
          detail: `${reached.length} ta ${personWordLower.value}ga bordi · `
             + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
@@ -481,10 +545,15 @@ export function useNazoratView() {
             let p = counts.get(rec.telegram_id)
             if (!p) {
                const w = byId.get(rec.telegram_id)
+               const name = (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id)
                p = {
                   telegram_id: rec.telegram_id,
-                  name: (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id),
+                  name,
+                  initials: initials(name),
                   role: rec.role,
+                  // The recipient row only knows staff-vs-leader; the JOB (and therefore
+                  // whether this is the doctor) lives on the worker row.
+                  leaderLevel: w ? isLeaderLevel(w) : rec.role === 'ellikboshi',
                   job: w ? jobLabel(w) : (rec.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim'),
                   count: 0,
                }
@@ -494,7 +563,8 @@ export function useNazoratView() {
          }
       }
       return [...counts.values()]
-         .filter((p) => !s.filterRole || p.role === s.filterRole)
+         .filter((p) => matchesRoleFilter(
+            { role: p.leaderLevel ? 'ellikboshi' : p.role }, s.filterRole))
          .filter((p) => !s.filterName || p.name === s.filterName)
          .sort((a, b) => b.count - a.count)
    })
@@ -519,6 +589,7 @@ export function useNazoratView() {
                   telegram_id: rec.telegram_id,
                   name: (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id),
                   role: rec.role,
+                  leaderLevel: w ? isLeaderLevel(w) : rec.role === 'ellikboshi',
                   job: w ? jobLabel(w) : (rec.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim'),
                }
             }),
