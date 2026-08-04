@@ -60,17 +60,6 @@
          </div>
 
          <div class="nazorat-scroll px-4 pt-3 lg:px-0 lg:pb-0">
-            <!-- The design's greeting line. Chrome, not data: it says who is logged in
-                 and which slice of time the screen below is describing, which on a phone
-                 (where the title bar is one line) is otherwise nowhere. Mobile only —
-                 the desktop page is read in a meeting and opens with the numbers. -->
-            <div v-if="!isDetail && isHolat && !isDesktop" class="mb-3.5">
-               <p class="text-[17px] font-bold text-gray-900 leading-tight">
-                  Assalomu alaykum, {{ displayName }} 👋
-               </p>
-               <p class="text-[13px] text-gray-500 mt-0.5">{{ periodCaption }}</p>
-            </div>
-
             <!-- WHICH SLICE. Applied on the SERVER, so the cards, the ranking, the
                  journal and the person screens can never describe different slices. -->
             <div v-if="!isDetail" class="flex flex-wrap items-center gap-2 mb-3">
@@ -173,24 +162,6 @@ const TABS = [
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
-const isHolat = computed(() => route.path === '/ai/nazorat')
-
-/** Who is logged in, for the greeting — the same derivation the sidebar footer uses, so
- *  the two never disagree about the reader's name. */
-const displayName = computed(() => {
-   const u = auth.username
-   if (!u) return 'Admin'
-   return u.includes('@') ? u.split('@')[0] : u
-})
-
-/** "Bugungi ko'rsatkichlar" — which slice of time everything below describes. Reads off
- *  the same period control beside it, so it can never claim a different window. */
-const PERIOD_CAPTIONS: Record<string, string> = {
-   day: "Bugungi ko'rsatkichlar",
-   week: "Oxirgi 7 kun ko'rsatkichlari",
-   month: "Oxirgi 30 kun ko'rsatkichlari",
-}
-const periodCaption = computed(() => PERIOD_CAPTIONS[s.period] || PERIOD_CAPTIONS.day)
 
 // The notifications panel. Closed by navigating as well as by the ✕ — leaving a sheet
 // hanging over a screen the reader has already moved away from is how a panel starts
