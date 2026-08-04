@@ -15,10 +15,13 @@
 
       <div class="flex flex-wrap items-center gap-2">
          <!-- Only the combined account ever sees both lavozim in the data. -->
+         <!-- The doctor is ranked with the ellikboshilar (see isLeaderLevel), so the
+              option says so — a filter that quietly returns a Shifokor under «Ellikboshi»
+              would leave the reader wondering which of the two is wrong. -->
          <select v-if="s.scope === 'all'" v-model="s.filterRole" class="filter-select">
             <option value="">Barcha lavozimlar</option>
             <option value="staff">Xodim</option>
-            <option value="ellikboshi">Ellikboshi</option>
+            <option value="ellikboshi">Ellikboshi va shifokor</option>
          </select>
          <select v-model="s.filterName" class="filter-select flex-1 min-w-0">
             <option value="">Barcha ismlar</option>
@@ -32,33 +35,38 @@
       <div v-else class="grid gap-3" :class="rankGroups.length > 1 ? 'xl:grid-cols-2' : ''">
          <section v-for="g in rankGroups" :key="g.key" class="card p-3 sm:p-4">
             <div class="flex items-baseline justify-between gap-2 px-1">
-               <h4 class="text-sm font-semibold text-gray-900">{{ g.title }}</h4>
-               <p class="text-[13px] text-gray-500">{{ g.rows.length }} ta · {{ rankSort.unit }}</p>
+               <h4 class="n-h">{{ g.title }}</h4>
+               <p class="text-[12px] text-gray-500">{{ g.rows.length }} ta · {{ rankSort.unit }}</p>
             </div>
 
-            <ol class="mt-3 space-y-1.5">
+            <ol class="mt-2 divide-y divide-gray-50">
                <li v-for="(w, i) in g.rows" :key="w.telegram_id">
-                  <button type="button" class="row-tap flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors"
-                     :class="w.tone === 'good' ? 'bg-emerald-50/60'
-                        : w.tone === 'bad' ? 'bg-red-50/50' : 'hover:bg-gray-50'"
+                  <button type="button" class="row-tap flex items-center gap-3 rounded-2xl px-1.5 py-2.5 transition-colors hover:bg-gray-50/70"
                      @click="open(w.telegram_id)">
-                     <!-- The tint judges the VALUE, not the position: topping a weak list
-                          is not the same as doing well, and a green "1" beside a red 44%
-                          would contradict itself. -->
-                     <span class="w-7 h-7 shrink-0 grid place-items-center rounded-full text-[13px] font-semibold tabular-nums"
-                        :class="w.tone === 'good' ? 'bg-emerald-600 text-white'
-                           : w.tone === 'bad' ? 'bg-red-500 text-white'
-                           : 'bg-gray-100 text-gray-600'">
-                        {{ i + 1 }}
+                     <!-- Leads with the PERSON, the way the design's lists do; the rank
+                          numeral rides on the avatar's corner. The tint judges the VALUE,
+                          not the position — topping a weak list is not the same as doing
+                          well, and a green "1" beside a red 44% would contradict itself. -->
+                     <span class="relative shrink-0">
+                        <span class="n-avatar" :class="w.leaderLevel ? 'n-avatar-leader' : ''">
+                           {{ w.initials }}
+                        </span>
+                        <span class="n-rank"
+                           :class="w.tone === 'good' ? 'is-good' : w.tone === 'bad' ? 'is-bad' : ''">
+                           {{ i + 1 }}
+                        </span>
                      </span>
 
                      <div class="min-w-0 flex-1">
                         <!-- The name WRAPS rather than truncates. «Bekzod Rahi…» beside a
                              job badge was the panel hiding the one thing a row is about. -->
                         <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
-                           <span class="text-sm font-medium text-gray-900">{{ w.name }}</span>
+                           <span class="text-sm font-semibold text-gray-900">{{ w.name }}</span>
                            <span class="badge shrink-0"
-                              :class="w.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">{{ w.job }}</span>
+                              :class="w.leaderLevel ? 'badge-indigo' : 'badge-amber'">{{ w.job }}</span>
+                           <!-- How many groups are PINNED to this leader — the standing
+                                load behind the period's numbers (owner, 2026-08-04). -->
+                           <span v-if="w.assigned" class="text-[11px] text-gray-400">· {{ w.assigned }}</span>
                         </div>
                         <!-- Same four colours as everywhere else, so a row here and a row
                              on the person's own screen read identically. -->
@@ -69,16 +77,20 @@
                         <p class="text-xs text-gray-500 mt-1 leading-snug">{{ w.detail }}</p>
                      </div>
 
-                     <div class="text-right shrink-0 flex items-center gap-1">
-                        <div>
-                           <p class="text-lg font-semibold tabular-nums leading-none"
+                     <div class="shrink-0 flex items-center gap-1.5 self-start pt-0.5">
+                        <div class="text-right">
+                           <p class="text-[19px] font-bold tabular-nums leading-none"
                               :style="{ color: w.headlineColor }">{{ w.headline }}</p>
-                           <p class="text-[11px] text-gray-400 mt-1">{{ rankSort.unit }}</p>
+                           <p class="text-[10.5px] text-gray-400 mt-1">{{ rankSort.unit }}</p>
+                           <!-- The design's meter under the figure. Only for the RATE mode,
+                                where the number really is out of 100; a count of
+                                «bajarildi» has no denominator and a bar would invent one. -->
+                           <div v-if="rankSort.key === 'rate'" class="n-meter mt-1.5 w-14"
+                              :style="{ '--c': w.headlineColor }">
+                              <i :style="{ width: Math.round(w.rate * 100) + '%' }"></i>
+                           </div>
                         </div>
-                        <svg class="w-3 h-3 text-gray-300 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                           <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.5"
-                              stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
+                        <font-awesome-icon icon="chevron-right" class="w-2.5 h-2.5 text-gray-300 shrink-0" />
                      </div>
                   </button>
                </li>
@@ -140,13 +152,20 @@
                         <div class="flex items-center gap-2 min-w-0">
                            <span class="font-medium text-gray-900 truncate">{{ personLabel(w) }}</span>
                            <span class="badge shrink-0"
-                              :class="w.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">
+                              :class="isLeaderLevel(w) ? 'badge-indigo' : 'badge-amber'">
                               {{ jobLabel(w) }}
                            </span>
                         </div>
                         <p v-if="w.name && w.username" class="text-xs text-gray-400 mt-0.5">{{ w.username }}</p>
                      </td>
-                     <td class="px-3 py-3.5 text-[13px] text-gray-500 whitespace-nowrap">{{ whereLabel(w) }}</td>
+                     <td class="px-3 py-3.5 text-[13px] text-gray-500 whitespace-nowrap">
+                        {{ whereLabel(w) }}
+                        <!-- The standing assignment beside the period's own figure — they
+                             answer different questions (see whereLabel). -->
+                        <span v-if="assignedGroupsLabel(w)" class="block text-[11px] text-gray-400">
+                           {{ assignedGroupsLabel(w) }}
+                        </span>
+                     </td>
                      <td class="px-3 py-3.5 text-right text-gray-900 tabular-nums">{{ w.dms }}</td>
                      <td class="px-3 py-3.5 text-right text-gray-900 tabular-nums">{{ w.accepted }}</td>
                      <!-- The row's own composition, so a sheet of numbers can be scanned
@@ -176,7 +195,7 @@
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import {
-   BUCKETS, MIN_RANK_CARDS, RANK_MODES, rankMode,
+   BUCKETS, MIN_RANK_CARDS, RANK_MODES, rankMode, assignedGroupsLabel, isLeaderLevel,
    jobLabel, personLabel, rowSegments, rowSplitHint, whereLabel, useNazoratView,
 } from './shared'
 

@@ -6,25 +6,28 @@
               reaches no other page), so this is its title bar: what you are looking at,
               which period, and the two controls that are always needed. -->
          <div class="nazorat-topbar px-4 pt-3 pb-2.5 lg:static lg:bg-transparent lg:backdrop-blur-none lg:border-0 lg:px-0 lg:pt-0">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2.5">
                <button v-if="isDetail" @click="router.back()"
-                  class="w-8 h-8 -ml-1.5 shrink-0 grid place-items-center rounded-full text-gray-500 active:bg-gray-100">
+                  class="n-topbtn -ml-1 shrink-0 text-gray-500">
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                      <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.75"
                         stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                   <span class="sr-only">Orqaga</span>
                </button>
-               <h2 class="text-[22px] lg:text-[26px] leading-tight font-semibold tracking-tight text-gray-900 truncate">
+               <!-- The panel's own mark. A controller never sees the sidebar on a phone,
+                    so without it the app opens on an unbranded sheet of numbers. -->
+               <img v-else src="/logo.svg" alt="" aria-hidden="true"
+                  class="w-8 h-8 shrink-0 rounded-full bg-white p-1 shadow-sm lg:hidden" />
+               <h2 class="text-[19px] lg:text-[26px] leading-tight font-bold tracking-tight text-gray-900 truncate">
                   {{ isDetail ? personWord : scopeTitle }}
                </h2>
 
-               <div class="ml-auto flex items-center gap-1 shrink-0">
+               <div class="ml-auto flex items-center gap-1.5 shrink-0">
                   <!-- The exceptions live here now instead of on top of the main screen.
                        The badge is the whole point: the panel is worth opening only when
                        it has something in it. -->
-                  <button @click="showBell = true"
-                     class="w-9 h-9 grid place-items-center rounded-full active:bg-gray-100"
+                  <button @click="showBell = true" class="n-topbtn"
                      :class="activeProblems.length ? 'text-gray-700' : 'text-gray-400'"
                      :title="activeProblems.length ? `${activeProblems.length} ta diqqat talab qiladigan holat` : 'Yangi bildirishnoma yo\'q'">
                      <span class="relative inline-flex">
@@ -33,7 +36,7 @@
                      </span>
                      <span class="sr-only">Diqqat talab qiladi</span>
                   </button>
-                  <button @click="refresh" class="w-9 h-9 grid place-items-center rounded-full text-gray-400 active:bg-gray-100"
+                  <button @click="refresh" class="n-topbtn text-gray-400"
                      :class="s.loading ? 'animate-spin' : ''" title="Yangilash">
                      <font-awesome-icon icon="rotate-right" class="w-4 h-4" />
                      <span class="sr-only">Yangilash</span>
@@ -41,7 +44,7 @@
                   <!-- A controller has no sidebar on a phone (it would hold one link), so
                        the way out lives here. -->
                   <button v-if="isNazoratchi" @click="logout"
-                     class="w-9 h-9 lg:hidden grid place-items-center rounded-full text-gray-400 active:bg-red-50 active:text-red-500">
+                     class="n-topbtn lg:hidden text-gray-400 active:text-red-500">
                      <font-awesome-icon icon="right-from-bracket" class="w-4 h-4" />
                      <span class="sr-only">Chiqish</span>
                   </button>
@@ -57,6 +60,17 @@
          </div>
 
          <div class="nazorat-scroll px-4 pt-3 lg:px-0 lg:pb-0">
+            <!-- The design's greeting line. Chrome, not data: it says who is logged in
+                 and which slice of time the screen below is describing, which on a phone
+                 (where the title bar is one line) is otherwise nowhere. Mobile only —
+                 the desktop page is read in a meeting and opens with the numbers. -->
+            <div v-if="!isDetail && isHolat && !isDesktop" class="mb-3.5">
+               <p class="text-[17px] font-bold text-gray-900 leading-tight">
+                  Assalomu alaykum, {{ displayName }} 👋
+               </p>
+               <p class="text-[13px] text-gray-500 mt-0.5">{{ periodCaption }}</p>
+            </div>
+
             <!-- WHICH SLICE. Applied on the SERVER, so the cards, the ranking, the
                  journal and the person screens can never describe different slices. -->
             <div v-if="!isDetail" class="flex flex-wrap items-center gap-2 mb-3">
@@ -159,6 +173,24 @@ const TABS = [
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
+const isHolat = computed(() => route.path === '/ai/nazorat')
+
+/** Who is logged in, for the greeting — the same derivation the sidebar footer uses, so
+ *  the two never disagree about the reader's name. */
+const displayName = computed(() => {
+   const u = auth.username
+   if (!u) return 'Admin'
+   return u.includes('@') ? u.split('@')[0] : u
+})
+
+/** "Bugungi ko'rsatkichlar" — which slice of time everything below describes. Reads off
+ *  the same period control beside it, so it can never claim a different window. */
+const PERIOD_CAPTIONS: Record<string, string> = {
+   day: "Bugungi ko'rsatkichlar",
+   week: "Oxirgi 7 kun ko'rsatkichlari",
+   month: "Oxirgi 30 kun ko'rsatkichlari",
+}
+const periodCaption = computed(() => PERIOD_CAPTIONS[s.period] || PERIOD_CAPTIONS.day)
 
 // The notifications panel. Closed by navigating as well as by the ✕ — leaving a sheet
 // hanging over a screen the reader has already moved away from is how a panel starts
