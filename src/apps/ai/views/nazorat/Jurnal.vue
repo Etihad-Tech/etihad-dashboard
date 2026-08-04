@@ -16,10 +16,10 @@
          </button>
       </div>
 
-      <div v-if="mode === 'feed'" class="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-0.5 lg:mx-0 lg:px-0">
+      <div v-if="mode === 'feed'" class="no-bar flex gap-2 overflow-x-auto -mx-4 px-4 py-0.5 lg:mx-0 lg:px-0">
          <button v-for="f in filters" :key="f.key" class="fchip shrink-0"
             :class="filter === f.key ? 'is-on' : ''" @click="filter = f.key">
-            {{ f.label }}<span v-if="f.count !== null" class="ml-1 opacity-60">{{ f.count }}</span>
+            {{ f.label }}<span v-if="f.count !== null" class="fchip-n">{{ f.count }}</span>
          </button>
       </div>
 
@@ -34,20 +34,18 @@
             {{ s.workers.length === 0 ? 'Bu davrda murojaat bo\'lmagan'
                : 'Filtrga mos ' + personWordLower + ' topilmadi' }}
          </div>
-         <div v-else class="card divide-y divide-gray-100 overflow-hidden">
+         <div v-else class="card divide-y divide-gray-50 overflow-hidden">
             <button v-for="p in journalPeople" :key="p.telegram_id" type="button"
-               class="row-tap flex items-center gap-2.5 px-4 py-3 transition-colors hover:bg-gray-50/70"
+               class="row-tap flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-gray-50/70"
                @click="openPerson(p.telegram_id)">
+               <span class="n-avatar" :class="p.leaderLevel ? 'n-avatar-leader' : ''">{{ p.initials }}</span>
                <span class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span class="text-sm font-medium text-gray-900">{{ p.name }}</span>
+                  <span class="text-sm font-semibold text-gray-900">{{ p.name }}</span>
                   <span class="badge shrink-0"
-                     :class="p.role === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">{{ p.job }}</span>
+                     :class="p.leaderLevel ? 'badge-indigo' : 'badge-amber'">{{ p.job }}</span>
                </span>
-               <span class="text-[13px] text-gray-400 shrink-0 tabular-nums">{{ p.count }} ta murojaat</span>
-               <svg class="w-3 h-3 text-gray-300 shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.5"
-                     stroke-linecap="round" stroke-linejoin="round" />
-               </svg>
+               <span class="text-[12.5px] text-gray-400 shrink-0 tabular-nums">{{ p.count }} ta</span>
+               <font-awesome-icon icon="chevron-right" class="w-2.5 h-2.5 text-gray-300 shrink-0" />
             </button>
          </div>
       </template>
@@ -56,39 +54,47 @@
          {{ s.requests.length ? 'Bu turdagi murojaat yo\'q' : 'Bu davrda murojaat bo\'lmagan' }}
       </div>
 
-      <div v-else class="card divide-y divide-gray-100 overflow-hidden">
-         <article v-for="r in rows" :key="r.id" class="px-4 py-3">
-            <p class="text-sm text-gray-900 leading-snug clamp2">
-               <span v-if="r.is_repeat" class="badge badge-amber mr-1 align-middle">Takroriy</span>
-               {{ r.text || '—' }}
-            </p>
+      <div v-else class="card divide-y divide-gray-50 overflow-hidden">
+         <!-- One row = one murojaat, led by the outcome's own colour, the way the design
+              leads every list row with a tinted icon. Colour here is never decoration:
+              it is the same four-colour outcome vocabulary the rest of the panel uses. -->
+         <article v-for="r in rows" :key="r.id" class="flex gap-3 px-3.5 py-3">
+            <span class="n-ico mt-0.5" :style="{ '--c': r.outcome.color }">
+               <font-awesome-icon :icon="r.outcome.icon" class="w-3.5 h-3.5" />
+            </span>
+            <div class="min-w-0 flex-1">
+               <p class="text-sm text-gray-900 leading-snug clamp2">
+                  <span v-if="r.is_repeat" class="badge badge-amber mr-1 align-middle">Takroriy</span>
+                  {{ r.text || '—' }}
+               </p>
 
-            <!-- The outcome as a coloured word instead of a full sentence. Everything the
-                 old sentence carried — who took it, how long it waited — is still here,
-                 as data rather than prose. -->
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
-               <span class="pill" :style="{ color: r.outcome.color, background: r.outcome.color + '14' }">
-                  <i></i>{{ r.outcome.label }}
-               </span>
-               <span class="text-[13px] text-gray-500 min-w-0">{{ r.outcome.detail }}</span>
+               <!-- The outcome as a coloured word instead of a full sentence. Everything
+                    the old sentence carried — who took it, how long it waited — is still
+                    here, as data rather than prose. -->
+               <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
+                  <span class="pill" :style="{ color: r.outcome.color, background: r.outcome.color + '14' }">
+                     <i></i>{{ r.outcome.label }}
+                  </span>
+                  <span class="text-[12.5px] text-gray-500 min-w-0">{{ r.outcome.detail }}</span>
+               </div>
+
+               <!-- WHERE it came from. The controller was not in that chat, so a request
+                    text on its own is unreadable. -->
+               <p class="flex flex-wrap gap-x-1.5 gap-y-0.5 mt-1.5 text-[11px] text-gray-400">
+                  <span>{{ fmtDateTime(r.created_at) }}</span>
+                  <span class="text-gray-500">· {{ r.group_label }}</span>
+                  <span v-if="r.city">· {{ cityLabel(r.city) }}</span>
+                  <span v-if="r.room_no">· {{ r.room_no }}-xona</span>
+                  <span v-if="r.pilgrim_username">· {{ r.pilgrim_username }}</span>
+                  <a v-if="r.message_link" :href="r.message_link" target="_blank"
+                     class="underline underline-offset-2 hover:text-gray-700">Xabarni ko'rish</a>
+                  <button v-if="r.is_repeat" @click="s.dismissReopen(r.id)"
+                     class="underline underline-offset-2 hover:text-gray-700"
+                     title="Bu aslida takror emas — noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
+                     Takror emas
+                  </button>
+               </p>
             </div>
-
-            <!-- WHERE it came from. The controller was not in that chat, so a request
-                 text on its own is unreadable. -->
-            <p class="flex flex-wrap gap-x-1.5 gap-y-0.5 mt-1.5 text-[11px] text-gray-400">
-               <span>{{ fmtDateTime(r.created_at) }}</span>
-               <span class="text-gray-500">· {{ r.group_label }}</span>
-               <span v-if="r.city">· {{ cityLabel(r.city) }}</span>
-               <span v-if="r.room_no">· {{ r.room_no }}-xona</span>
-               <span v-if="r.pilgrim_username">· {{ r.pilgrim_username }}</span>
-               <a v-if="r.message_link" :href="r.message_link" target="_blank"
-                  class="underline underline-offset-2 hover:text-gray-700">Xabarni ko'rish</a>
-               <button v-if="r.is_repeat" @click="s.dismissReopen(r.id)"
-                  class="underline underline-offset-2 hover:text-gray-700"
-                  title="Bu aslida takror emas — noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
-                  Takror emas
-               </button>
-            </p>
          </article>
       </div>
 

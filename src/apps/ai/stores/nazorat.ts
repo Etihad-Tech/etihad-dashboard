@@ -32,6 +32,10 @@ export interface Worker {
    // Their JOB from the staff table (ishchi_guruh / doctor / airport), NOT the
    // control-system role. A doctor only ever receives health needs.
    staff_role: string | null
+   // How many GROUPS are pinned to this leader right now (groups.ellikboshi_username,
+   // trips that have not finished). null for the crew, who are assigned to a CITY —
+   // so "0 guruh" is never printed as though it were a measurement about them.
+   assigned_groups: number | null
 }
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
