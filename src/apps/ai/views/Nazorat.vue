@@ -111,6 +111,10 @@
                   <h3 class="text-base font-semibold text-gray-900 mb-3">Reyting</h3>
                   <Reyting />
                </div>
+               <div v-if="auth.role !== 'nazoratchi_staff'">
+                  <h3 class="text-base font-semibold text-gray-900 mb-3">Guruhlar taqsimoti</h3>
+                  <Guruhlar />
+               </div>
                <div>
                   <h3 class="text-base font-semibold text-gray-900 mb-3">Jurnal</h3>
                   <Jurnal />
@@ -142,6 +146,7 @@ import AppLayout from '../components/AppLayout.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
 import Jurnal from './nazorat/Jurnal.vue'
+import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
 import { useNazoratStore } from '../stores/nazorat'
 import { useAuthStore } from '../../../stores/auth'
@@ -158,6 +163,11 @@ const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
    { key: 'reyting', to: '/ai/nazorat/reyting', label: 'Reyting', icon: 'ranking-star' },
    { key: 'jurnal', to: '/ai/nazorat/jurnal', label: 'Jurnal', icon: 'list-ul' },
+   // Hidden from the crew's controller: the API refuses them this read, and offering a
+   // tab that can only answer 403 is worse than not offering it.
+   ...(auth.role === 'nazoratchi_staff'
+      ? []
+      : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))

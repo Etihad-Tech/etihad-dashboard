@@ -66,7 +66,6 @@
                               :class="w.leaderLevel ? 'badge-indigo' : 'badge-amber'">{{ w.job }}</span>
                            <!-- How many groups are PINNED to this leader — the standing
                                 load behind the period's numbers (owner, 2026-08-04). -->
-                           <span v-if="w.assigned" class="text-[11px] text-gray-400">· {{ w.assigned }}</span>
                         </div>
                         <!-- Same four colours as everywhere else, so a row here and a row
                              on the person's own screen read identically. -->
@@ -162,9 +161,6 @@
                         {{ whereLabel(w) }}
                         <!-- The standing assignment beside the period's own figure — they
                              answer different questions (see whereLabel). -->
-                        <span v-if="assignedGroupsLabel(w)" class="block text-[11px] text-gray-400">
-                           {{ assignedGroupsLabel(w) }}
-                        </span>
                      </td>
                      <td class="px-3 py-3.5 text-right text-gray-900 tabular-nums">{{ w.dms }}</td>
                      <td class="px-3 py-3.5 text-right text-gray-900 tabular-nums">{{ w.accepted }}</td>
@@ -195,7 +191,7 @@
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import {
-   BUCKETS, MIN_RANK_CARDS, RANK_MODES, rankMode, assignedGroupsLabel, isLeaderLevel,
+   BUCKETS, MIN_RANK_CARDS, RANK_MODES, rankMode, isLeaderLevel,
    jobLabel, personLabel, rowSegments, rowSplitHint, whereLabel, useNazoratView,
 } from './shared'
 

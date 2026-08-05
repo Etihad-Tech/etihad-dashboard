@@ -96,7 +96,7 @@ const router = createRouter({
       name: 'AiAuditLog',
       component: () => import('../apps/ai/views/AuditLog.vue'),
     },
-    // The Nazorat panel is three screens behind one shell (bottom tab bar on a phone,
+    // The Nazorat panel is four screens behind one shell (bottom tab bar on a phone,
     // one scroll on a desktop) plus a per-person screen. They are real routes rather
     // than local state so the phone's back gesture works and a screen can be linked.
     {
@@ -106,6 +106,7 @@ const router = createRouter({
         { path: '', name: 'AiNazorat', component: () => import('../apps/ai/views/nazorat/Holat.vue') },
         { path: 'reyting', name: 'AiNazoratReyting', component: () => import('../apps/ai/views/nazorat/Reyting.vue') },
         { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
+        { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'xodim/:id', name: 'AiNazoratXodim', component: () => import('../apps/ai/views/nazorat/Xodim.vue') },
       ],
     },

@@ -32,10 +32,20 @@ export interface Worker {
    // Their JOB from the staff table (ishchi_guruh / doctor / airport), NOT the
    // control-system role. A doctor only ever receives health needs.
    staff_role: string | null
-   // How many GROUPS are pinned to this leader right now (groups.ellikboshi_username,
-   // trips that have not finished). null for the crew, who are assigned to a CITY —
-   // so "0 guruh" is never printed as though it were a measurement about them.
-   assigned_groups: number | null
+}
+
+// One leader's standing assignment — every group pinned to them, with no period at all.
+// It is NOT on Worker any more (owner, 2026-08-05): a Worker row only exists for someone
+// who got a DM inside the selected window, so on "Kunlik" a leader with a quiet day drops
+// off the page and their group total goes with them. A fact that does not depend on the
+// period cannot live in a list that does.
+export interface LeaderGroups {
+   username: string; name: string | null
+   // false = still holds groups but has been removed from the Ellikboshilar pool. Listed
+   // anyway, or the totals stop reconciling with the Guruhlar page.
+   in_pool: boolean
+   group_count: number
+   groups: { telegram_id: number; title: string | null }[]
 }
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
@@ -68,6 +78,12 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const workers = ref<Worker[]>([])
    const groupOptions = ref<GroupOption[]>([])
    const staffReadiness = ref<StaffReady[]>([])
+   // The roster screen. Kept OUT of load(): it takes no period and no group/city slice,
+   // so re-pulling it whenever the window changes would be pure waste — and worse, it
+   // would imply to the reader that it answers to the selector like everything else does.
+   const leaderGroups = ref<LeaderGroups[]>([])
+   const leaderGroupsLoading = ref(false)
+   const leaderGroupsError = ref<'' | 'forbidden' | 'failed'>('')
 
    // Which population this LOGIN may see: 'staff' | 'ellikboshi' | 'all'. Comes from the
    // API (the token decides it), never from a dropdown — a scoped controller cannot
@@ -207,6 +223,23 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return loadRequests(true)
    }
 
+   /** The leader roster — every ellikboshi and how many groups they hold. No period.
+    *  A nazoratchi_staff token is refused by the API (their scope is the crew), which is
+    *  told apart from a real failure so the screen can say which happened. */
+   async function loadLeaderGroups() {
+      leaderGroupsLoading.value = true
+      leaderGroupsError.value = ''
+      try {
+         const { data } = await api.get('/control/leader-groups')
+         leaderGroups.value = data
+      } catch (e: any) {
+         leaderGroups.value = []
+         leaderGroupsError.value = e?.response?.status === 403 ? 'forbidden' : 'failed'
+      } finally {
+         leaderGroupsLoading.value = false
+      }
+   }
+
    /** A slice change invalidates everything, so both reads restart. */
    function setSlice() {
       reqLimit.value = REQ_PAGE
@@ -250,6 +283,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
    return {
       period, loading, loadError, saving, savedMsg,
       report, workers, groupOptions, staffReadiness, scope,
+      leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,
       form, sliceQuery, dismissed,

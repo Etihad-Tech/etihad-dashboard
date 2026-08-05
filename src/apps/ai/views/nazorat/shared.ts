@@ -96,14 +96,6 @@ export function initials(name: string): string {
    return letters.toUpperCase()
 }
 
-/** "2 guruh biriktirilgan" — how many groups are PINNED to this leader right now.
- *  Empty for the crew, who are assigned to a city rather than to groups (the API sends
- *  null for them, so "0 guruh" is never printed as if it were a measurement). */
-export function assignedGroupsLabel(w: { assigned_groups?: number | null }): string {
-   const n = w.assigned_groups
-   return n === null || n === undefined ? '' : `${n} guruh biriktirilgan`
-}
-
 /** Display label for a worker/recipient — the DASHBOARD name if entered, else @username. */
 export function personLabel(
    p: { name?: string | null; username?: string | null; telegram_id: number },
@@ -172,10 +164,11 @@ export function rowSplitHint(w: Worker): string {
 
 /** "Makka · 3 guruh" — where a worker's needs came from this period.
  *
- *  NOT the same number as `assigned_groups`: this one is measured from the needs
- *  themselves ("their work came from 3 groups this period"), that one is the standing
- *  assignment ("4 groups are pinned to them"). A leader with four groups pinned and
- *  needs from one is a real and different picture, so both are shown. */
+ *  PERIOD-SCOPED, and the only group figure on this screen: it counts the groups whose
+ *  needs reached this person inside the selected window, so it moves with the Kunlik /
+ *  Haftalik / Oylik selector. The standing "how many groups does this leader hold" total
+ *  lives on the Guruhlar screen instead — it does not depend on the period, and a list
+ *  that drops people for being quiet is the wrong place to read it (owner, 2026-08-05). */
 export function whereLabel(w: Worker): string {
    const cities = (w.cities || []).map(cityLabel).filter(Boolean).join(', ')
    const groups = w.group_count ? `${w.group_count} guruhdan` : ''
@@ -391,10 +384,6 @@ export function useNazoratView() {
             role: w.role,
             leaderLevel: isLeaderLevel(w),
             job: jobLabel(w),
-            // How many groups are PINNED to this leader (owner request 2026-08-04) —
-            // the standing assignment, which is what says whether a light period was a
-            // light LOAD or just a quiet one. Empty for the crew, who serve a city.
-            assigned: assignedGroupsLabel(w),
             accountable,
             rate,
             completed: w.completed || 0,
