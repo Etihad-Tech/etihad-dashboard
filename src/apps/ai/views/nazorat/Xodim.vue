@@ -26,10 +26,6 @@
                   <p class="text-[12.5px] text-gray-500 mt-0.5">
                      <span v-if="worker.name && worker.username">{{ worker.username }} · </span>
                      {{ whereLabel(worker) }}
-                     <!-- The standing assignment: how many groups are pinned to this
-                          leader (owner, 2026-08-04). Absent for the crew, who serve a
-                          city rather than a set of groups. -->
-                     <span v-if="assignedGroupsLabel(worker)"> · {{ assignedGroupsLabel(worker) }}</span>
                   </p>
                </div>
             </div>
@@ -126,7 +122,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNazoratStore, MAX_REQ_LIMIT } from '../../stores/nazorat'
 import {
-   BUCKETS, assignedGroupsLabel, cityLabel, dur, initials, isLeaderLevel, jobLabel,
+   BUCKETS, cityLabel, dur, initials, isLeaderLevel, jobLabel,
    personLabel, rowSegments, rowSplitHint, uncounted, whereLabel, useNazoratView,
 } from './shared'
 
