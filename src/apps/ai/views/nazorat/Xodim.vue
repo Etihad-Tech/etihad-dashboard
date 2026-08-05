@@ -26,9 +26,10 @@
                   <p class="text-[12.5px] text-gray-500 mt-0.5">
                      <span v-if="worker.name && worker.username">{{ worker.username }} · </span>
                      {{ whereLabel(worker) }}
-                     <!-- The standing assignment: how many groups are pinned to this
-                          leader (owner, 2026-08-04). Absent for the crew, who serve a
-                          city rather than a set of groups. -->
+                     <!-- TOTAL groups ever pinned to this leader (owner, 2026-08-05;
+                          was "not-yet-finished trips only", which read 0 for a leader
+                          between trips). Cumulative, hence the "Jami" prefix. Absent for
+                          the crew, who serve a city rather than a set of groups. -->
                      <span v-if="assignedGroupsLabel(worker)"> · {{ assignedGroupsLabel(worker) }}</span>
                   </p>
                </div>

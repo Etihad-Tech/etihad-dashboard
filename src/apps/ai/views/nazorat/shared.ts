@@ -96,12 +96,20 @@ export function initials(name: string): string {
    return letters.toUpperCase()
 }
 
-/** "2 guruh biriktirilgan" — how many groups are PINNED to this leader right now.
+/** "Jami 2 guruh biriktirilgan" — how many groups have been pinned to this leader IN
+ *  TOTAL (owner, 2026-08-05). It used to count only groups whose trip had not finished,
+ *  which meant a leader between trips read "0 guruh biriktirilgan" next to their whole
+ *  record. The number is therefore CUMULATIVE and only ever grows — "Jami" is what says
+ *  so, and it must not be dropped, or the figure reads as a current workload.
+ *
+ *  Not to be confused with whereLabel's `group_count` beside it, which IS period-scoped
+ *  ("their needs came from 3 groups this period").
+ *
  *  Empty for the crew, who are assigned to a city rather than to groups (the API sends
  *  null for them, so "0 guruh" is never printed as if it were a measurement). */
 export function assignedGroupsLabel(w: { assigned_groups?: number | null }): string {
    const n = w.assigned_groups
-   return n === null || n === undefined ? '' : `${n} guruh biriktirilgan`
+   return n === null || n === undefined ? '' : `Jami ${n} guruh biriktirilgan`
 }
 
 /** Display label for a worker/recipient — the DASHBOARD name if entered, else @username. */
