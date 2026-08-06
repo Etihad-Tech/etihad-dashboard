@@ -188,7 +188,19 @@
    position: sticky;
    top: 0;
    z-index: 20;
-   padding-top: env(safe-area-inset-top);
+   /* ADDED to the bar's own padding, not substituted for it. This was
+      `padding-top: env(safe-area-inset-top)`, which is one declaration of the same
+      property as the template's `pt-3` and — being the later of two single-class
+      selectors — silently won it. There is no `viewport-fit=cover` on this page, so
+      the inset resolves to 0 on every device and the bar was left with NO top padding:
+      the mark and the three round buttons sat hard against the status bar (owner,
+      2026-08-06). The inset stays in the sum so that installing the panel to the home
+      screen, which is when it becomes non-zero, still clears the notch. */
+   padding-top: calc(1rem + env(safe-area-inset-top));
+}
+/* A desktop has the dashboard's own chrome above this, so the bar starts flush. */
+@media (min-width: 1024px) {
+   .nazorat-topbar { padding-top: 0; }
 }
 /* The hairline only appears once something has scrolled under the bar. A permanent
    border under a translucent bar sitting on an unscrolled page is a line drawn across
@@ -206,37 +218,48 @@
 }
 .nazorat-topbar.is-stuck::after { opacity: 1; }
 
-/* ── The large title ─────────────────────────────────────────────────────────
-   Its own row, under the controls, the way a phone lays out a screen title. It used
-   to sit inline between the mark and three round buttons, which on a 390px screen
-   left the title about 150px and pushed everything into everything else.
+/* ── The title ───────────────────────────────────────────────────────────────
+   ONE title, in the controls row, that never moves.
 
-   On scroll it collapses and a small title fades into the controls row, so the
-   header gives its height back once the reader is past it. The height transition is
-   a layout property, which this file otherwise avoids: it runs once per scroll-state
-   flip on one small element, not continuously, so it never lands in a scroll frame. */
-.nazorat .n-title-lg {
-   overflow: hidden;
-   max-height: 5rem;
-   opacity: 1;
-   transition: max-height 0.34s cubic-bezier(0.32, 0.72, 0, 1),
-      opacity 0.2s ease, margin-top 0.34s cubic-bezier(0.32, 0.72, 0, 1);
-}
-.nazorat-topbar.is-stuck .n-title-lg {
-   max-height: 0;
-   opacity: 0;
-   margin-top: 0;
-}
+   What was here: a 32px title on its own second row that collapsed to `max-height: 0`
+   on scroll while a 17px copy faded in beside the mark. Two faults, both reported by
+   the owner (2026-08-06) as «Nazorat changing its place and making glitches»:
 
-/* The compact title that takes over once the large one has rolled up. */
-.nazorat .n-title-sm {
-   opacity: 0;
-   transform: translateY(3px);
-   transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+   1. The word visibly jumped rows and sizes mid-swipe. A large title that rolls up is
+      an iOS convention, but it is a convention for a title that scrolls away with its
+      content — pinned inside a sticky bar it reads as the header rearranging itself.
+
+   2. It flickered, and that part was a genuine feedback loop rather than taste. The
+      `stuck` flag comes from an IntersectionObserver on a 1px sentinel at the very top
+      of the page. Collapsing the title removed ~80px of DOCUMENT height, which pulled
+      the sentinel back into view, which cleared the flag, which restored the 80px,
+      which pushed it out again — so anywhere near the threshold the header oscillated
+      for as long as the thumb stayed there.
+
+   The sentinel and `.is-stuck` are still here: they now drive only the hairline, which
+   changes no layout and so cannot feed back into the observer that sets it.
+
+   The reason the title left this row in the first place still holds — three 40px
+   buttons and a 26px title do not share a 390px row. It fits at 17px, which is the
+   size the small copy was already using, with the scope stacked under it. */
+
+/* Sits between the mark and the buttons and stays there, at one size, on every screen
+   and at every scroll position. */
+.nazorat .n-title {
+   font-size: 17px;
+   font-weight: 700;
+   letter-spacing: -0.02em;
+   line-height: 1.15;
 }
-.nazorat-topbar.is-stuck .n-title-sm {
-   opacity: 1;
-   transform: none;
+/* Which population this login reads. It was a 13.5px line under the large title; it
+   keeps its place under the title, one step smaller so the two-line block is no taller
+   than the 40px buttons it shares the row with. */
+.nazorat .n-title-scope {
+   font-size: 12px;
+   font-weight: 500;
+   color: var(--n-muted);
+   line-height: 1.2;
+   margin-top: 1px;
 }
 
 /* A round control in the title bar (bell, refresh, logout). 40px: the old 36 was under
@@ -588,6 +611,71 @@
    transition: width 0.5s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* ── The composition donut ───────────────────────────────────────────────────
+   The overview's own version of the bar above: same four colours, same four numbers,
+   given the room a card can spare. The ring is drawn as dashes on one circle (see
+   Holat.vue), so everything here is stroke work.
+
+   Slices are tappable, which is why the stroke is 20 units wide: rendered at ~196px
+   that is a 33px band, above the 44px-diagonal thumb target for every slice big
+   enough to aim at, and the ones too thin to aim at have a full-width legend row
+   underneath. */
+.nazorat .n-donut-wrap {
+   position: relative;
+   width: min(66vw, 196px);
+   margin-inline: auto;
+}
+.nazorat .n-donut {
+   display: block;
+   width: 100%;
+   height: auto;
+}
+/* Visible only through the gaps between slices, and on its own when the period has no
+   cards at all — an empty ring says "nothing yet" where a blank space says nothing. */
+.nazorat .n-donut-track {
+   fill: none;
+   stroke: var(--n-sunken);
+   stroke-width: 20;
+}
+.nazorat .n-donut-seg {
+   fill: none;
+   stroke-width: 20;
+   stroke-linecap: butt;
+   cursor: pointer;
+   -webkit-tap-highlight-color: transparent;
+   transition: stroke-width 0.22s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s;
+}
+/* The press thickens the slice rather than dimming it alone: on a ring, growth reads
+   from the corner of the eye at the moment the thumb is covering the slice itself. */
+.nazorat .n-donut-seg:active { stroke-width: 24; opacity: 0.7; }
+@media (hover: hover) {
+   .nazorat .n-donut-seg:hover { stroke-width: 24; }
+}
+
+/* The denominator, in the hole. Never intercepts a tap meant for the ring behind it. */
+.nazorat .n-donut-mid {
+   position: absolute;
+   inset: 0;
+   display: grid;
+   place-content: center;
+   justify-items: center;
+   pointer-events: none;
+   text-align: center;
+}
+
+/* The ring arrives by turning into place — a wheel settling rather than a card rising,
+   which is the one motion on this panel that is not a translate. */
+@keyframes n-donut-in {
+   from { opacity: 0; transform: rotate(-14deg) scale(0.88); }
+   to { opacity: 1; transform: none; }
+}
+.nazorat .n-donut-rot {
+   transform-box: fill-box;
+   transform-origin: center;
+   animation: n-donut-in 0.55s cubic-bezier(0.32, 0.72, 0, 1) both;
+   animation-delay: 90ms;
+}
+
 /* The section heading above a group of cards. iOS sets these in the same ink as body
    copy rather than in a grey caps label, and lets weight do the separating. */
 .nazorat .n-h {
@@ -623,7 +711,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-   .nazorat .n-enter { animation: none; }
+   .nazorat .n-enter,
+   .nazorat .n-donut-rot { animation: none; }
    .nazorat *,
    .nazorat *::before,
    .nazorat *::after {
