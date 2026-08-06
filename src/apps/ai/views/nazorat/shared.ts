@@ -19,11 +19,11 @@ export const BUCKETS = [
    },
    {
       key: 're_requests', label: "Takroriy so'rov", short: 'Takroriy', color: '#f59e0b',
-      hint: "ziyoratchi ilgari ham so'ragan edi — shu odam ikkinchi so'rovni qabul qildi",
+      hint: "ziyoratchi ilgari ham so'ragan edi, shu odam ikkinchi so'rovni qabul qildi",
    },
    {
       key: 'reopened', label: 'Bajarilmagan', short: 'Bajarilmagan', color: '#ef4444',
-      hint: "qabul qilgan, LEKIN ziyoratchi qayta so'radi — aslida hal qilinmagan",
+      hint: "qabul qilgan, LEKIN ziyoratchi qayta so'radi. Aslida hal qilinmagan",
    },
    {
       key: 'never_accepted', label: 'Javobsiz', short: 'Javobsiz', color: '#3b82f6',
@@ -211,8 +211,8 @@ export function useNazoratView() {
    const personWordLower = computed(() => personWord.value.toLowerCase())
 
    const scopeTitle = computed(() =>
-      isStaffScope.value ? 'Nazorat — Xodimlar'
-         : isLeaderScope.value ? 'Nazorat — Ellikboshilar'
+      isStaffScope.value ? 'Nazorat, Xodimlar'
+         : isLeaderScope.value ? 'Nazorat, Ellikboshilar'
             : 'Nazorat',
    )
 
@@ -265,7 +265,7 @@ export function useNazoratView() {
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
          color: BUCKETS[2].color,
-         hint: "Ziyoratchi qayta so'radi — hal bo'lmagan.",
+         hint: "Ziyoratchi qayta so'radi, hal bo'lmagan.",
       })
       // «Hech kimga yetmagan» (report.unassigned) is deliberately NOT shown. Owner rule:
       // this panel is for the CREW and the ELLIKBOSHI, and a need that reached nobody has
@@ -330,14 +330,22 @@ export function useNazoratView() {
    const bucketSegments = computed(() => bucketRows.value.filter((b) => b.value > 0))
 
    /** Context, not verdict: period-level facts that belong nowhere near the colour
-    *  buckets, because they count NEEDS while the buckets count recipient rows. */
+    *  buckets, because they count NEEDS while the buckets count recipient rows.
+    *
+    *  Their icons carry colour (owner, 2026-08-06: an all-ink overview read as flat).
+    *  The hues are chosen to sit OUTSIDE the outcome vocabulary rather than picked for
+    *  variety: violet and cyan are nowhere near the green / amber / red / blue of
+    *  BUCKETS, so a tinted disc up here can never be mistaken for a grade. The bot
+    *  mistake is the deliberate exception - it is an error, so it belongs in the red
+    *  family, and it is drawn in the buckets' own red rather than a second, nearly
+    *  identical one. */
    const contextStats = computed(() => {
       const r = s.report
       if (!r) return []
       return [
          {
             key: 'requests', label: 'Murojaatlar', value: r.requests,
-            icon: 'comments', color: '#6c5ce7',
+            icon: 'comments', color: '#7c5cfc',
             hint: `${r.delivered} ta ${personWordLower.value} kartochkasi yetib bordi`,
          },
          {
@@ -346,7 +354,7 @@ export function useNazoratView() {
          },
          {
             key: 'mistakes', label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
-            icon: 'triangle-exclamation', color: '#e11d48',
+            icon: 'triangle-exclamation', color: BUCKETS[2].color,
             hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : 'IT tasdiqlagan',
          },
       ]
@@ -479,7 +487,7 @@ export function useNazoratView() {
          if (taker.reopened_count > 0) {
             return { key: 'reopened', label: 'Bajarilmagan', color: BUCKETS[2].color,
                icon: 'circle-exclamation',
-               detail: `${nameOf(taker)} qabul qildi — ziyoratchi qayta so'radi` }
+               detail: `${nameOf(taker)} qabul qildi, ziyoratchi qayta so'radi` }
          }
          if (r.parent_request_id && !r.reopen_dismissed) {
             return { key: 're_requests', label: "Takroriy so'rov", color: BUCKETS[1].color,
@@ -489,7 +497,12 @@ export function useNazoratView() {
             icon: 'circle-check', detail: `${nameOf(taker)} · ${wait}` }
       }
       if (flagger) {
-         return { key: 'flagged', label: 'Xatolik', color: '#6366f1',
+         // Slate, deliberately outside the four-colour vocabulary. A card marked
+         // «Xatolik» is a statement about the BOT, not an outcome the person is
+         // accountable for, so it must not read as a fifth grade next to the four that
+         // are. The old indigo sat close enough to the panel's former violet chrome to
+         // look like decoration.
+         return { key: 'flagged', label: 'Xatolik', color: '#64748b',
             icon: 'triangle-exclamation',
             detail: `${nameOf(flagger)} belgiladi`
                + (flagger.it_verdict ? ` · IT: ${flagger.it_verdict}` : " · IT hali ko'rmagan") }
@@ -604,7 +617,7 @@ export function useNazoratView() {
          return {
             text: `${sent} da yuborildi. ${who} «Xatolik» deb belgiladi`
                + (e.it_verdict ? ` (IT: ${e.it_verdict}).` : " (IT hali ko'rmagan)."),
-            rail: '#6366f1', ink: '#4338ca',
+            rail: '#64748b', ink: '#475569',
          }
       if (e.released_at) {
          const c = e.claimed_by
@@ -623,16 +636,16 @@ export function useNazoratView() {
       const wait = durBetween(e.dm_sent_at, e.accepted_at)
       if (e.reopened_count > 0)   // accepted, but the pilgrim came back -> false completion
          return {
-            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi — bajarilmagan.`,
+            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi. Bajarilmagan.`,
             rail: BUCKETS[2].color, ink: '#b91c1c',
          }
       if (e.parent_request_id && !e.reopen_dismissed)   // accepted follow-up
          return {
-            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}) — takroriy so'rov, bajarildi.`,
+            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Takroriy so'rov, bajarildi.`,
             rail: BUCKETS[1].color, ink: INK,
          }
       return {   // clean single-pass completion
-         text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}) — bajarildi.`,
+         text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Bajarildi.`,
          rail: BUCKETS[0].color, ink: INK,
       }
    }

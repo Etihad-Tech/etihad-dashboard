@@ -16,81 +16,97 @@
          </button>
       </div>
 
-      <div v-if="mode === 'feed'" class="no-bar flex gap-2 overflow-x-auto -mx-4 px-4 py-0.5 lg:mx-0 lg:px-0">
+      <!-- The chip row bleeds to the screen edges so a chip scrolled halfway out is cut
+           by the screen rather than by an invisible container. The negative margin has
+           to track the scroll container's own padding (px-5). -->
+      <div v-if="mode === 'feed'" class="no-bar flex gap-2 overflow-x-auto -mx-5 px-5 py-0.5 lg:mx-0 lg:px-0">
          <button v-for="f in filters" :key="f.key" class="fchip shrink-0"
-            :class="filter === f.key ? 'is-on' : ''" @click="filter = f.key">
+            :class="filter === f.key ? 'is-on' : ''" @click="setFilter(f.key)">
             {{ f.label }}<span v-if="f.count !== null" class="fchip-n">{{ f.count }}</span>
          </button>
       </div>
 
-      <div v-if="s.requestsLoading" class="card py-16 flex justify-center">
-         <span class="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></span>
+      <!-- A skeleton in the shape of the feed rather than a spinner: the wait should
+           look like what is coming. -->
+      <div v-if="s.requestsLoading" class="card divide-y divide-gray-100 overflow-hidden">
+         <div v-for="i in 4" :key="i" class="flex gap-3.5 px-4 py-4">
+            <span class="w-10 h-10 rounded-[1.125rem] bg-gray-100 shrink-0 animate-pulse"></span>
+            <div class="flex-1 space-y-2 py-1">
+               <div class="h-3 rounded-full bg-gray-100 animate-pulse"></div>
+               <div class="h-3 w-2/3 rounded-full bg-gray-100 animate-pulse"></div>
+            </div>
+         </div>
       </div>
 
       <!-- BY PERSON. Tapping a name opens that person's screen — the same log as before,
            now with their numbers above it instead of only the sentences. -->
       <template v-else-if="mode === 'people'">
-         <div v-if="!journalPeople.length" class="card py-16 text-center text-gray-400 text-sm">
+         <div v-if="!journalPeople.length"
+            class="card py-16 text-center text-[15px] text-[color:var(--n-muted)]">
             {{ s.workers.length === 0 ? 'Bu davrda murojaat bo\'lmagan'
                : 'Filtrga mos ' + personWordLower + ' topilmadi' }}
          </div>
-         <div v-else class="card divide-y divide-gray-50 overflow-hidden">
+         <div v-else class="card divide-y divide-gray-100 overflow-hidden">
             <button v-for="p in journalPeople" :key="p.telegram_id" type="button"
-               class="row-tap flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-gray-50/70"
+               class="row-tap flex items-center gap-3.5 px-4 py-3 hover:bg-gray-50"
                @click="openPerson(p.telegram_id)">
                <span class="n-avatar" :class="p.leaderLevel ? 'n-avatar-leader' : ''">{{ p.initials }}</span>
                <span class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span class="text-sm font-semibold text-gray-900">{{ p.name }}</span>
+                  <span class="text-[16px] font-semibold tracking-[-0.015em]">{{ p.name }}</span>
                   <span class="badge shrink-0"
                      :class="p.leaderLevel ? 'badge-indigo' : 'badge-amber'">{{ p.job }}</span>
                </span>
-               <span class="text-[12.5px] text-gray-400 shrink-0 tabular-nums">{{ p.count }} ta</span>
-               <font-awesome-icon icon="chevron-right" class="w-2.5 h-2.5 text-gray-300 shrink-0" />
+               <span class="text-[13.5px] text-[color:var(--n-muted)] shrink-0 tabular-nums">
+                  {{ p.count }} ta
+               </span>
+               <font-awesome-icon icon="chevron-right"
+                  class="w-3 h-3 text-[color:var(--n-faint)] shrink-0" />
             </button>
          </div>
       </template>
 
-      <div v-else-if="!rows.length" class="card py-16 text-center text-gray-400 text-sm">
+      <div v-else-if="!rows.length" class="card py-16 text-center text-[15px] text-[color:var(--n-muted)]">
          {{ s.requests.length ? 'Bu turdagi murojaat yo\'q' : 'Bu davrda murojaat bo\'lmagan' }}
       </div>
 
-      <div v-else class="card divide-y divide-gray-50 overflow-hidden">
+      <div v-else class="card divide-y divide-gray-100 overflow-hidden">
          <!-- One row = one murojaat, led by the outcome's own colour, the way the design
               leads every list row with a tinted icon. Colour here is never decoration:
               it is the same four-colour outcome vocabulary the rest of the panel uses. -->
-         <article v-for="r in rows" :key="r.id" class="flex gap-3 px-3.5 py-3">
+         <article v-for="r in rows" :key="r.id" class="flex gap-3.5 px-4 py-4">
             <span class="n-ico mt-0.5" :style="{ '--c': r.outcome.color }">
-               <font-awesome-icon :icon="r.outcome.icon" class="w-3.5 h-3.5" />
+               <font-awesome-icon :icon="r.outcome.icon" class="w-4 h-4" />
             </span>
             <div class="min-w-0 flex-1">
-               <p class="text-sm text-gray-900 leading-snug clamp2">
+               <p class="text-[15.5px] leading-snug clamp2">
                   <span v-if="r.is_repeat" class="badge badge-amber mr-1 align-middle">Takroriy</span>
-                  {{ r.text || '—' }}
+                  <span v-if="r.text">{{ r.text }}</span>
+                  <span v-else class="text-[color:var(--n-faint)]">Matnsiz</span>
                </p>
 
                <!-- The outcome as a coloured word instead of a full sentence. Everything
                     the old sentence carried — who took it, how long it waited — is still
                     here, as data rather than prose. -->
-               <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
-                  <span class="pill" :style="{ color: r.outcome.color, background: r.outcome.color + '14' }">
+               <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
+                  <span class="pill" :style="{ color: r.outcome.color, background: r.outcome.color + '17' }">
                      <i></i>{{ r.outcome.label }}
                   </span>
-                  <span class="text-[12.5px] text-gray-500 min-w-0">{{ r.outcome.detail }}</span>
+                  <span class="text-[13.5px] text-[color:var(--n-muted)] min-w-0">{{ r.outcome.detail }}</span>
                </div>
 
                <!-- WHERE it came from. The controller was not in that chat, so a request
                     text on its own is unreadable. -->
-               <p class="flex flex-wrap gap-x-1.5 gap-y-0.5 mt-1.5 text-[11px] text-gray-400">
+               <p class="flex flex-wrap gap-x-1.5 gap-y-0.5 mt-2 text-[12.5px] text-[color:var(--n-faint)]">
                   <span>{{ fmtDateTime(r.created_at) }}</span>
-                  <span class="text-gray-500">· {{ r.group_label }}</span>
+                  <span class="text-[color:var(--n-muted)]">· {{ r.group_label }}</span>
                   <span v-if="r.city">· {{ cityLabel(r.city) }}</span>
                   <span v-if="r.room_no">· {{ r.room_no }}-xona</span>
                   <span v-if="r.pilgrim_username">· {{ r.pilgrim_username }}</span>
                   <a v-if="r.message_link" :href="r.message_link" target="_blank"
-                     class="underline underline-offset-2 hover:text-gray-700">Xabarni ko'rish</a>
+                     class="font-medium text-[color:var(--n-ink-2)] underline underline-offset-2">Xabarni ko'rish</a>
                   <button v-if="r.is_repeat" @click="s.dismissReopen(r.id)"
-                     class="underline underline-offset-2 hover:text-gray-700"
-                     title="Bu aslida takror emas — noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
+                     class="font-medium text-[color:var(--n-ink-2)] underline underline-offset-2"
+                     title="Bu aslida takror emas. Noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
                      Takror emas
                   </button>
                </p>
@@ -100,9 +116,10 @@
 
       <!-- The feed is built from the last `reqLimit` murojaat, so say so rather than let
            a truncated list read as the whole period. -->
-      <div v-if="s.requestsTruncated" class="flex flex-wrap items-center gap-3 text-[13px] text-gray-500 px-1">
+      <div v-if="s.requestsTruncated"
+         class="flex flex-wrap items-center gap-3 text-[13.5px] text-[color:var(--n-muted)] px-1 pt-1">
          <span>
-            Faqat oxirgi {{ s.requests.length }} ta murojaat ko'rsatilmoqda —
+            Faqat oxirgi {{ s.requests.length }} ta murojaat ko'rsatilmoqda.
             Reyting esa butun davrni sanaydi.
          </span>
          <button v-if="s.reqLimit < MAX_REQ_LIMIT" @click="s.loadMoreRequests()" class="btn-ghost">
@@ -113,19 +130,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useNazoratStore, MAX_REQ_LIMIT } from '../../stores/nazorat'
 import { cityLabel, fmtDateTime, useNazoratView } from './shared'
 
 const s = useNazoratStore()
+const route = useRoute()
 const router = useRouter()
 const { feed, journalPeople, personWord, personWordLower } = useNazoratView()
 
 // Which way in. Module-scope would survive a tab switch, but a fresh visit should land on
-// the overview — the per-person list is the deliberate second step.
+// the overview: the per-person list is the deliberate second step.
 const mode = ref<'feed' | 'people'>('feed')
-const filter = ref('all')
+
+/** The outcome the feed is filtered to, taken from `?holat=` so an overview row can
+ *  open this screen already narrowed (see Holat.vue). Watched rather than only read at
+ *  setup, because on a desktop this component is already mounted when the overview
+ *  above it navigates. */
+const queryFilter = () =>
+   typeof route.query.holat === 'string' && route.query.holat ? route.query.holat : 'all'
+const filter = ref(queryFilter())
+watch(() => route.query.holat, () => {
+   filter.value = queryFilter()
+   // A filter names an outcome, which only the feed has. Arriving with one while the
+   // per-person list is open would apply it to nothing.
+   if (filter.value !== 'all') mode.value = 'feed'
+})
+
+/** Clearing the chip clears the URL too, so the address bar never claims a filter the
+ *  feed is no longer applying. */
+function setFilter(key: string) {
+   filter.value = key
+   const holat = key === 'all' ? undefined : key
+   if (route.query.holat !== holat) router.replace({ path: route.path, query: { holat } })
+}
 
 function openPerson(id: number) {
    router.push(`/ai/nazorat/xodim/${id}`)
@@ -140,7 +179,11 @@ const filters = computed(() => {
       { key: 're_requests', label: 'Takroriy', count: n('re_requests') },
       { key: 'completed', label: 'Bajarildi', count: n('completed') },
       { key: 'flagged', label: 'Xatolik', count: n('flagged') },
-   ].filter((f) => f.key === 'all' || f.count > 0)
+      // Empty outcomes are dropped, EXCEPT the one currently selected: arriving from an
+      // overview row that reads 0 must still show which slice is being asked for, and
+      // leave a chip to step back out of. The counts can legitimately differ from the
+      // overview's anyway, since the feed holds only the last `reqLimit` murojaat.
+   ].filter((f) => f.key === 'all' || f.count > 0 || f.key === filter.value)
 })
 
 const rows = computed(() =>
