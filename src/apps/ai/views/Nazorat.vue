@@ -1,16 +1,25 @@
 <template>
    <AppLayout>
       <div class="nazorat">
+         <!-- Watched by the observer below to tell the title bar whether anything has
+              scrolled under it yet. A sentinel rather than a scroll listener: a listener
+              on this page would fire on every frame of every swipe. -->
+         <div ref="sentinel" aria-hidden="true" class="h-px"></div>
+
          <!-- ───────────────────────── TOP BAR ─────────────────────────
-              Sticky and thin. On a phone the panel is the whole app (a controller login
-              reaches no other page), so this is its title bar: what you are looking at,
-              which period, and the two controls that are always needed. -->
-         <div class="nazorat-topbar px-4 pt-3 pb-2.5 lg:static lg:bg-transparent lg:backdrop-blur-none lg:border-0 lg:px-0 lg:pt-0">
-            <div class="flex items-center gap-2.5">
-               <button v-if="isDetail" @click="router.back()"
-                  class="n-topbtn -ml-1 shrink-0 text-gray-500">
+              Glass, and sticky. On a phone the panel is the whole app (a controller
+              login reaches no other page), so this is its title bar: what you are
+              looking at, which period, and the two controls that are always needed. -->
+         <div class="nazorat-topbar px-5 pb-3.5 lg:static lg:bg-transparent lg:backdrop-blur-none lg:px-0"
+            :class="!isDesktop && stuck ? 'is-stuck' : ''">
+            <!-- ROW 1: the mark, the title and the controls. The title fits here at
+                 17px with the scope stacked under it; at the 26px it once used, three
+                 40px buttons and a title left neither of them room on a 390px row,
+                 which is what the owner saw as everything sticking together. -->
+            <div class="flex items-center gap-3">
+               <button v-if="isDetail" @click="router.back()" class="n-topbtn -ml-0.5 shrink-0">
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                     <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.75"
+                     <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                   <span class="sr-only">Orqaga</span>
@@ -18,40 +27,57 @@
                <!-- The panel's own mark. A controller never sees the sidebar on a phone,
                     so without it the app opens on an unbranded sheet of numbers. -->
                <img v-else src="/logo.svg" alt="" aria-hidden="true"
-                  class="w-8 h-8 shrink-0 rounded-full bg-white p-1 shadow-sm lg:hidden" />
-               <h2 class="text-[19px] lg:text-[26px] leading-tight font-bold tracking-tight text-gray-900 truncate">
-                  {{ isDetail ? personWord : scopeTitle }}
-               </h2>
+                  class="w-9 h-9 shrink-0 rounded-[0.85rem] bg-white p-1 lg:hidden"
+                  style="box-shadow: 0 1px 2px rgba(16,24,40,0.06)" />
 
-               <div class="ml-auto flex items-center gap-1.5 shrink-0">
+               <!-- The phone's title. One copy, one size, one place — it neither moves
+                    nor resizes as the page scrolls under it. -->
+               <div class="min-w-0 flex-1 lg:hidden">
+                  <h2 class="n-title truncate">{{ isDetail ? personWord : 'Nazorat' }}</h2>
+                  <p v-if="!isDetail && scopeSuffix" class="n-title-scope truncate">
+                     {{ scopeSuffix }}
+                  </p>
+               </div>
+               <!-- A desktop keeps the title inline, where it always was: the panel sits
+                    inside the dashboard chrome there and the row has room for it. The
+                    two-row arrangement below exists for the phone. -->
+               <div class="hidden lg:block min-w-0 flex-1">
+                  <h2 class="text-[30px] leading-none font-bold tracking-[-0.03em] truncate">
+                     {{ isDetail ? personWord : 'Nazorat' }}
+                  </h2>
+                  <p v-if="!isDetail && scopeSuffix"
+                     class="text-[13.5px] font-medium text-[color:var(--n-muted)] mt-1.5 truncate">
+                     {{ scopeSuffix }}
+                  </p>
+               </div>
+
+               <div class="flex items-center gap-2.5 shrink-0">
                   <!-- The exceptions live here now instead of on top of the main screen.
                        The badge is the whole point: the panel is worth opening only when
                        it has something in it. -->
                   <button @click="showBell = true" class="n-topbtn"
-                     :class="activeProblems.length ? 'text-gray-700' : 'text-gray-400'"
                      :title="activeProblems.length ? `${activeProblems.length} ta diqqat talab qiladigan holat` : 'Yangi bildirishnoma yo\'q'">
                      <span class="relative inline-flex">
-                        <font-awesome-icon icon="bell" class="w-4 h-4" />
+                        <font-awesome-icon icon="bell" class="w-[17px] h-[17px]" />
                         <span v-if="activeProblems.length" class="n-bell-badge">{{ activeProblems.length }}</span>
                      </span>
                      <span class="sr-only">Diqqat talab qiladi</span>
                   </button>
-                  <button @click="refresh" class="n-topbtn text-gray-400"
-                     :class="s.loading ? 'animate-spin' : ''" title="Yangilash">
-                     <font-awesome-icon icon="rotate-right" class="w-4 h-4" />
+                  <button @click="refresh" class="n-topbtn" title="Yangilash">
+                     <font-awesome-icon icon="rotate-right" class="w-[17px] h-[17px]"
+                        :class="s.loading ? 'animate-spin' : ''" />
                      <span class="sr-only">Yangilash</span>
                   </button>
                   <!-- A controller has no sidebar on a phone (it would hold one link), so
                        the way out lives here. -->
-                  <button v-if="isNazoratchi" @click="logout"
-                     class="n-topbtn lg:hidden text-gray-400 active:text-red-500">
-                     <font-awesome-icon icon="right-from-bracket" class="w-4 h-4" />
+                  <button v-if="isNazoratchi" @click="logout" class="n-topbtn lg:hidden">
+                     <font-awesome-icon icon="right-from-bracket" class="w-[17px] h-[17px]" />
                      <span class="sr-only">Chiqish</span>
                   </button>
                </div>
             </div>
 
-            <div v-if="!isDetail" class="seg mt-2.5 lg:mt-3 lg:inline-flex lg:w-auto">
+            <div v-if="!isDetail" class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
                   {{ p.label }}
@@ -59,11 +85,12 @@
             </div>
          </div>
 
-         <div class="nazorat-scroll px-4 pt-3 lg:px-0 lg:pb-0">
+         <div class="nazorat-scroll px-5 pt-4 lg:px-0 lg:pb-0">
             <!-- WHICH SLICE. Applied on the SERVER, so the cards, the ranking, the
                  journal and the person screens can never describe different slices. -->
-            <div v-if="!isDetail" class="flex flex-wrap items-center gap-2 mb-3">
-               <select v-model="s.filterGroup" @change="s.setSlice()" class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[260px]">
+            <div v-if="!isDetail" class="flex flex-wrap items-center gap-2 mb-4">
+               <select v-model="s.filterGroup" @change="s.setSlice()"
+                  class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
                   <option value="">Barcha guruhlar</option>
                   <option v-for="g in groupChoices" :key="g.chat_id" :value="String(g.chat_id)">
                      {{ g.label }}
@@ -75,24 +102,28 @@
                   <option value="madina">Madina</option>
                </select>
                <template v-if="s.filterGroup || s.filterCity">
-                  <button @click="s.clearSlice()"
-                     class="text-[13px] text-gray-500 underline underline-offset-2">
-                     Filtrni tozalash
-                  </button>
-                  <span class="text-xs text-gray-400">
+                  <button @click="s.clearSlice()" class="btn-ghost shrink-0">Tozalash</button>
+                  <span class="text-[13px] text-[color:var(--n-muted)] basis-full">
                      Quyidagi barcha raqamlar faqat shu tanlov bo'yicha
                   </span>
                </template>
             </div>
 
-            <div v-if="s.loading" class="flex justify-center py-20">
-               <div class="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
+            <!-- A skeleton in the shape of what is coming, not a spinner. The overview is
+                 a known layout, so the wait can look like it. -->
+            <div v-if="s.loading" class="space-y-3">
+               <div class="card h-[168px] animate-pulse"></div>
+               <div class="grid grid-cols-2 gap-3">
+                  <div class="n-tile h-[124px] animate-pulse"></div>
+                  <div class="n-tile h-[124px] animate-pulse"></div>
+               </div>
+               <div class="card h-[280px] animate-pulse"></div>
             </div>
 
-            <div v-else-if="s.loadError" class="card p-5">
-               <p class="font-semibold text-gray-900 mb-1">Ma'lumotni yuklab bo'lmadi</p>
-               <p class="text-sm text-gray-600 mb-4">
-                  Bu «murojaat yo'q» degani EMAS — server javob bermadi yoki ruxsat yetmadi.
+            <div v-else-if="s.loadError" class="card p-6">
+               <p class="n-h mb-1.5">Ma'lumotni yuklab bo'lmadi</p>
+               <p class="text-[15px] text-[color:var(--n-ink-2)] leading-snug mb-5">
+                  Bu «murojaat yo'q» degani EMAS. Server javob bermadi yoki ruxsat yetmadi.
                </p>
                <button @click="s.load()" class="btn-primary">Qayta urinish</button>
             </div>
@@ -101,36 +132,40 @@
                  it is a different question, not a section of the same page. -->
             <router-view v-else-if="isDetail" />
 
-            <!-- One screen at a time on a phone; on a desktop the same three panels stay
-                 a single scroll, because the office reads the whole thing in a meeting
-                 and tabbing through it there would be a step backwards. -->
+            <!-- One screen at a time on a phone; on a desktop the same four panels stay a
+                 single scroll, because the office reads the whole thing in a meeting and
+                 tabbing through it there would be a step backwards. -->
             <router-view v-else-if="!isDesktop" />
-            <div v-else class="space-y-6">
+            <div v-else class="space-y-8">
                <Holat />
-               <div>
-                  <h3 class="text-base font-semibold text-gray-900 mb-3">Reyting</h3>
+               <section>
+                  <h3 class="n-group-h mb-3">Reyting</h3>
                   <Reyting />
-               </div>
-               <div v-if="auth.role !== 'nazoratchi_staff'">
-                  <h3 class="text-base font-semibold text-gray-900 mb-3">Guruhlar taqsimoti</h3>
+               </section>
+               <section v-if="auth.role !== 'nazoratchi_staff'">
+                  <h3 class="n-group-h mb-3">Guruhlar taqsimoti</h3>
                   <Guruhlar />
-               </div>
-               <div>
-                  <h3 class="text-base font-semibold text-gray-900 mb-3">Jurnal</h3>
+               </section>
+               <!-- Named so an outcome row on the overview can scroll to it: on a
+                    desktop these are one page, so filtering the Jurnal from up there
+                    changes nothing the reader can see unless the page moves. -->
+               <section id="nazorat-jurnal" class="scroll-mt-4">
+                  <h3 class="n-group-h mb-3">Jurnal</h3>
                   <Jurnal />
-               </div>
+               </section>
             </div>
          </div>
 
          <!-- ───────────────────────── TAB BAR ─────────────────────────
-              Phone only. Fixed, thumb-height and padded for the home indicator — the
-              panel is installed to the home screen, so an unpadded bar would sit under
-              the iPhone's own. -->
+              Phone only. A floating glass capsule inset from the edges, with the content
+              scrolling under it, and padded for the home indicator: the panel is
+              installed to the home screen, so an unpadded bar would sit under the
+              iPhone's own. -->
          <nav v-if="!isDesktop && !isDetail" class="nazorat-tabbar">
             <router-link v-for="t in TABS" :key="t.to" :to="t.to"
                :class="route.path === t.to ? 'is-active' : ''">
-               <font-awesome-icon :icon="t.icon" class="w-5 h-5" />
-               {{ t.label }}
+               <font-awesome-icon :icon="t.icon" class="w-[22px] h-[22px]" />
+               <span class="truncate max-w-full">{{ t.label }}</span>
             </router-link>
          </nav>
 
@@ -157,7 +192,9 @@ const s = useNazoratStore()
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const { scopeTitle, personWord, groupChoices, activeProblems } = useNazoratView()
+const {
+   personWord, groupChoices, activeProblems, isStaffScope, isLeaderScope,
+} = useNazoratView()
 
 const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
@@ -173,20 +210,41 @@ const TABS = [
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
 
-// The notifications panel. Closed by navigating as well as by the ✕ — leaving a sheet
+/** Which population this login reads, as a subtitle under the panel's name. Empty for
+ *  the combined account, which sees everyone and so has nothing to qualify. */
+const scopeSuffix = computed(() =>
+   isStaffScope.value ? 'Xodimlar' : isLeaderScope.value ? 'Ellikboshilar' : '')
+
+// The notifications panel. Closed by navigating as well as by the ✕: leaving a sheet
 // hanging over a screen the reader has already moved away from is how a panel starts
 // feeling like a bug.
 const showBell = ref(false)
 watch(() => route.path, () => (showBell.value = false))
 
+/** Has anything scrolled under the title bar. Drives the hairline, which is drawn only
+ *  once there is something on the other side of it to separate. */
+const sentinel = ref<HTMLElement | null>(null)
+const stuck = ref(false)
+let io: IntersectionObserver | null = null
+
 /** Which arrangement to render. A media query rather than `lg:hidden`, because the two
- *  arrangements mount DIFFERENT component instances — with CSS alone a desktop would
+ *  arrangements mount DIFFERENT component instances - with CSS alone a desktop would
  *  build both and every screen would fetch twice. */
 const mq = window.matchMedia('(min-width: 1024px)')
 const isDesktop = ref(mq.matches)
 function onMq(e: MediaQueryListEvent) { isDesktop.value = e.matches }
-onMounted(() => mq.addEventListener('change', onMq))
-onUnmounted(() => mq.removeEventListener('change', onMq))
+
+onMounted(() => {
+   mq.addEventListener('change', onMq)
+   if (sentinel.value) {
+      io = new IntersectionObserver(([e]) => (stuck.value = !e.isIntersecting))
+      io.observe(sentinel.value)
+   }
+})
+onUnmounted(() => {
+   mq.removeEventListener('change', onMq)
+   io?.disconnect()
+})
 
 async function refresh() {
    await s.load()
