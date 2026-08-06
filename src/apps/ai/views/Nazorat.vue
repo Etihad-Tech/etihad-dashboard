@@ -10,10 +10,11 @@
               Glass, and sticky. On a phone the panel is the whole app (a controller
               login reaches no other page), so this is its title bar: what you are
               looking at, which period, and the two controls that are always needed. -->
-         <div class="nazorat-topbar px-5 pt-3 pb-3.5 lg:static lg:bg-transparent lg:backdrop-blur-none lg:px-0 lg:pt-0"
+         <div class="nazorat-topbar px-5 pb-3.5 lg:static lg:bg-transparent lg:backdrop-blur-none lg:px-0"
             :class="!isDesktop && stuck ? 'is-stuck' : ''">
-            <!-- ROW 1: the mark and the controls. The title is NOT here: three 40px
-                 buttons and a 26px title on one 390px row left neither of them room,
+            <!-- ROW 1: the mark, the title and the controls. The title fits here at
+                 17px with the scope stacked under it; at the 26px it once used, three
+                 40px buttons and a title left neither of them room on a 390px row,
                  which is what the owner saw as everything sticking together. -->
             <div class="flex items-center gap-3">
                <button v-if="isDetail" @click="router.back()" class="n-topbtn -ml-0.5 shrink-0">
@@ -29,11 +30,14 @@
                   class="w-9 h-9 shrink-0 rounded-[0.85rem] bg-white p-1 lg:hidden"
                   style="box-shadow: 0 1px 2px rgba(16,24,40,0.06)" />
 
-               <!-- Takes over once the large title has rolled up, so a reader deep in a
-                    list still knows which screen they are on. -->
-               <span class="n-title-sm min-w-0 flex-1 text-[17px] font-bold tracking-[-0.02em] truncate lg:hidden">
-                  {{ isDetail ? personWord : 'Nazorat' }}
-               </span>
+               <!-- The phone's title. One copy, one size, one place — it neither moves
+                    nor resizes as the page scrolls under it. -->
+               <div class="min-w-0 flex-1 lg:hidden">
+                  <h2 class="n-title truncate">{{ isDetail ? personWord : 'Nazorat' }}</h2>
+                  <p v-if="!isDetail && scopeSuffix" class="n-title-scope truncate">
+                     {{ scopeSuffix }}
+                  </p>
+               </div>
                <!-- A desktop keeps the title inline, where it always was: the panel sits
                     inside the dashboard chrome there and the row has room for it. The
                     two-row arrangement below exists for the phone. -->
@@ -71,21 +75,6 @@
                      <span class="sr-only">Chiqish</span>
                   </button>
                </div>
-            </div>
-
-            <!-- ROW 2: the large title, on its own line with the whole width to itself.
-                 The scope used to be welded into it as «Nazorat, Xodimlar». Split in
-                 two: the panel's name stays a constant the reader recognises at a
-                 glance, and which population it is showing is the kind of qualifier
-                 that belongs under it, not inside it. -->
-            <div class="n-title-lg mt-2.5 lg:hidden">
-               <h2 class="text-[32px] leading-none font-bold tracking-[-0.035em] truncate">
-                  {{ isDetail ? personWord : 'Nazorat' }}
-               </h2>
-               <p v-if="!isDetail && scopeSuffix"
-                  class="text-[13.5px] font-medium text-[color:var(--n-muted)] mt-1.5 truncate">
-                  {{ scopeSuffix }}
-               </p>
             </div>
 
             <div v-if="!isDetail" class="seg mt-3.5 lg:inline-flex lg:w-auto">

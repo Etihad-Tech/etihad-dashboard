@@ -28,23 +28,47 @@
       </section>
 
       <!-- ──────────────── 2. THE VERDICT ────────────────
-           The bar and the legend that explains it, in one card, with the total they are
-           both drawn from stated at the top. The hint under every line is the owner's
-           wording, kept verbatim (2026-07-31). -->
+           The donut and the legend that explains it, in one card, with the total they are
+           both drawn from held in the ring's centre. The hint under every line is the
+           owner's wording, kept verbatim (2026-07-31).
+
+           A ring rather than the old stacked bar (owner, 2026-08-06). Four shares of one
+           whole is what a donut is for, and the hole gives the denominator a home — so
+           the card no longer has to open by spelling out «Jami N ta kartochka» in prose
+           above a bar whose total was stated nowhere on it. -->
       <section class="card p-5 n-enter" style="--i: 1">
          <h3 class="n-h">{{ personWord }} javoblari</h3>
          <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
-            Jami {{ bucketTotal }} ta kartochka, har bir {{ personWordLower }} uchun
-            alohida sanaladi
+            Har bir {{ personWordLower }} uchun alohida sanaladi
          </p>
 
-         <div v-if="bucketTotal" class="n-split h-3 mt-4" role="img"
-            :aria-label="bucketSegments.map(sg => `${sg.label}: ${sg.value}`).join(', ')">
-            <span v-for="sg in bucketSegments" :key="sg.key"
-               :style="{ width: sg.pct + '%', background: sg.color }"
-               :title="`${sg.label}: ${sg.value}`"></span>
+         <!-- Every slice opens the same filtered Jurnal its legend row does, so the tap
+              lands wherever the eye happened to stop. The slices are aria-hidden and the
+              ring carries one description instead: each one already has a real <button>
+              in the legend below, and a screen reader offered both would read the same
+              four destinations twice. -->
+         <div class="n-donut-wrap mt-5 mb-1">
+            <svg class="n-donut" viewBox="0 0 120 120" role="img" :aria-label="donutLabel">
+               <g class="n-donut-rot">
+                  <g transform="rotate(-90 60 60)">
+                     <circle class="n-donut-track" cx="60" cy="60" r="46" />
+                     <circle v-for="sg in donutSegments" :key="sg.key" class="n-donut-seg"
+                        cx="60" cy="60" r="46" :stroke="sg.color"
+                        :stroke-dasharray="sg.dash" :stroke-dashoffset="sg.offset"
+                        aria-hidden="true" @click="openJurnal(sg.key)">
+                        <title>{{ sg.label }}: {{ sg.value }} ({{ sg.pctLabel }})</title>
+                     </circle>
+                  </g>
+               </g>
+            </svg>
+            <div class="n-donut-mid">
+               <p class="text-[34px] font-bold tabular-nums leading-none tracking-[-0.04em]"
+                  :class="bucketTotal ? '' : 'text-[color:var(--n-faint)]'">
+                  {{ bucketTotal }}
+               </p>
+               <p class="text-[12.5px] text-[color:var(--n-muted)] mt-1.5">kartochka</p>
+            </div>
          </div>
-         <div v-else class="h-3 mt-4 rounded-full bg-[color:var(--n-sunken)]"></div>
 
          <div class="mt-4 space-y-0.5">
             <!-- Each outcome opens the Jurnal already filtered to it. A count here is
@@ -196,6 +220,49 @@ const {
    personWord, personWordLower, bucketRows, bucketTotal, bucketSegments,
    contextStats, errorKinds,
 } = useNazoratView()
+
+/** ── The composition donut ────────────────────────────────────────────────────
+ *  One ring, drawn as four dashes on one circle rather than four arc paths: a dash is
+ *  a length along the circumference, which is exactly what a share of a whole is, so
+ *  there is no arc-sweep arithmetic to get wrong at the 100% and 0% ends.
+ *
+ *  Geometry lives here rather than in shared.ts because it is this screen's drawing,
+ *  not the panel's vocabulary — the numbers themselves come from `bucketSegments`,
+ *  which the ranking rows and a person's screen read too. */
+const R = 46
+const C = 2 * Math.PI * R
+/** The 3-unit gap between neighbours, the ring's version of the split bar's 2px one:
+ *  at these widths a gap separates two adjacent colours more reliably than a hue
+ *  change does. A lone 100% slice gets none — there is no neighbour to separate it
+ *  from, and the gap would read as a nick out of a full circle. */
+const GAP = 3
+
+const donutSegments = computed(() => {
+   const segs = bucketSegments.value
+   const gap = segs.length > 1 ? GAP : 0
+   let start = 0
+   return segs.map((sg) => {
+      const len = (sg.pct / 100) * C
+      // Floor of 1 unit: a slice that is one card out of several hundred still has to
+      // be visible, and the length it loses is under a pixel at any size we draw at.
+      const dash = Math.max(len - gap, 1)
+      const seg = {
+         key: sg.key, label: sg.label, color: sg.color, value: sg.value,
+         pctLabel: sg.pctLabel,
+         dash: `${dash} ${C - dash}`,
+         offset: -start,
+      }
+      start += len
+      return seg
+   })
+})
+
+/** The ring's single description, in the order the slices are drawn. */
+const donutLabel = computed(() => {
+   if (!bucketTotal.value) return 'Kartochka yo\'q'
+   const parts = bucketSegments.value.map((sg) => `${sg.label} ${sg.value} (${sg.pctLabel})`)
+   return `Jami ${bucketTotal.value} ta kartochka: ${parts.join(', ')}`
+})
 
 /** The design's hero figure is the first context stat (Murojaatlar); the other two sit
  *  beside each other as tiles. Split here rather than in the composable so the numbers
