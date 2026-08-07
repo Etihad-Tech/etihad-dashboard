@@ -22,10 +22,11 @@
            fan-out is still on every jurnal card that has one («5 ta xodimga bordi»),
            where it explains that one complaint rather than colouring the whole day. -->
       <section class="card p-5 n-enter" style="--i: 1">
+         <!-- No subtitle. The owner reads this panel every day and does not need the
+              screen explained to them each time (2026-08-07); the four category lines
+              below are the only prose kept, because they define what the colours MEAN
+              and that is not deducible from a label. -->
          <h3 class="n-h">{{ personWord }} javoblari</h3>
-         <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
-            Har bir murojaat bitta natijaga kiradi
-         </p>
 
          <!-- Every slice opens the same filtered Jurnal its legend row does, so the tap
               lands wherever the eye happened to stop. The slices are aria-hidden and the
@@ -96,24 +97,18 @@
             </button>
          </div>
 
-         <!-- 🟡 and 🔴 are one event told from its two ends, so a repeat moves BOTH
-              counters and the reader is owed the reason. Kept out of the two hints
-              themselves: it is a fact about the pair, and putting it in either one would
-              make that line describe the other colour. -->
-         <div class="mt-3 pt-3 space-y-1.5 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
+         <!-- The 🟡/🔴 pairing note that sat here is gone with the other prose. What
+              stays is this: not a description but a COUNT, and the one number that would
+              otherwise be missing from the screen entirely. Without it the ring reads as
+              the whole period while the Jurnal's «Hammasi» quietly says something else —
+              which is the exact defect this screen was fixed for. It renders only when
+              there is a remainder, so on an ordinary day the card ends at the legend. -->
+         <p v-if="ungraded"
+            class="mt-3 pt-3 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
             style="border-top: 1px solid var(--n-line-soft)">
-            <p>
-               Ziyoratchi qayta so'raganda eski murojaat
-               <b :style="{ color: BUCKETS[2].color }">Bajarilmagan</b>ga o'tadi, yangisi esa
-               <b :style="{ color: BUCKETS[1].color }">Takroriy so'rov</b> bo'ladi —
-               bitta takror ikkala rangda ko'rinadi.
-            </p>
-            <!-- The remainder, only when there is one. -->
-            <p v-if="ungraded">
-               Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
-               («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
-            </p>
-         </div>
+            Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
+            («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
+         </p>
       </section>
 
       <!-- ──────────────── 2. HOW LONG THE PILGRIM WAITED ────────────────
@@ -130,15 +125,11 @@
            one hue serves every row because the name does the identifying. -->
       <section v-if="responseRows.length" class="card p-5 n-enter" style="--i: 2">
          <h3 class="n-h">O'rtacha javob vaqti</h3>
-         <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
-            Kartochka yuborilgandan «Qabul qildim» bosilgunicha
-         </p>
 
-         <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-4"
+         <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-3"
             :class="s.report && s.report.avg_response_seconds !== null ? '' : 'text-[color:var(--n-faint)]'">
             {{ dur(s.report ? s.report.avg_response_seconds : null) }}
          </p>
-         <p class="n-tile-hint mt-2">Butun davr bo'yicha</p>
 
          <!-- Every row opens that person's own screen, the same rule the ranking rows
               follow: a number about somebody is a way in to their evidence. -->
@@ -206,11 +197,10 @@
            the recording entirely, so the nazoratchi does not get them (the API enforces
            it too; this only avoids showing a button that 403s) -->
       <section v-if="isAdmin" class="card p-5 n-enter" style="--i: 5">
-         <h3 class="n-h mb-1.5">Sozlamalar</h3>
-         <p class="text-[13.5px] text-[color:var(--n-muted)] leading-snug mb-5">
-            Bir xil so'rov qayta kelganda: xodim uchun oyna tugagach, yangi so'rov;
-            ellikboshi uchun 0 = hech qachon tugamaydi (doim hal qilinmagan deb sanaladi).
-         </p>
+         <!-- The paragraph explaining the two windows is gone with the other prose. What
+              it actually had to say is in the field labels, where it belongs: the unit
+              (soat) and the one non-obvious value (0 = cheksiz). -->
+         <h3 class="n-h mb-5">Sozlamalar</h3>
          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                <label class="lbl">Xodim oynasi (soat)</label>
@@ -253,7 +243,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { BUCKETS, dur, useNazoratView } from './shared'
+import { dur, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()

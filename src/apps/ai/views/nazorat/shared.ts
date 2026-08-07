@@ -370,7 +370,10 @@ export function useNazoratView() {
          {
             key: 'mistakes', label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
             icon: 'triangle-exclamation', color: BUCKETS[2].color,
-            hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : 'IT tasdiqlagan',
+            // Only when there IS a queue. «IT tasdiqlagan» used to fill this line
+            // otherwise, which restated the label's own «(tasdiqlangan)» — the hint slot
+            // is for a number the tile would not otherwise carry, not for prose.
+            hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : '',
          },
       ]
    })
