@@ -32,14 +32,14 @@
               lands wherever the eye happened to stop. The slices are aria-hidden and the
               ring carries one description instead: each one already has a real <button>
               in the legend below, and a screen reader offered both would read the same
-              four destinations twice. -->
+              destinations twice. -->
          <div class="n-donut-wrap mt-5 mb-1">
             <svg class="n-donut" viewBox="0 0 120 120" role="img" :aria-label="donutLabel">
                <g class="n-donut-rot">
                   <g transform="rotate(-90 60 60)">
-                     <circle class="n-donut-track" cx="60" cy="60" r="46" />
+                     <circle class="n-donut-track" cx="60" cy="60" :r="R" />
                      <circle v-for="sg in donutSegments" :key="sg.key" class="n-donut-seg"
-                        cx="60" cy="60" r="46" :stroke="sg.color"
+                        cx="60" cy="60" :r="R" :stroke="sg.color"
                         :stroke-dasharray="sg.dash" :stroke-dashoffset="sg.offset"
                         aria-hidden="true" @click="openJurnal(sg.key)">
                         <title>{{ sg.label }}: {{ sg.value }} ({{ sg.pctLabel }})</title>
@@ -255,7 +255,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { dur, useNazoratView } from './shared'
+import { PIE_R as R, dur, ringDashes, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()
@@ -288,39 +288,20 @@ const {
 } = useNazoratView()
 
 /** ── The composition donut ────────────────────────────────────────────────────
- *  One ring, drawn as four dashes on one circle rather than four arc paths: a dash is
- *  a length along the circumference, which is exactly what a share of a whole is, so
- *  there is no arc-sweep arithmetic to get wrong at the 100% and 0% ends.
+ *  One ring, drawn as dashes on one circle rather than as arc paths: a dash is a length
+ *  along the circumference, which is exactly what a share of a whole is, so there is no
+ *  arc-sweep arithmetic to get wrong at the 100% and 0% ends.
  *
- *  Geometry lives here rather than in shared.ts because it is this screen's drawing,
- *  not the panel's vocabulary — the numbers themselves come from `bucketSegments`,
- *  which the ranking rows and a person's screen read too. */
-const R = 46
-const C = 2 * Math.PI * R
-/** The 3-unit gap between neighbours, the ring's version of the split bar's 2px one:
- *  at these widths a gap separates two adjacent colours more reliably than a hue
- *  change does. A lone 100% slice gets none — there is no neighbour to separate it
- *  from, and the gap would read as a nick out of a full circle. */
-const GAP = 3
-
+ *  The arithmetic itself lives in shared.ts now that Reyting draws rings too — two
+ *  copies of it would drift, and a gap rule that differed by a unit between screens is
+ *  the kind of thing nobody notices and everybody feels. */
 const donutSegments = computed(() => {
    const segs = bucketSegments.value
-   const gap = segs.length > 1 ? GAP : 0
-   let start = 0
-   return segs.map((sg) => {
-      const len = (sg.pct / 100) * C
-      // Floor of 1 unit: a slice that is one card out of several hundred still has to
-      // be visible, and the length it loses is under a pixel at any size we draw at.
-      const dash = Math.max(len - gap, 1)
-      const seg = {
-         key: sg.key, label: sg.label, color: sg.color, value: sg.value,
-         pctLabel: sg.pctLabel,
-         dash: `${dash} ${C - dash}`,
-         offset: -start,
-      }
-      start += len
-      return seg
-   })
+   const geo = ringDashes(segs.map((sg) => sg.pct), R)
+   return segs.map((sg, i) => ({
+      key: sg.key, label: sg.label, color: sg.color, value: sg.value,
+      pctLabel: sg.pctLabel, ...geo[i],
+   }))
 })
 
 /** The ring's single description, in the order the slices are drawn. */

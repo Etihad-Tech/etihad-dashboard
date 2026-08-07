@@ -96,7 +96,11 @@
                      {{ g.label }}
                   </option>
                </select>
-               <select v-model="s.filterCity" @change="s.setSlice()" class="filter-select shrink-0">
+               <!-- Not on Reyting (owner, 2026-08-07). It is cleared on the way in, not
+                    just hidden: a slice that still applies behind a control the reader
+                    cannot see is worse than one they can. See the watcher below. -->
+               <select v-if="!isRating" v-model="s.filterCity" @change="s.setSlice()"
+                  class="filter-select shrink-0">
                   <option value="">Ikkala shahar</option>
                   <option value="makka">Makka</option>
                   <option value="madina">Madina</option>
@@ -209,6 +213,22 @@ const TABS = [
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
+
+/** Reyting has no city filter (owner, 2026-08-07): the boards answer "who", and a city
+ *  is a fact about the NEED, not about the person — a xodim works one city, so slicing
+ *  their board by it only ever empties the other one.
+ *
+ *  Cleared on the way in rather than merely hidden. A filter that keeps applying while
+ *  its control is off screen is exactly how a reader ends up comparing two numbers that
+ *  were never describing the same thing. On a desktop the screens are one scroll, so the
+ *  control stays: nothing is hidden there. */
+const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
+watch(isRating, (on) => {
+   if (on && s.filterCity) {
+      s.filterCity = ''
+      s.setSlice()
+   }
+}, { immediate: true })
 
 /** Which population this login reads, as a subtitle under the panel's name. Empty for
  *  the combined account, which sees everyone and so has nothing to qualify. */

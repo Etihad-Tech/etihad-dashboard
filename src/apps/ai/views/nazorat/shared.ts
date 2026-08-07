@@ -201,20 +201,57 @@ function groupLabel(g: GroupOption): string {
    return cities.length ? `${name} · ${cities.join(', ')}` : name
 }
 
-// Below this many accountable cards a percentage is noise — one lucky card would put
-// somebody at 100% above a person who handled forty.
-export const MIN_RANK_CARDS = 3
+/** Reyting is one pie per outcome, sliced by person (owner, 2026-08-07) — «who are the
+ *  javobsiz ones» rather than a table to read down. Six segments is the readable ceiling
+ *  for a pie, so five people are drawn and the rest fold into «Boshqalar».
+ *
+ *  Each pie is a ramp of its OWN category's colour, light→dark by share. Slices are
+ *  people, which normally calls for a categorical palette — but this panel has no hues
+ *  spare (the outcomes hold green/amber/blue and red is the alarm), and nine per-person
+ *  hues would collide with the vocabulary the reader has just learned. A single-hue ramp
+ *  keeps every pie unmistakably its own category, and identity comes from the legend
+ *  beside each slice, never from the colour.
+ *
+ *  Ramps validated with the dataviz skill's checker (--ordinal, light surface): all three
+ *  PASS monotone lightness, adjacent ΔL ≥ 0.06, and a light end clearing 2:1 on white.
+ *  Amber has the least room — its lightest legal step IS the bucket colour — so it runs
+ *  amber → brown rather than starting pale. */
+export const PIE_MAX = 5
+export const RATING_RAMPS: Record<string, string[]> = {
+   completed: ['#34c79a', '#0aa87c', '#058560', '#046a4c', '#035038', '#023626'],
+   reopened: ['#f59e0b', '#d3870a', '#b06f08', '#8d5807', '#6b4205', '#492c03'],
+   never_accepted: ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#104281', '#0b2d59'],
+}
 
-export const RANK_MODES = [
-   { key: 'rate', label: 'Javob darajasi', unit: 'javob darajasi' },
-   { key: 'completed', label: 'Bajarilgan', unit: 'bajarildi' },
-   { key: 'never_accepted', label: 'Javobsiz', unit: 'javobsiz' },
-] as const
+// Module-level so the chosen tab survives a screen switch — Reyting is unmounted while
+// the reader is in the Jurnal, and coming back to a silently reset board reads as "the
+// numbers changed".
+export const ratingTab = ref<'ellikboshi' | 'staff'>('ellikboshi')
 
-// Module-level so the chosen ranking mode survives a tab switch — the Reyting screen is
-// unmounted when the reader looks at the Jurnal, and coming back to a silently reset
-// board reads as "the numbers changed".
-export const rankMode = ref<'rate' | 'completed' | 'never_accepted'>('rate')
+/** Percentages -> stroke dasharray/offset for one ring, so the panel's rings are all
+ *  drawn by the same arithmetic. A dash is a length along the circumference, which is
+ *  exactly what a share of a whole is — no arc-sweep maths to get wrong at 0% and 100%.
+ *
+ *  `gap` separates neighbours (a colour change alone is not reliable at these widths); a
+ *  lone 100% slice gets none, since a gap with no neighbour reads as a nick. The 1-unit
+ *  floor keeps a one-in-three-hundred slice visible, losing under a pixel. */
+/** The radius every ring on the panel is drawn at, inside a 120×120 viewBox. The SIZE
+ *  differences between screens are done in CSS on the wrapper, so the geometry stays one
+ *  number and the two rings can never drift apart. */
+export const PIE_R = 46
+
+export function ringDashes(pcts: number[], radius: number, gap = 3) {
+   const C = 2 * Math.PI * radius
+   const g = pcts.length > 1 ? gap : 0
+   let start = 0
+   return pcts.map((p) => {
+      const len = (p / 100) * C
+      const dash = Math.max(len - g, 1)
+      const seg = { dash: `${dash} ${C - dash}`, offset: -start }
+      start += len
+      return seg
+   })
+}
 
 /** Everything derived from the store. A composable rather than a second store: it holds
  *  no state of its own, it is pure projection. */
@@ -260,9 +297,9 @@ export function useNazoratView() {
       }),
    )
 
-   const workerNameOptions = computed(() =>
-      [...new Set(s.workers.map(personLabel))].sort((a, b) => a.localeCompare(b)),
-   )
+   // The name dropdown that fed this is gone with the old ranking table (owner,
+   // 2026-08-07). Finding one person is what the Jurnal's «Xodimlar» list is for, and
+   // it lands on their own screen instead of narrowing a board to a single row.
 
    /** Everything on this panel that is a PROBLEM, biggest first, and nothing else.
     *  A clean period renders the calm state instead, never an empty red box.
@@ -447,95 +484,73 @@ export function useNazoratView() {
          .sort((a, b) => b.count - a.count)
    })
 
-   // ── Ranking ──────────────────────────────────────────────────────────────
-   const rankSort = computed(() => RANK_MODES.find((m) => m.key === rankMode.value)!)
+   // ── Reyting: one pie per outcome, sliced by person ───────────────────────
 
-   /** ACCOUNTABLE = accepted + never_accepted: the cards that stayed theirs. Released /
-    *  undelivered / flagged are excluded, so somebody is never marked down for a card a
-    *  colleague took first or one that never arrived. */
-   const rankRows = computed(() =>
-      filteredWorkers.value.map((w) => {
-         const accountable = (w.accepted || 0) + (w.never_accepted || 0)
-         const rate = accountable ? (w.accepted || 0) / accountable : 0
-         const total = w.dms || 1
-         const segments = BUCKETS
-            .map((b) => ({ key: b.key as string, color: b.color as string, value: (w as any)[b.key] as number }))
-            .concat([{ key: 'other', color: '#e5e7eb', value: uncounted(w) }])
-            .filter((sg) => sg.value > 0)
-            .map((sg) => ({ ...sg, pct: (sg.value / total) * 100 }))
-         return {
-            telegram_id: w.telegram_id,
-            name: personLabel(w),
-            initials: initials(personLabel(w)),
-            role: w.role,
-            leaderLevel: isLeaderLevel(w),
-            job: jobLabel(w),
-            accountable,
-            rate,
-            completed: w.completed || 0,
-            never_accepted: w.never_accepted || 0,
-            avg_response_seconds: w.avg_response_seconds,
-            segments,
-            splitHint: rowSplitHint(w),
-            detail: `${w.accepted || 0}/${accountable} qabul · ${w.completed || 0} bajarildi`
-               + ` · ${w.never_accepted || 0} javobsiz`
-               + (whereLabel(w) !== '—' ? ` · ${whereLabel(w)}` : ''),
+   /** Two boards, ellikboshilar first, and NEVER a mixed one: a crew member and a leader
+    *  do not receive comparable work — the crew get every room/service need for their
+    *  city, a leader only their own group's questions — so one ranking across both would
+    *  say nothing. The doctor rides with the leaders, same rule as everywhere else
+    *  (isLeaderLevel), because they only ever receive health needs.
+    *
+    *  This replaced a sortable table with a lavozim filter and a name filter (owner,
+    *  2026-08-07). The tabs ARE the lavozim filter, and a pie answers the question the
+    *  table made you read for: not "rank these people" but "who are the javobsiz ones". */
+   function pies(rows: Worker[]) {
+      return BUCKETS.map((b) => {
+         const ramp = RATING_RAMPS[b.key]
+         const people = rows
+            .map((w) => ({
+               telegram_id: w.telegram_id,
+               name: personLabel(w),
+               initials: initials(personLabel(w)),
+               job: jobLabel(w),
+               value: ((w as any)[b.key] as number) || 0,
+            }))
+            .filter((p) => p.value > 0)
+            .sort((a, c) => c.value - a.value)
+         const total = people.reduce((sum, p) => sum + p.value, 0)
+         const head = people.slice(0, PIE_MAX)
+         const tail = people.slice(PIE_MAX)
+         const slices = head.map((p, i) => ({
+            ...p, color: ramp[i], pct: total ? (p.value / total) * 100 : 0,
+         }))
+         if (tail.length) {
+            // Not a person, so deliberately NOT tappable: telegram_id 0 opens nothing.
+            // The count is still honest — silently dropping the tail would make five
+            // people look like the whole board.
+            const rest = tail.reduce((sum, p) => sum + p.value, 0)
+            slices.push({
+               telegram_id: 0, name: `Yana ${tail.length} kishi`, initials: '+',
+               job: '', value: rest, color: ramp[PIE_MAX],
+               pct: total ? (rest / total) * 100 : 0,
+            })
          }
-      }),
-   )
-
-   /** Best first for the two "good" measures, worst first for Javobsiz — in every mode
-    *  the TOP of the list is the person the reader is looking for. */
-   function rankList(rows: any[]) {
-      const m = rankMode.value
-      const sorted = [...rows].sort((a, b) =>
-         m === 'rate' ? (b.rate - a.rate) || (b.completed - a.completed)
-            : m === 'completed' ? (b.completed - a.completed) || (b.rate - a.rate)
-               : (b.never_accepted - a.never_accepted) || (a.rate - b.rate))
-      return sorted.map((r) => {
-         // Tone judges the VALUE, never the position: with a weak team the best response
-         // rate can still be poor, and a green "1" beside a red 44% would contradict itself.
-         const tone: 'good' | 'bad' | 'plain' =
-            m === 'never_accepted' ? (r.never_accepted ? 'bad' : 'good')
-               : m === 'completed' ? (r.completed ? 'good' : 'plain')
-                  : r.rate >= 0.8 ? 'good' : r.rate < 0.5 ? 'bad' : 'plain'
+         // Geometry attached here rather than called from the template: the template
+         // needs two values per slice, and a helper called per binding would rebuild the
+         // whole ring's arithmetic once for every arc it draws.
+         const geo = ringDashes(slices.map((sl) => sl.pct), PIE_R)
          return {
-            ...r,
-            tone,
-            headline: m === 'rate' ? `${Math.round(r.rate * 100)}%`
-               : m === 'completed' ? String(r.completed) : String(r.never_accepted),
-            headlineColor: tone === 'good' ? BUCKET.completed.color
-               : tone === 'bad' ? (m === 'never_accepted'
-                  ? BUCKET.never_accepted.color : BUCKET.reopened.color)
-                  : '#6b7280',
+            key: b.key, label: b.label, color: b.color, hint: b.hint, total,
+            slices: slices.map((sl, i) => ({ ...sl, ...geo[i] })),
          }
       })
    }
 
-   /** One board per POPULATION, never a mixed one. A crew member and an ellikboshi do not
-    *  receive comparable work, so ranking them against each other would say nothing. */
-   const rankGroups = computed(() => {
-      const byVolume = (a: any, b: any) => b.accountable - a.accountable
-      const build = (key: string, title: string, rows: any[]) => ({
-         key, title,
-         rows: rankList(rows.filter((r) => r.accountable >= MIN_RANK_CARDS)),
-         // Too few cards to rank fairly — kept beside their own board, never hidden:
-         // "received almost nothing" is itself worth seeing.
-         unranked: rows.filter((r) => r.accountable < MIN_RANK_CARDS).sort(byVolume),
-      })
-      if (s.scope !== 'all' || s.filterRole) {
-         return [build('one', `${personWord.value}lar`, rankRows.value)]
-      }
-      // The doctor rides with the ellikboshilar (see isLeaderLevel) — they receive only
-      // health needs, so their handful of cards would read as neglect on the crew's board.
-      return [
-         build('staff', 'Xodimlar', rankRows.value.filter((r) => !r.leaderLevel)),
-         build('ellikboshi', 'Ellikboshilar', rankRows.value.filter((r) => r.leaderLevel)),
-      ].filter((g) => g.rows.length || g.unranked.length)
-   })
+   const ratingBoards = computed(() => [
+      {
+         key: 'ellikboshi', title: 'Ellikboshilar',
+         people: filteredWorkers.value.filter((w) => isLeaderLevel(w)),
+      },
+      {
+         key: 'staff', title: 'Ishchi guruh',
+         people: filteredWorkers.value.filter((w) => !isLeaderLevel(w)),
+      },
+   ].filter((b) => b.people.length).map((b) => ({ ...b, pies: pies(b.people) })))
 
-   const hasRanking = computed(() =>
-      rankGroups.value.some((g) => g.rows.length || g.unranked.length))
+   /** The board actually shown. A scoped controller only ever has one, and the tab they
+    *  last chose may not exist in it — falling back rather than rendering nothing. */
+   const ratingBoard = computed(() =>
+      ratingBoards.value.find((b) => b.key === ratingTab.value) || ratingBoards.value[0] || null)
 
    // ── The drill-down ───────────────────────────────────────────────────────
 
@@ -744,11 +759,11 @@ export function useNazoratView() {
 
    return {
       personWord, personWordLower, scopeTitle, isStaffScope, isLeaderScope,
-      groupChoices, filteredWorkers, workerNameOptions,
+      groupChoices, filteredWorkers,
       problems, activeProblems, clearedCount,
       bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseRows,
       reopenedNeeds,
-      rankSort, rankGroups, hasRanking,
+      ratingBoards, ratingBoard,
       feed, journalPeople, entriesFor,
    }
 }
