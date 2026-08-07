@@ -140,7 +140,11 @@
                   <tr class="text-left text-[12.5px] text-[color:var(--n-muted)] bg-gray-50 border-b border-gray-100">
                      <th class="px-5 py-3 font-medium">{{ personWord }}</th>
                      <th class="px-3 py-3 font-medium" title="Qaysi shaharlarda va nechta guruhda ishlagan">Qayerda</th>
-                     <th class="px-3 py-3 font-medium text-right" title="Shu odamga yuborilgan kartochkalar soni">Murojaat</th>
+                     <!-- «Kartochka»: the column is w.dms, the cards sent to this person.
+                          The right unit here — a person answers for what they were sent —
+                          but it was labelled «Murojaat», the overview's unit, so one word
+                          named two different things on two screens. -->
+                     <th class="px-3 py-3 font-medium text-right" title="Shu odamga yuborilgan kartochkalar soni">Kartochka</th>
                      <th class="px-3 py-3 font-medium text-right">Qabul</th>
                      <th class="px-4 py-3 font-medium">Natija</th>
                      <th v-for="(b, bi) in BUCKETS" :key="b.key" class="py-3 font-medium text-right"

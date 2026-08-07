@@ -5,29 +5,7 @@
            the days when nothing was wrong. It now lives behind the bell in the title
            bar, which carries the count. See Ogohlantirishlar.vue. -->
 
-      <!-- ──────────────── 1. THE HEADLINE ────────────────
-           One figure, given the whole card, and the period's total: every number below
-           is a share of THIS. It used to be the odd one out — it counted murojaat while
-           the ring under it counted the DM cards a murojaat fans out into, so «Javobsiz
-           6» opened a jurnal holding 2 (owner, 2026-08-07). The ring counts murojaat
-           now. The one card-unit number left is this card's own hint, which names its
-           unit out loud because it IS the fan-out: 11 murojaat, 15 kartochka. -->
-      <section v-if="headline" class="card p-5 n-enter" style="--i: 0">
-         <div class="flex items-start gap-3.5">
-            <span class="n-ico" :style="{ '--c': headline.color }">
-               <font-awesome-icon :icon="headline.icon" class="w-[18px] h-[18px]" />
-            </span>
-            <div class="min-w-0 flex-1">
-               <p class="n-tile-label">{{ headline.label }}</p>
-               <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-1.5">
-                  {{ headline.value }}
-               </p>
-               <p class="n-tile-hint mt-2.5">{{ headline.hint }}</p>
-            </div>
-         </div>
-      </section>
-
-      <!-- ──────────────── 2. THE VERDICT ────────────────
+      <!-- ──────────────── 1. THE VERDICT ────────────────
            The donut and the legend that explains it, in one card, with the total they are
            both drawn from held in the ring's centre. The hint under every line is the
            owner's wording, kept verbatim (2026-07-31).
@@ -35,7 +13,14 @@
            A ring rather than the old stacked bar (owner, 2026-08-06). Four shares of one
            whole is what a donut is for, and the hole gives the denominator a home — so
            the card no longer has to open by spelling out «Jami N ta kartochka» in prose
-           above a bar whose total was stated nowhere on it. -->
+           above a bar whose total was stated nowhere on it.
+
+           The «Murojaatlar» headline used to lead this page and is gone (owner,
+           2026-08-07). It was the period's total, which is what the ring's hole now
+           holds — and it carried the only card-unit number on the screen, «N ta
+           kartochka yetib bordi», which the office does not read the panel for. The
+           fan-out is still on every jurnal card that has one («5 ta xodimga bordi»),
+           where it explains that one complaint rather than colouring the whole day. -->
       <section class="card p-5 n-enter" style="--i: 1">
          <h3 class="n-h">{{ personWord }} javoblari</h3>
          <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
@@ -131,12 +116,12 @@
          </div>
       </section>
 
-      <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
+      <!-- ──────────────── 2. THE PERIOD'S OTHER TWO FACTS ────────────────
            Tiles rather than a divided strip. Same numbers, same wording: «O'rtacha javob
            vaqti» is the owner's phrase and a tile lets it WRAP instead of being clipped
            to «O'rtacha jav…», which was the old row's only way of fitting it. -->
-      <section v-if="sideStats.length" class="grid grid-cols-2 gap-3">
-         <div v-for="(c, i) in sideStats" :key="c.key" class="n-tile n-enter"
+      <section v-if="contextStats.length" class="grid grid-cols-2 gap-3">
+         <div v-for="(c, i) in contextStats" :key="c.key" class="n-tile n-enter"
             :style="{ '--i': 2 + i }">
             <span class="n-ico n-ico-sm" :style="{ '--c': c.color }">
                <font-awesome-icon :icon="c.icon" class="w-4 h-4" />
@@ -285,16 +270,15 @@ const donutLabel = computed(() => {
 
 /** The needs the ring cannot grade: ruled «Xatolik» (a verdict on the BOT, deliberately
  *  outside the four-colour vocabulary) or never delivered to anyone they were sent to.
- *  Stated rather than silently dropped — a ring whose total is quietly 2 short of the
- *  headline above it is the same defect this screen just fixed, one step smaller. */
+ *
+ *  The ring's hole holds what the slices SUM TO, which is the only number a donut's
+ *  centre can honestly hold. Since it is now the period's only total on this screen,
+ *  anything it leaves out has to be said out loud — otherwise the ring reads as the
+ *  whole day and the Jurnal's «Hammasi» quietly disagrees with it, which is the very
+ *  defect this screen was just fixed for. */
 const ungraded = computed(() =>
    Math.max(0, (s.report?.requests || 0) - bucketTotal.value))
 
-/** The design's hero figure is the first context stat (Murojaatlar); the other two sit
- *  beside each other as tiles. Split here rather than in the composable so the numbers
- *  and their wording stay defined in exactly one place. */
-const headline = computed(() => contextStats.value[0] || null)
-const sideStats = computed(() => contextStats.value.slice(1))
 
 // Only the admin may tune the control system (the API enforces it; this hides the form).
 const isAdmin = computed(() => !auth.role || auth.role === 'admin')

@@ -357,11 +357,12 @@ export function useNazoratView() {
       const r = s.report
       if (!r) return []
       return [
-         {
-            key: 'requests', label: 'Murojaatlar', value: r.requests,
-            icon: 'comments', color: '#7c5cfc',
-            hint: `${r.delivered} ta ${personWordLower.value} kartochkasi yetib bordi`,
-         },
+         // «Murojaatlar» is deliberately NOT here any more (owner, 2026-08-07). The
+         // period's total is the number in the ring's hole, and this tile was the last
+         // place a CARD count appeared on the overview — its hint read «N ta kartochka
+         // yetib bordi». The office reads this panel in complaints; how many people one
+         // complaint was DM'd to belongs on that complaint's own jurnal card, not in a
+         // headline over the whole day.
          {
             key: 'avg', label: "O'rtacha javob vaqti", value: dur(r.avg_response_seconds),
             icon: 'clock', color: '#0891b2', hint: 'DM → Qabul',
