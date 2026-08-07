@@ -10,12 +10,16 @@ import api from '../../../api'
  */
 
 export interface Report {
-   // per NEED
+   // Per NEED — one murojaat, one grade. The same unit the Jurnal lists in, so a count
+   // here and the list it opens are always the same set of things (they were not until
+   // 2026-08-07: the buckets counted cards and «Javobsiz 6» opened a list of 2).
    requests: number; unassigned: number
-   // per RECIPIENT ROW (one per worker the need was DM'd to)
-   dms: number; delivered: number; undelivered: number
-   accepted: number; never_accepted: number; completed: number; re_requests: number
-   reopened: number; avg_response_seconds: number | null
+   never_accepted: number; completed: number; re_requests: number; reopened: number
+   avg_response_seconds: number | null
+   // Per CARD — one row per worker the need was DM'd to. A need sent to the whole crew
+   // is one murojaat and five kartochka; these are the only numbers in that unit, and
+   // the screens that show them say «kartochka» out loud.
+   dms: number; delivered: number; undelivered: number; accepted: number
    flagged: number; bot_mistakes: number; flags_neutral: number; flags_pending: number
    error_kinds: Record<string, number>
 }

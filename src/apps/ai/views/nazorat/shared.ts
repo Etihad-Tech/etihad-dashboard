@@ -27,7 +27,9 @@ export const BUCKETS = [
    },
    {
       key: 'never_accepted', label: 'Javobsiz', short: 'Javobsiz', color: '#3b82f6',
-      hint: 'kartochka yetib bordi, lekin umuman qabul qilinmadi',
+      // No unit word: the same hint labels a complaint on the overview and one person's
+      // card on the ranking, and naming one of them would be wrong on the other screen.
+      hint: 'yetib bordi, lekin umuman qabul qilinmadi',
    },
 ] as const
 
@@ -329,8 +331,11 @@ export function useNazoratView() {
    /** Only the non-zero slices get drawn — a 0%-wide segment is still a 2px gap. */
    const bucketSegments = computed(() => bucketRows.value.filter((b) => b.value > 0))
 
-   /** Context, not verdict: period-level facts that belong nowhere near the colour
-    *  buckets, because they count NEEDS while the buckets count recipient rows.
+   /** Context, not verdict: period-level facts that sit outside the colour buckets
+    *  because they are not outcomes — the total, how long an answer took, and what the
+    *  bot got wrong. They are in the buckets' own unit (one complaint) since 2026-08-07;
+    *  the one card-unit number left on this screen is «N ta kartochka yetib bordi», which
+    *  says its unit out loud because it is the fan-out: 11 murojaat, 15 kartochka.
     *
     *  Their icons carry colour (owner, 2026-08-06: an all-ink overview read as flat).
     *  The hues are chosen to sit OUTSIDE the outcome vocabulary rather than picked for
@@ -473,7 +478,13 @@ export function useNazoratView() {
          const w = s.workers.find((x) => x.telegram_id === rec.telegram_id)
          return (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id)
       }
-      const taker = recs.find((rec) => rec.accepted_at)
+      // The EARLIEST accept, not whichever row came back first: accepting a staff card
+      // releases the colleagues so a need normally has one taker, but a leader card
+      // releases nobody and two ellikboshilar can both claim one need. Taking the first
+      // means this and the server's _need_outcome grade off the same row — the overview's
+      // counts ARE this list counted, so they cannot classify a need differently.
+      const taker = recs.filter((rec) => rec.accepted_at)
+         .sort((a, b) => new Date(a.accepted_at).getTime() - new Date(b.accepted_at).getTime())[0]
       const flagger = recs.find((rec) => rec.flagged_at && !rec.accepted_at)
       const reached = recs.filter((rec) => rec.delivered)
 
@@ -572,11 +583,18 @@ export function useNazoratView() {
    })
 
    /** The needs behind «Javobsiz qolgan», each with the people it reached who never took
-    *  it — and the JOB each of them holds, which explains why they were asked. */
+    *  it — and the JOB each of them holds, which explains why they were asked.
+    *
+    *  Gated on the need's own outcome, not just on "somebody here ignored it": accepting
+    *  a LEADER's card releases nobody (see accept_request), so a need sent to the
+    *  ellikboshi and the mingboshi together leaves an un-actioned row behind even when
+    *  one of them took it. That row is not an unanswered complaint, and the notice
+    *  counts complaints. */
    const unansweredNeeds = computed(() => {
       const byId = new Map(s.workers.map((w) => [w.telegram_id, w]))
       const out: any[] = []
       for (const r of s.requests) {
+         if (needOutcome(r).key !== 'never_accepted') continue
          const ignored = (r.recipients || []).filter((rec: any) =>
             rec.delivered && !rec.accepted_at && !rec.flagged_at && !rec.released_at)
          if (!ignored.length) continue

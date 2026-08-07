@@ -94,8 +94,8 @@
                      <template v-else>
                         <p v-if="s.report && s.report.never_accepted > unansweredNeeds.length"
                            class="px-5 pt-4 text-[13.5px] text-[color:var(--n-muted)]">
-                           Jami {{ s.report.never_accepted }} ta kartochka · quyida oxirgi
-                           {{ unansweredNeeds.length }} ta murojaat
+                           Jami {{ s.report.never_accepted }} ta javobsiz murojaat · quyida
+                           oxirgi {{ unansweredNeeds.length }} tasi
                         </p>
                         <div v-if="!unansweredNeeds.length"
                            class="flex flex-wrap items-center gap-3 px-5 py-4 text-[13.5px] text-[color:var(--n-muted)]">

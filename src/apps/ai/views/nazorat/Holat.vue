@@ -6,12 +6,12 @@
            bar, which carries the count. See Ogohlantirishlar.vue. -->
 
       <!-- ──────────────── 1. THE HEADLINE ────────────────
-           One figure, given the whole card. The composition bar used to sit under it,
-           which quietly implied the two were the same set of things: they are not. This
-           number counts NEEDS (13 murojaat) while the bar counts RECIPIENT ROWS (17
-           kartochka), and the two denominators sitting in one card with no boundary
-           between them is how a reader ends up thinking 13 and 17 must reconcile. The
-           bar now lives in section 3, directly above the legend that states its total. -->
+           One figure, given the whole card, and the period's total: every number below
+           is a share of THIS. It used to be the odd one out — it counted murojaat while
+           the ring under it counted the DM cards a murojaat fans out into, so «Javobsiz
+           6» opened a jurnal holding 2 (owner, 2026-08-07). The ring counts murojaat
+           now. The one card-unit number left is this card's own hint, which names its
+           unit out loud because it IS the fan-out: 11 murojaat, 15 kartochka. -->
       <section v-if="headline" class="card p-5 n-enter" style="--i: 0">
          <div class="flex items-start gap-3.5">
             <span class="n-ico" :style="{ '--c': headline.color }">
@@ -39,7 +39,7 @@
       <section class="card p-5 n-enter" style="--i: 1">
          <h3 class="n-h">{{ personWord }} javoblari</h3>
          <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
-            Har bir {{ personWordLower }} uchun alohida sanaladi
+            Har bir murojaat bitta natijaga kiradi
          </p>
 
          <!-- Every slice opens the same filtered Jurnal its legend row does, so the tap
@@ -66,7 +66,7 @@
                   :class="bucketTotal ? '' : 'text-[color:var(--n-faint)]'">
                   {{ bucketTotal }}
                </p>
-               <p class="text-[12.5px] text-[color:var(--n-muted)] mt-1.5">kartochka</p>
+               <p class="text-[12.5px] text-[color:var(--n-muted)] mt-1.5">murojaat</p>
             </div>
          </div>
 
@@ -110,6 +110,13 @@
                </div>
             </button>
          </div>
+
+         <!-- The remainder, only when there is one. -->
+         <p v-if="ungraded" class="text-[12.5px] text-[color:var(--n-faint)] leading-snug mt-3 pt-3"
+            style="border-top: 1px solid var(--n-line-soft)">
+            Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
+            («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
+         </p>
       </section>
 
       <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
@@ -217,7 +224,7 @@ async function openJurnal(key: string) {
    }
 }
 const {
-   personWord, personWordLower, bucketRows, bucketTotal, bucketSegments,
+   personWord, bucketRows, bucketTotal, bucketSegments,
    contextStats, errorKinds,
 } = useNazoratView()
 
@@ -259,10 +266,17 @@ const donutSegments = computed(() => {
 
 /** The ring's single description, in the order the slices are drawn. */
 const donutLabel = computed(() => {
-   if (!bucketTotal.value) return 'Kartochka yo\'q'
+   if (!bucketTotal.value) return 'Murojaat yo\'q'
    const parts = bucketSegments.value.map((sg) => `${sg.label} ${sg.value} (${sg.pctLabel})`)
-   return `Jami ${bucketTotal.value} ta kartochka: ${parts.join(', ')}`
+   return `Jami ${bucketTotal.value} ta murojaat: ${parts.join(', ')}`
 })
+
+/** The needs the ring cannot grade: ruled «Xatolik» (a verdict on the BOT, deliberately
+ *  outside the four-colour vocabulary) or never delivered to anyone they were sent to.
+ *  Stated rather than silently dropped — a ring whose total is quietly 2 short of the
+ *  headline above it is the same defect this screen just fixed, one step smaller. */
+const ungraded = computed(() =>
+   Math.max(0, (s.report?.requests || 0) - bucketTotal.value))
 
 /** The design's hero figure is the first context stat (Murojaatlar); the other two sit
  *  beside each other as tiles. Split here rather than in the composable so the numbers
