@@ -10,12 +10,16 @@ import api from '../../../api'
  */
 
 export interface Report {
-   // per NEED
+   // Per NEED — one murojaat, one grade. The same unit the Jurnal lists in, so a count
+   // here and the list it opens are always the same set of things (they were not until
+   // 2026-08-07: the buckets counted cards and «Javobsiz 6» opened a list of 2).
    requests: number; unassigned: number
-   // per RECIPIENT ROW (one per worker the need was DM'd to)
-   dms: number; delivered: number; undelivered: number
-   accepted: number; never_accepted: number; completed: number; re_requests: number
-   reopened: number; avg_response_seconds: number | null
+   never_accepted: number; completed: number; re_requests: number; reopened: number
+   avg_response_seconds: number | null
+   // Per CARD — one row per worker the need was DM'd to. A need sent to the whole crew
+   // is one murojaat and five kartochka; these are the only numbers in that unit, and
+   // the screens that show them say «kartochka» out loud.
+   dms: number; delivered: number; undelivered: number; accepted: number
    flagged: number; bot_mistakes: number; flags_neutral: number; flags_pending: number
    error_kinds: Record<string, number>
 }
@@ -50,6 +54,19 @@ export interface LeaderGroups {
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 
+/** One complaint that carried real hostility, and the ellikboshi who has to settle it.
+ *  Detected off the owner's own keyword list (server/AGGRESSION-KEYWORDS.md).
+ *
+ *  The leader comes from the GROUP, not from whoever was DM'd: staff are never named
+ *  here even when the complaint is about something the crew did, because an aggressive
+ *  complaint has to be settled at once and the leader is who answers for it. */
+export interface AggressiveItem {
+   id: number; created_at: string | null; text: string | null
+   chat_id: number | null; group_title: string | null
+   ellikboshi: string | null; pilgrim_username: string | null
+}
+export interface Aggressive { total: number; items: AggressiveItem[] }
+
 // `location` is null for an ellikboshi — a leader belongs to a GROUP, not a city, and
 // `group` is that group's title (null for crew). Which group still assigns them is the
 // one fact that makes the warning actionable: the fix is on the Guruhlar page.
@@ -77,6 +94,12 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const report = ref<Report | null>(null)
    const workers = ref<Worker[]>([])
    const groupOptions = ref<GroupOption[]>([])
+   // Deliberately NOT role-scoped by the API: it is an alarm, not an accountability
+   // statistic, and hiding an angry pilgrim from one controller is the worse failure.
+   const aggressive = ref<Aggressive>({ total: 0, items: [] })
+   // People the bot CANNOT DM at all, because they never pressed start. Back on the bell
+   // by owner request (2026-08-07) after a few hours off it: it is the one warning where
+   // nothing is failing yet — the cards simply never arrive, silently.
    const staffReadiness = ref<StaffReady[]>([])
    // The roster screen. Kept OUT of load(): it takes no period and no group/city slice,
    // so re-pulling it whenever the window changes would be pure waste — and worse, it
@@ -165,9 +188,14 @@ export const useNazoratStore = defineStore('nazorat', () => {
       requests.value = []
       try {
          const q = sliceQuery.value
-         const [rep, wrk, sr, st, sc, grp] = await Promise.all([
+         const [rep, wrk, agg, sr, st, sc, grp] = await Promise.all([
             api.get(`/control/report?${q}`),
             api.get(`/control/workers?${q}`),
+            // No city: a message records no location, only the need behind one does —
+            // see get_aggressive_complaints. The GROUP filter is exact and is honoured.
+            api.get(`/control/aggressive?period=${period.value}`
+               + (filterGroup.value ? `&chat_id=${encodeURIComponent(filterGroup.value)}` : '')),
+            // No period: "has this person ever started the bot" is true now or it is not.
             api.get('/control/staff-readiness'),
             api.get('/control/settings'),
             api.get('/control/scope'),
@@ -177,6 +205,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          ])
          report.value = rep.data
          workers.value = wrk.data
+         aggressive.value = agg.data || { total: 0, items: [] }
          staffReadiness.value = sr.data
          scope.value = sc.data?.scope || 'all'
          groupOptions.value = grp.data
@@ -194,6 +223,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          loadError.value = true
          report.value = null
          workers.value = []
+         aggressive.value = { total: 0, items: [] }
          staffReadiness.value = []
          groupOptions.value = []
       } finally {
@@ -282,7 +312,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
 
    return {
       period, loading, loadError, saving, savedMsg,
-      report, workers, groupOptions, staffReadiness, scope,
+      report, workers, groupOptions, aggressive, staffReadiness, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,

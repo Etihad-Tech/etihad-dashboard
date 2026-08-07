@@ -625,6 +625,11 @@
    width: min(66vw, 196px);
    margin-inline: auto;
 }
+/* Reyting draws THREE rings on one screen, so each is smaller than the overview's single
+   one — at full size the reader would scroll past two of them to compare the third. */
+.nazorat .n-donut-sm {
+   width: min(48vw, 148px);
+}
 .nazorat .n-donut {
    display: block;
    width: 100%;

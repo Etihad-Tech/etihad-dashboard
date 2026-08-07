@@ -161,6 +161,23 @@ const router = createRouter({
       name: 'TeamExport',
       component: () => import('../apps/team/views/Export.vue'),
     },
+    // ANY unmatched path. Without this the router matched nothing and rendered nothing —
+    // a white screen, with the console's «No match found for location» as the only clue.
+    //
+    // That is survivable in a browser, where the address bar is right there. It is not on
+    // a phone: this panel is installed to the home screen (see index.html's
+    // apple-touch-icon), which opens standalone with NO address bar and no back target,
+    // so one stale or mistyped path left the app permanently blank with no way out of it
+    // (owner, 2026-08-07). A wrong URL must always land somewhere real.
+    //
+    // Redirecting to '/' rather than to a 404 page on purpose: beforeEach below then does
+    // the rest of the thinking — unauthenticated goes to /login, and a role that may not
+    // see '/' is sent on to its own ROLE_HOME. One rule, no second copy of it here.
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      redirect: '/',
+    },
   ],
 })
 
