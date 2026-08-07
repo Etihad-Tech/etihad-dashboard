@@ -214,22 +214,6 @@ const TABS = [
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
 
-/** Reyting has no city filter (owner, 2026-08-07): the boards answer "who", and a city
- *  is a fact about the NEED, not about the person — a xodim works one city, so slicing
- *  their board by it only ever empties the other one.
- *
- *  Cleared on the way in rather than merely hidden. A filter that keeps applying while
- *  its control is off screen is exactly how a reader ends up comparing two numbers that
- *  were never describing the same thing. On a desktop the screens are one scroll, so the
- *  control stays: nothing is hidden there. */
-const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
-watch(isRating, (on) => {
-   if (on && s.filterCity) {
-      s.filterCity = ''
-      s.setSlice()
-   }
-}, { immediate: true })
-
 /** Which population this login reads, as a subtitle under the panel's name. Empty for
  *  the combined account, which sees everyone and so has nothing to qualify. */
 const scopeSuffix = computed(() =>
@@ -253,6 +237,28 @@ let io: IntersectionObserver | null = null
 const mq = window.matchMedia('(min-width: 1024px)')
 const isDesktop = ref(mq.matches)
 function onMq(e: MediaQueryListEvent) { isDesktop.value = e.matches }
+
+/** Reyting has no city filter (owner, 2026-08-07): the boards answer "who", and a city
+ *  is a fact about the NEED, not about the person — a xodim works one city, so slicing
+ *  their board by it only ever empties the other one.
+ *
+ *  Cleared on the way in rather than merely hidden. A filter that keeps applying while
+ *  its control is off screen is exactly how a reader ends up comparing two numbers that
+ *  were never describing the same thing. On a desktop the screens are one scroll, so the
+ *  control stays: nothing is hidden there.
+ *
+ *  MUST stay below `isDesktop`. It reads it, and `immediate: true` runs the getter during
+ *  setup — declared any earlier, `const isDesktop` is still in its temporal dead zone and
+ *  the whole panel throws before it mounts. That is a blank screen with the reason only in
+ *  a console, which cost an afternoon of chasing the network instead (2026-08-07). The
+ *  compiler cannot see it: a TDZ violation is legal TypeScript. */
+const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
+watch(isRating, (on) => {
+   if (on && s.filterCity) {
+      s.filterCity = ''
+      s.setSlice()
+   }
+}, { immediate: true })
 
 onMounted(() => {
    mq.addEventListener('change', onMq)
