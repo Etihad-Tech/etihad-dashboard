@@ -111,12 +111,24 @@
             </button>
          </div>
 
-         <!-- The remainder, only when there is one. -->
-         <p v-if="ungraded" class="text-[12.5px] text-[color:var(--n-faint)] leading-snug mt-3 pt-3"
+         <!-- 🟡 and 🔴 are one event told from its two ends, so a repeat moves BOTH
+              counters and the reader is owed the reason. Kept out of the two hints
+              themselves: it is a fact about the pair, and putting it in either one would
+              make that line describe the other colour. -->
+         <div class="mt-3 pt-3 space-y-1.5 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
             style="border-top: 1px solid var(--n-line-soft)">
-            Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
-            («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
-         </p>
+            <p>
+               Ziyoratchi qayta so'raganda eski murojaat
+               <b :style="{ color: BUCKETS[2].color }">Bajarilmagan</b>ga o'tadi, yangisi esa
+               <b :style="{ color: BUCKETS[1].color }">Takroriy so'rov</b> bo'ladi —
+               bitta takror ikkala rangda ko'rinadi.
+            </p>
+            <!-- The remainder, only when there is one. -->
+            <p v-if="ungraded">
+               Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
+               («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
+            </p>
+         </div>
       </section>
 
       <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
@@ -202,7 +214,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { useNazoratView } from './shared'
+import { BUCKETS, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()

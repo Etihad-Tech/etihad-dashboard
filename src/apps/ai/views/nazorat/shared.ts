@@ -15,15 +15,24 @@ import { useNazoratStore, type GroupOption, type Worker } from '../../stores/naz
 export const BUCKETS = [
    {
       key: 'completed', label: 'Bajarildi', short: 'Bajarildi', color: '#059669',
-      hint: "qabul qildi, ziyoratchi qayta so'ramadi",
+      hint: "qabul qilingan, ziyoratchi qayta so'ramagan",
    },
+   // Yellow and red are ONE event told from its two ends, and their old hints said so in
+   // the same two clauses swapped round ("accepted" + "the pilgrim asked again"), which
+   // is why they read as near-duplicates (owner, 2026-08-07). The distinction is not what
+   // the worker did — both were accepted — but WHICH ask the card is, so each hint now
+   // turns on one word: the pilgrim asked again OLDIN (this card is that repeat) or KEYIN
+   // (this card is what the repeat came back to). The pairing itself is stated under the
+   // legend, since a reader who sees both counters move needs to know it is one event.
    {
       key: 're_requests', label: "Takroriy so'rov", short: 'Takroriy', color: '#f59e0b',
-      hint: "ziyoratchi ilgari ham so'ragan edi, shu odam ikkinchi so'rovni qabul qildi",
+      hint: "ziyoratchi buni OLDIN ham so'ragan edi — bu o'sha so'rovning takrori,"
+         + ' qabul qilingan',
    },
    {
       key: 'reopened', label: 'Bajarilmagan', short: 'Bajarilmagan', color: '#ef4444',
-      hint: "qabul qilgan, LEKIN ziyoratchi qayta so'radi. Aslida hal qilinmagan",
+      hint: "qabul qilingan, lekin ziyoratchi KEYIN yana so'ragan —"
+         + ' demak aslida bajarilmagan',
    },
    {
       key: 'never_accepted', label: 'Javobsiz', short: 'Javobsiz', color: '#3b82f6',
@@ -498,11 +507,14 @@ export function useNazoratView() {
          if (taker.reopened_count > 0) {
             return { key: 'reopened', label: 'Bajarilmagan', color: BUCKETS[2].color,
                icon: 'circle-exclamation',
-               detail: `${nameOf(taker)} qabul qildi, ziyoratchi qayta so'radi` }
+               detail: `${nameOf(taker)} qabul qildi, ziyoratchi keyin yana so'radi` }
          }
          if (r.parent_request_id && !r.reopen_dismissed) {
+            // Green's detail is «who · how long» too, so without the last clause a
+            // takroriy row and a bajarildi row read identically under different pills.
             return { key: 're_requests', label: "Takroriy so'rov", color: BUCKETS[1].color,
-               icon: 'arrows-rotate', detail: `${nameOf(taker)} · ${wait}` }
+               icon: 'arrows-rotate',
+               detail: `${nameOf(taker)} · ${wait} · oldin ham so'ralgan` }
          }
          return { key: 'completed', label: 'Bajarildi', color: BUCKETS[0].color,
             icon: 'circle-check', detail: `${nameOf(taker)} · ${wait}` }
@@ -652,14 +664,16 @@ export function useNazoratView() {
          }
       const acc = fmtTime(e.accepted_at)
       const wait = durBetween(e.dm_sent_at, e.accepted_at)
+      // The two ends of one event again — see BUCKETS. On this screen the sentences are
+      // long enough to say which ask the card is outright, so they do.
       if (e.reopened_count > 0)   // accepted, but the pilgrim came back -> false completion
          return {
-            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi. Bajarilmagan.`,
+            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi keyin yana so'radi. Bajarilmagan.`,
             rail: BUCKETS[2].color, ink: '#b91c1c',
          }
       if (e.parent_request_id && !e.reopen_dismissed)   // accepted follow-up
          return {
-            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Takroriy so'rov, bajarildi.`,
+            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Ziyoratchi buni oldin ham so'ragan edi — takroriy so'rov.`,
             rail: BUCKETS[1].color, ink: INK,
          }
       return {   // clean single-pass completion
