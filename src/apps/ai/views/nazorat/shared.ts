@@ -268,45 +268,41 @@ export function useNazoratView() {
       const r = s.report
       if (!r) return [] as any[]
       const out: any[] = []
-      if (r.never_accepted) out.push({
-         key: 'never_accepted', value: r.never_accepted, label: 'Javobsiz qolgan',
-         color: BUCKETS[3].color,
-         hint: `Yetib bordi, ${personWordLower.value} qabul qilmadi.`,
+      // TWO things only, owner 2026-08-07: an angry pilgrim, and a job somebody said was
+      // done and was not. Everything else this bell used to raise — «Javobsiz qolgan»,
+      // «DM yuborib bo'lmaydi», «Asossiz Xatolik» — is a number on a screen, and a
+      // notification that fires for every number is one nobody reads.
+      //
+      // The aggression alarm leads, and not because it is bigger: the other one is a
+      // failure that already happened, this one is a pilgrim who is angry NOW.
+      if (s.aggressive.total) out.push({
+         key: 'aggressive', value: s.aggressive.total, label: 'Qattiq norozilik',
+         color: BUCKETS[2].color,
+         hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
       })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
          color: BUCKETS[2].color,
-         hint: "Ziyoratchi qayta so'radi, hal bo'lmagan.",
-      })
-      // «Hech kimga yetmagan» (report.unassigned) is deliberately NOT shown. Owner rule:
-      // this panel is for the CREW and the ELLIKBOSHI, and a need that reached nobody has
-      // no recipient — so there is no person it is a statistic about.
-      //
-      // «Yetib bormagan» (report.undelivered) is not shown either — owner, 2026-07-31:
-      // it says almost the same thing as «DM yuborib bo'lmaydi» one line below it, and
-      // two notices for one problem is worse than one. The undelivered COUNT is not lost:
-      // it still rides in the gray tail of every Natija bar, in that bar's tooltip, and
-      // spelled out on the person's own screen.
-      if (s.staffReadiness.length) out.push({
-         key: 'readiness', value: s.staffReadiness.length, label: 'DM yuborib bo\'lmaydi',
-         color: '#a16207',
-         // Owner's wording, 2026-07-31. It reads as a label for the chips right under
-         // it rather than as a sentence about them, which is why it ends in a colon.
-         hint: 'Botga start bermaganlar:',
-         people: s.staffReadiness.map((r2) =>
-            (r2.username || r2.name || '—')
-            + (r2.location ? ` · ${cityLabel(r2.location)}` : '')
-            + (r2.group ? ` · ${r2.group}` : '')
-            + (r2.role === 'ellikboshi' && r2.in_pool === false
-               ? " · ro'yxatdan o'chirilgan" : '')),
-      })
-      if (r.flags_neutral) out.push({
-         key: 'flags_neutral', value: r.flags_neutral, label: 'Asossiz «Xatolik»',
-         color: '#a16207',
-         hint: '«Bot xatosi» dedi, IT tasdiqlamadi.',
+         hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
       })
       return out
    })
+
+   /** The needs behind «Bajarilmagan», newest first — the messages a worker accepted and
+    *  the pilgrim then had to raise again. Graded through needOutcome so the list and the
+    *  count above it can never be different sets of things. */
+   const reopenedNeeds = computed(() =>
+      [...s.requests]
+         .filter((r) => needOutcome(r).key === 'reopened')
+         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+         .map((r) => ({
+            id: r.id, text: r.text, created_at: r.created_at,
+            group_label: r.group_title || `Guruh ${r.chat_id}`,
+            city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
+            message_link: r.message_link,
+            taker: needOutcome(r).detail,
+         })),
+   )
 
    /** What the bell actually shows: the problems that have not been cleared AT THEIR
     *  CURRENT VALUE. A cleared notice returns by itself the moment its number moves. */
@@ -645,42 +641,6 @@ export function useNazoratView() {
          .sort((a, b) => b.count - a.count)
    })
 
-   /** The needs behind «Javobsiz qolgan», each with the people it reached who never took
-    *  it — and the JOB each of them holds, which explains why they were asked.
-    *
-    *  Gated on the need's own outcome, not just on "somebody here ignored it": accepting
-    *  a LEADER's card releases nobody (see accept_request), so a need sent to the
-    *  ellikboshi and the mingboshi together leaves an un-actioned row behind even when
-    *  one of them took it. That row is not an unanswered complaint, and the notice
-    *  counts complaints. */
-   const unansweredNeeds = computed(() => {
-      const byId = new Map(s.workers.map((w) => [w.telegram_id, w]))
-      const out: any[] = []
-      for (const r of s.requests) {
-         if (needOutcome(r).key !== 'never_accepted') continue
-         const ignored = (r.recipients || []).filter((rec: any) =>
-            rec.delivered && !rec.accepted_at && !rec.flagged_at && !rec.released_at)
-         if (!ignored.length) continue
-         out.push({
-            id: r.id, text: r.text, created_at: r.created_at,
-            group_label: r.group_title || `Guruh ${r.chat_id}`,
-            city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
-            message_link: r.message_link,
-            ignored: ignored.map((rec: any) => {
-               const w = byId.get(rec.telegram_id)
-               return {
-                  telegram_id: rec.telegram_id,
-                  name: (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id),
-                  role: rec.role,
-                  leaderLevel: w ? isLeaderLevel(w) : rec.role === 'ellikboshi',
-                  job: w ? jobLabel(w) : (rec.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim'),
-               }
-            }),
-         })
-      }
-      return out
-   })
-
    /** One request turned into a plain Uzbek sentence, plus the colour of its outcome.
     *  Still used on a PERSON's own screen, where the question really is "what did THIS
     *  person do about it" and a released card is a real answer. */
@@ -771,7 +731,8 @@ export function useNazoratView() {
       groupChoices, filteredWorkers, workerNameOptions,
       problems, activeProblems, clearedCount,
       bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseRows,
+      reopenedNeeds,
       rankSort, rankGroups, hasRanking,
-      feed, journalPeople, unansweredNeeds, entriesFor,
+      feed, journalPeople, entriesFor,
    }
 }

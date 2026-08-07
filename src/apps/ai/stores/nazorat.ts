@@ -54,17 +54,24 @@ export interface LeaderGroups {
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 
-// `location` is null for an ellikboshi — a leader belongs to a GROUP, not a city, and
-// `group` is that group's title (null for crew). Which group still assigns them is the
-// one fact that makes the warning actionable: the fix is on the Guruhlar page.
-export interface StaffReady {
-   role: string; location: string | null; username: string | null; name: string | null
-   group?: string | null
-   // false = this group still names a leader who is no longer in the Ellikboshilar
-   // pool. Deleting them there does not clear the group's assignment, so the bot
-   // would still be DMing a removed person.
-   in_pool?: boolean
+/** One complaint that carried real hostility, and the ellikboshi who has to settle it.
+ *  Detected off the owner's own keyword list (server/AGGRESSION-KEYWORDS.md).
+ *
+ *  The leader comes from the GROUP, not from whoever was DM'd: staff are never named
+ *  here even when the complaint is about something the crew did, because an aggressive
+ *  complaint has to be settled at once and the leader is who answers for it. */
+export interface AggressiveItem {
+   id: number; created_at: string | null; text: string | null
+   chat_id: number | null; group_title: string | null
+   ellikboshi: string | null; pilgrim_username: string | null
 }
+export interface Aggressive { total: number; items: AggressiveItem[] }
+
+// StaffReady / `/control/staff-readiness` is gone from this store (owner, 2026-08-07):
+// the bell now raises exactly two things, and «DM yuborib bo'lmaydi» was not one of
+// them, which left the read with nothing rendering it. The API endpoint is untouched
+// and the query behind it still works, so giving the warning a home on another screen
+// is a matter of putting the call back.
 
 // Drill-down paging. The journal is built from these rows, so a silent cap would make a
 // truncated log look like the worker's whole period.
@@ -81,7 +88,9 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const report = ref<Report | null>(null)
    const workers = ref<Worker[]>([])
    const groupOptions = ref<GroupOption[]>([])
-   const staffReadiness = ref<StaffReady[]>([])
+   // Deliberately NOT role-scoped by the API: it is an alarm, not an accountability
+   // statistic, and hiding an angry pilgrim from one controller is the worse failure.
+   const aggressive = ref<Aggressive>({ total: 0, items: [] })
    // The roster screen. Kept OUT of load(): it takes no period and no group/city slice,
    // so re-pulling it whenever the window changes would be pure waste — and worse, it
    // would imply to the reader that it answers to the selector like everything else does.
@@ -169,10 +178,13 @@ export const useNazoratStore = defineStore('nazorat', () => {
       requests.value = []
       try {
          const q = sliceQuery.value
-         const [rep, wrk, sr, st, sc, grp] = await Promise.all([
+         const [rep, wrk, agg, st, sc, grp] = await Promise.all([
             api.get(`/control/report?${q}`),
             api.get(`/control/workers?${q}`),
-            api.get('/control/staff-readiness'),
+            // No city: a message records no location, only the need behind one does —
+            // see get_aggressive_complaints. The GROUP filter is exact and is honoured.
+            api.get(`/control/aggressive?period=${period.value}`
+               + (filterGroup.value ? `&chat_id=${encodeURIComponent(filterGroup.value)}` : '')),
             api.get('/control/settings'),
             api.get('/control/scope'),
             // Deliberately NOT sliced: the group list must keep offering the other
@@ -181,7 +193,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          ])
          report.value = rep.data
          workers.value = wrk.data
-         staffReadiness.value = sr.data
+         aggressive.value = agg.data || { total: 0, items: [] }
          scope.value = sc.data?.scope || 'all'
          groupOptions.value = grp.data
          form.value = {
@@ -198,7 +210,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          loadError.value = true
          report.value = null
          workers.value = []
-         staffReadiness.value = []
+         aggressive.value = { total: 0, items: [] }
          groupOptions.value = []
       } finally {
          loading.value = false
@@ -286,7 +298,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
 
    return {
       period, loading, loadError, saving, savedMsg,
-      report, workers, groupOptions, staffReadiness, scope,
+      report, workers, groupOptions, aggressive, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,
