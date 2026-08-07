@@ -151,7 +151,11 @@ const headTiles = computed(() => {
    const w = worker.value
    if (!w) return []
    return [
-      { label: 'Murojaat', value: String(w.dms) },
+      // «Kartochka», not «Murojaat»: this is w.dms — the cards sent to THIS person, which
+      // is the right unit on a person's own sheet (they answer for what they were sent,
+      // not for a share of a complaint) but the wrong word for it. The overview counts
+      // complaints; calling both «Murojaat» is what made the two disagree on screen.
+      { label: 'Kartochka', value: String(w.dms) },
       { label: 'Qabul', value: String(w.accepted) },
       { label: "O'rtacha javob", value: dur(w.avg_response_seconds) },
    ]

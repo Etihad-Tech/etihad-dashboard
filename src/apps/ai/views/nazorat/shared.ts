@@ -4,32 +4,50 @@ import { useNazoratStore, type GroupOption, type Worker } from '../../stores/naz
 /** The vocabulary of the Nazorat panel — colours, labels and the small pure helpers —
  *  defined ONCE so the three screens can never drift from each other. */
 
-/** The four outcomes. The split bar, the legend, the ranking bars, the table headers
- *  and the per-row bars all read from here.
+/** THREE outcomes since 2026-08-07, not four. «Takroriy so'rov» was the fourth and was
+ *  never an outcome: green, amber and blue all answer "what did the worker do", while it
+ *  answered "which message is this" — which is why no rewording ever told it apart from
+ *  Bajarilmagan. One repeat wrote two graded cards for one event, and the second landed
+ *  on whoever picked the complaint up and fixed it. A repeat is now counted once, as
+ *  Bajarilmagan on the accept that turned out to be false, and the takroriy count rides
+ *  under Bajarildi as a subset. `is_repeat` still badges the row in the jurnal.
  *
- *  Palette: validated with the dataviz skill's checker against a white surface —
- *  lightness band, chroma floor, CVD separation (worst adjacent pair ΔE 13.0, target
- *  ≥8) and the normal-vision floor (19.8, floor 15) all PASS. Amber sits below 3:1
+ *  Bajarilmagan is AMBER, not red (owner's call, same day). Red is no longer an outcome
+ *  colour at all — see ALARM_RED, which now belongs to the angry pilgrim and the
+ *  confirmed bot mistake, the two things that are not somebody's daily grade.
+ *
+ *  Palette: validated with the dataviz skill's checker against a white surface. All
+ *  pairs PASS — lightness band, chroma floor, CVD separation (worst pair ΔE 13.0 protan,
+ *  target ≥8) and the normal-vision floor (24.0, floor 15). Amber sits below 3:1
  *  contrast, so it is never the only carrier of meaning: every use is paired with a
  *  visible label, and table VALUES are ink with the colour reduced to a header dot. */
 export const BUCKETS = [
    {
       key: 'completed', label: 'Bajarildi', short: 'Bajarildi', color: '#059669',
-      hint: "qabul qildi, ziyoratchi qayta so'ramadi",
+      hint: "qabul qilingan, ziyoratchi qayta so'ramagan",
    },
    {
-      key: 're_requests', label: "Takroriy so'rov", short: 'Takroriy', color: '#f59e0b',
-      hint: "ziyoratchi ilgari ham so'ragan edi, shu odam ikkinchi so'rovni qabul qildi",
-   },
-   {
-      key: 'reopened', label: 'Bajarilmagan', short: 'Bajarilmagan', color: '#ef4444',
-      hint: "qabul qilgan, LEKIN ziyoratchi qayta so'radi. Aslida hal qilinmagan",
+      key: 'reopened', label: 'Bajarilmagan', short: 'Bajarilmagan', color: '#f59e0b',
+      hint: "qabul qilingan, lekin ziyoratchi keyin yana so'ragan —"
+         + ' demak aslida bajarilmagan',
    },
    {
       key: 'never_accepted', label: 'Javobsiz', short: 'Javobsiz', color: '#3b82f6',
-      hint: 'kartochka yetib bordi, lekin umuman qabul qilinmadi',
+      // No unit word: the same hint labels a complaint on the overview and one person's
+      // card on the ranking, and naming one of them would be wrong on the other screen.
+      hint: 'yetib bordi, lekin umuman qabul qilinmadi',
    },
 ] as const
+
+/** By key, because a bucket's POSITION is not a fact about it. Every BUCKETS[2] in the
+ *  panel silently meant something different the moment the fourth one was removed. */
+export const BUCKET = Object.fromEntries(BUCKETS.map((b) => [b.key, b])) as
+   Record<string, { key: string; label: string; short: string; color: string; hint: string }>
+
+/** Red, reserved. Not an outcome — nobody's daily grade is red any more — so it is free
+ *  to mean the two things that must never be read as routine: a pilgrim who is angry
+ *  right now, and a bot mistake the office has confirmed. */
+export const ALARM_RED = '#ef4444'
 
 export const PERIODS = [
    { value: 'day', label: 'Kunlik' },
@@ -183,20 +201,57 @@ function groupLabel(g: GroupOption): string {
    return cities.length ? `${name} · ${cities.join(', ')}` : name
 }
 
-// Below this many accountable cards a percentage is noise — one lucky card would put
-// somebody at 100% above a person who handled forty.
-export const MIN_RANK_CARDS = 3
+/** Reyting is one pie per outcome, sliced by person (owner, 2026-08-07) — «who are the
+ *  javobsiz ones» rather than a table to read down. Six segments is the readable ceiling
+ *  for a pie, so five people are drawn and the rest fold into «Boshqalar».
+ *
+ *  Each pie is a ramp of its OWN category's colour, light→dark by share. Slices are
+ *  people, which normally calls for a categorical palette — but this panel has no hues
+ *  spare (the outcomes hold green/amber/blue and red is the alarm), and nine per-person
+ *  hues would collide with the vocabulary the reader has just learned. A single-hue ramp
+ *  keeps every pie unmistakably its own category, and identity comes from the legend
+ *  beside each slice, never from the colour.
+ *
+ *  Ramps validated with the dataviz skill's checker (--ordinal, light surface): all three
+ *  PASS monotone lightness, adjacent ΔL ≥ 0.06, and a light end clearing 2:1 on white.
+ *  Amber has the least room — its lightest legal step IS the bucket colour — so it runs
+ *  amber → brown rather than starting pale. */
+export const PIE_MAX = 5
+export const RATING_RAMPS: Record<string, string[]> = {
+   completed: ['#34c79a', '#0aa87c', '#058560', '#046a4c', '#035038', '#023626'],
+   reopened: ['#f59e0b', '#d3870a', '#b06f08', '#8d5807', '#6b4205', '#492c03'],
+   never_accepted: ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#104281', '#0b2d59'],
+}
 
-export const RANK_MODES = [
-   { key: 'rate', label: 'Javob darajasi', unit: 'javob darajasi' },
-   { key: 'completed', label: 'Bajarilgan', unit: 'bajarildi' },
-   { key: 'never_accepted', label: 'Javobsiz', unit: 'javobsiz' },
-] as const
+// Module-level so the chosen tab survives a screen switch — Reyting is unmounted while
+// the reader is in the Jurnal, and coming back to a silently reset board reads as "the
+// numbers changed".
+export const ratingTab = ref<'ellikboshi' | 'staff'>('ellikboshi')
 
-// Module-level so the chosen ranking mode survives a tab switch — the Reyting screen is
-// unmounted when the reader looks at the Jurnal, and coming back to a silently reset
-// board reads as "the numbers changed".
-export const rankMode = ref<'rate' | 'completed' | 'never_accepted'>('rate')
+/** Percentages -> stroke dasharray/offset for one ring, so the panel's rings are all
+ *  drawn by the same arithmetic. A dash is a length along the circumference, which is
+ *  exactly what a share of a whole is — no arc-sweep maths to get wrong at 0% and 100%.
+ *
+ *  `gap` separates neighbours (a colour change alone is not reliable at these widths); a
+ *  lone 100% slice gets none, since a gap with no neighbour reads as a nick. The 1-unit
+ *  floor keeps a one-in-three-hundred slice visible, losing under a pixel. */
+/** The radius every ring on the panel is drawn at, inside a 120×120 viewBox. The SIZE
+ *  differences between screens are done in CSS on the wrapper, so the geometry stays one
+ *  number and the two rings can never drift apart. */
+export const PIE_R = 46
+
+export function ringDashes(pcts: number[], radius: number, gap = 3) {
+   const C = 2 * Math.PI * radius
+   const g = pcts.length > 1 ? gap : 0
+   let start = 0
+   return pcts.map((p) => {
+      const len = (p / 100) * C
+      const dash = Math.max(len - g, 1)
+      const seg = { dash: `${dash} ${C - dash}`, offset: -start }
+      start += len
+      return seg
+   })
+}
 
 /** Everything derived from the store. A composable rather than a second store: it holds
  *  no state of its own, it is pure projection. */
@@ -242,9 +297,9 @@ export function useNazoratView() {
       }),
    )
 
-   const workerNameOptions = computed(() =>
-      [...new Set(s.workers.map(personLabel))].sort((a, b) => a.localeCompare(b)),
-   )
+   // The name dropdown that fed this is gone with the old ranking table (owner,
+   // 2026-08-07). Finding one person is what the Jurnal's «Xodimlar» list is for, and
+   // it lands on their own screen instead of narrowing a board to a single row.
 
    /** Everything on this panel that is a PROBLEM, biggest first, and nothing else.
     *  A clean period renders the calm state instead, never an empty red box.
@@ -257,27 +312,30 @@ export function useNazoratView() {
       const r = s.report
       if (!r) return [] as any[]
       const out: any[] = []
-      if (r.never_accepted) out.push({
-         key: 'never_accepted', value: r.never_accepted, label: 'Javobsiz qolgan',
-         color: BUCKETS[3].color,
-         hint: `Yetib bordi, ${personWordLower.value} qabul qilmadi.`,
+      // TWO things only, owner 2026-08-07: an angry pilgrim, and a job somebody said was
+      // done and was not. Everything else this bell used to raise — «Javobsiz qolgan»,
+      // «DM yuborib bo'lmaydi», «Asossiz Xatolik» — is a number on a screen, and a
+      // notification that fires for every number is one nobody reads.
+      //
+      // The aggression alarm leads, and not because it is bigger: the other one is a
+      // failure that already happened, this one is a pilgrim who is angry NOW.
+      if (s.aggressive.total) out.push({
+         key: 'aggressive', value: s.aggressive.total, label: 'Qattiq norozilik',
+         color: ALARM_RED,
+         hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
       })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
-         color: BUCKETS[2].color,
-         hint: "Ziyoratchi qayta so'radi, hal bo'lmagan.",
+         color: BUCKET.reopened.color,
+         hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
       })
-      // «Hech kimga yetmagan» (report.unassigned) is deliberately NOT shown. Owner rule:
-      // this panel is for the CREW and the ELLIKBOSHI, and a need that reached nobody has
-      // no recipient — so there is no person it is a statistic about.
-      //
-      // «Yetib bormagan» (report.undelivered) is not shown either — owner, 2026-07-31:
-      // it says almost the same thing as «DM yuborib bo'lmaydi» one line below it, and
-      // two notices for one problem is worse than one. The undelivered COUNT is not lost:
-      // it still rides in the gray tail of every Natija bar, in that bar's tooltip, and
-      // spelled out on the person's own screen.
+      // Back on the bell by owner request (2026-08-07). It earns its place for the
+      // opposite reason to the other two: nothing has failed YET. These people never
+      // pressed start, so the bot cannot DM them at all — their cards simply never
+      // arrive, and the panel would score that as «Yetib bormadi» rather than as the
+      // one thing here that can be fixed before it costs anybody anything.
       if (s.staffReadiness.length) out.push({
-         key: 'readiness', value: s.staffReadiness.length, label: 'DM yuborib bo\'lmaydi',
+         key: 'readiness', value: s.staffReadiness.length, label: "DM yuborib bo'lmadi",
          color: '#a16207',
          // Owner's wording, 2026-07-31. It reads as a label for the chips right under
          // it rather than as a sentence about them, which is why it ends in a colon.
@@ -289,13 +347,24 @@ export function useNazoratView() {
             + (r2.role === 'ellikboshi' && r2.in_pool === false
                ? " · ro'yxatdan o'chirilgan" : '')),
       })
-      if (r.flags_neutral) out.push({
-         key: 'flags_neutral', value: r.flags_neutral, label: 'Asossiz «Xatolik»',
-         color: '#a16207',
-         hint: '«Bot xatosi» dedi, IT tasdiqlamadi.',
-      })
       return out
    })
+
+   /** The needs behind «Bajarilmagan», newest first — the messages a worker accepted and
+    *  the pilgrim then had to raise again. Graded through needOutcome so the list and the
+    *  count above it can never be different sets of things. */
+   const reopenedNeeds = computed(() =>
+      [...s.requests]
+         .filter((r) => needOutcome(r).key === 'reopened')
+         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+         .map((r) => ({
+            id: r.id, text: r.text, created_at: r.created_at,
+            group_label: r.group_title || `Guruh ${r.chat_id}`,
+            city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
+            message_link: r.message_link,
+            taker: needOutcome(r).detail,
+         })),
+   )
 
    /** What the bell actually shows: the problems that have not been cleared AT THEIR
     *  CURRENT VALUE. A cleared notice returns by itself the moment its number moves. */
@@ -329,8 +398,11 @@ export function useNazoratView() {
    /** Only the non-zero slices get drawn — a 0%-wide segment is still a 2px gap. */
    const bucketSegments = computed(() => bucketRows.value.filter((b) => b.value > 0))
 
-   /** Context, not verdict: period-level facts that belong nowhere near the colour
-    *  buckets, because they count NEEDS while the buckets count recipient rows.
+   /** Context, not verdict: period-level facts that sit outside the colour buckets
+    *  because they are not outcomes — the total, how long an answer took, and what the
+    *  bot got wrong. They are in the buckets' own unit (one complaint) since 2026-08-07;
+    *  the one card-unit number left on this screen is «N ta kartochka yetib bordi», which
+    *  says its unit out loud because it is the fan-out: 11 murojaat, 15 kartochka.
     *
     *  Their icons carry colour (owner, 2026-08-06: an all-ink overview read as flat).
     *  The hues are chosen to sit OUTSIDE the outcome vocabulary rather than picked for
@@ -343,21 +415,82 @@ export function useNazoratView() {
       const r = s.report
       if (!r) return []
       return [
-         {
-            key: 'requests', label: 'Murojaatlar', value: r.requests,
-            icon: 'comments', color: '#7c5cfc',
-            hint: `${r.delivered} ta ${personWordLower.value} kartochkasi yetib bordi`,
-         },
-         {
-            key: 'avg', label: "O'rtacha javob vaqti", value: dur(r.avg_response_seconds),
-            icon: 'clock', color: '#0891b2', hint: 'DM → Qabul',
-         },
+         // «Murojaatlar» is deliberately NOT here any more (owner, 2026-08-07). The
+         // period's total is the number in the ring's hole, and this tile was the last
+         // place a CARD count appeared on the overview — its hint read «N ta kartochka
+         // yetib bordi». The office reads this panel in complaints; how many people one
+         // complaint was DM'd to belongs on that complaint's own jurnal card, not in a
+         // headline over the whole day.
+         // «O'rtacha javob vaqti» is no longer a tile either (owner, 2026-08-07): it now
+         // leads its own card, with the same figure per person underneath it. A tile
+         // repeating the number two cards above it would be the third place on one screen
+         // claiming to be the period's headline.
          {
             key: 'mistakes', label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
-            icon: 'triangle-exclamation', color: BUCKETS[2].color,
-            hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : 'IT tasdiqlagan',
+            icon: 'triangle-exclamation', color: ALARM_RED,
+            // Only when there IS a queue. «IT tasdiqlagan» used to fill this line
+            // otherwise, which restated the label's own «(tasdiqlangan)» — the hint slot
+            // is for a number the tile would not otherwise carry, not for prose.
+            hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : '',
          },
       ]
+   })
+
+   /** Response time per person, SLOWEST FIRST — the same rule the ranking follows: the
+    *  person the reader is looking for is at the top.
+    *
+    *  Deliberately a ranked bar list and not a second ring (owner asked for a donut,
+    *  2026-08-07). Two reasons, both measured rather than felt:
+    *
+    *    * A donut is parts of a whole, and average response times are not parts of
+    *      anything — they don't sum. The only real part-to-whole here is each person's
+    *      share of the TOTAL wait, which would make the arc mean one quantity while the
+    *      number printed beside it means another: a fat slice labelled «4 daq» next to a
+    *      thin one labelled «20 daq». In a bar, the length IS the number beside it.
+    *    * Slices would need one hue per person, and this panel has no hues left to give.
+    *      The four grades own green / amber / red / blue, and the accent violet #7c5cfc
+    *      sits ΔE 2.5 from the Javobsiz blue under deuteranopia — a violet slice reads as
+    *      «Javobsiz» to a deutan reader, one card below a ring where blue means exactly
+    *      that. One hue for all bars, with the name as the label, has no such problem.
+    *
+    *  `share` is against the SLOWEST person, not against the total: the bar answers "how
+    *  much longer than the worst" — which is the comparison a reader actually makes —
+    *  and it guarantees the top bar is full rather than 8% of a meaningless whole.
+    *
+    *  Only people who actually answered something appear: an average over no accepts is
+    *  not a fast worker, it is no data, and drawing them at 0 would put whoever ignored
+    *  everything at the top of a list of the best. */
+   const responseRows = computed(() => {
+      const rows = filteredWorkers.value
+         .filter((w) => w.avg_response_seconds !== null && w.avg_response_seconds !== undefined)
+         .map((w) => ({
+            telegram_id: w.telegram_id,
+            name: personLabel(w),
+            initials: initials(personLabel(w)),
+            job: jobLabel(w),
+            leaderLevel: isLeaderLevel(w),
+            seconds: w.avg_response_seconds as number,
+            answered: w.accepted || 0,
+            label: dur(w.avg_response_seconds),
+         }))
+         .sort((a, b) => b.seconds - a.seconds)
+      // Scaled against the slowest ACROSS BOTH groups, not per group: two sections each
+      // with a full-width top bar would say the slowest ellikboshi and the slowest xodim
+      // waited the same, which is the one comparison the card exists to make.
+      const worst = rows.length ? rows[0].seconds : 0
+      const withShare = rows.map((r) => ({
+         ...r,
+         // Floor of 4%: somebody who answered in seconds still gets a visible mark, and
+         // an invisible bar reads as missing data rather than as "very fast".
+         share: worst > 0 ? Math.max((r.seconds / worst) * 100, 4) : 4,
+      }))
+      // Ellikboshilar first, then the crew (owner, 2026-08-07). Same split and the same
+      // doctor-rides-with-the-leaders rule as the ranking boards, so a person is never in
+      // one group here and the other one there.
+      return [
+         { key: 'ellikboshi', title: 'Ellikboshilar', rows: withShare.filter((r) => r.leaderLevel) },
+         { key: 'staff', title: 'Ishchi guruh', rows: withShare.filter((r) => !r.leaderLevel) },
+      ].filter((g) => g.rows.length)
    })
 
    /** The confirmed-mistake breakdown as [{label, count}], biggest first. */
@@ -369,94 +502,73 @@ export function useNazoratView() {
          .sort((a, b) => b.count - a.count)
    })
 
-   // ── Ranking ──────────────────────────────────────────────────────────────
-   const rankSort = computed(() => RANK_MODES.find((m) => m.key === rankMode.value)!)
+   // ── Reyting: one pie per outcome, sliced by person ───────────────────────
 
-   /** ACCOUNTABLE = accepted + never_accepted: the cards that stayed theirs. Released /
-    *  undelivered / flagged are excluded, so somebody is never marked down for a card a
-    *  colleague took first or one that never arrived. */
-   const rankRows = computed(() =>
-      filteredWorkers.value.map((w) => {
-         const accountable = (w.accepted || 0) + (w.never_accepted || 0)
-         const rate = accountable ? (w.accepted || 0) / accountable : 0
-         const total = w.dms || 1
-         const segments = BUCKETS
-            .map((b) => ({ key: b.key as string, color: b.color as string, value: (w as any)[b.key] as number }))
-            .concat([{ key: 'other', color: '#e5e7eb', value: uncounted(w) }])
-            .filter((sg) => sg.value > 0)
-            .map((sg) => ({ ...sg, pct: (sg.value / total) * 100 }))
-         return {
-            telegram_id: w.telegram_id,
-            name: personLabel(w),
-            initials: initials(personLabel(w)),
-            role: w.role,
-            leaderLevel: isLeaderLevel(w),
-            job: jobLabel(w),
-            accountable,
-            rate,
-            completed: w.completed || 0,
-            never_accepted: w.never_accepted || 0,
-            avg_response_seconds: w.avg_response_seconds,
-            segments,
-            splitHint: rowSplitHint(w),
-            detail: `${w.accepted || 0}/${accountable} qabul · ${w.completed || 0} bajarildi`
-               + ` · ${w.never_accepted || 0} javobsiz`
-               + (whereLabel(w) !== '—' ? ` · ${whereLabel(w)}` : ''),
+   /** Two boards, ellikboshilar first, and NEVER a mixed one: a crew member and a leader
+    *  do not receive comparable work — the crew get every room/service need for their
+    *  city, a leader only their own group's questions — so one ranking across both would
+    *  say nothing. The doctor rides with the leaders, same rule as everywhere else
+    *  (isLeaderLevel), because they only ever receive health needs.
+    *
+    *  This replaced a sortable table with a lavozim filter and a name filter (owner,
+    *  2026-08-07). The tabs ARE the lavozim filter, and a pie answers the question the
+    *  table made you read for: not "rank these people" but "who are the javobsiz ones". */
+   function pies(rows: Worker[]) {
+      return BUCKETS.map((b) => {
+         const ramp = RATING_RAMPS[b.key]
+         const people = rows
+            .map((w) => ({
+               telegram_id: w.telegram_id,
+               name: personLabel(w),
+               initials: initials(personLabel(w)),
+               job: jobLabel(w),
+               value: ((w as any)[b.key] as number) || 0,
+            }))
+            .filter((p) => p.value > 0)
+            .sort((a, c) => c.value - a.value)
+         const total = people.reduce((sum, p) => sum + p.value, 0)
+         const head = people.slice(0, PIE_MAX)
+         const tail = people.slice(PIE_MAX)
+         const slices = head.map((p, i) => ({
+            ...p, color: ramp[i], pct: total ? (p.value / total) * 100 : 0,
+         }))
+         if (tail.length) {
+            // Not a person, so deliberately NOT tappable: telegram_id 0 opens nothing.
+            // The count is still honest — silently dropping the tail would make five
+            // people look like the whole board.
+            const rest = tail.reduce((sum, p) => sum + p.value, 0)
+            slices.push({
+               telegram_id: 0, name: `Yana ${tail.length} kishi`, initials: '+',
+               job: '', value: rest, color: ramp[PIE_MAX],
+               pct: total ? (rest / total) * 100 : 0,
+            })
          }
-      }),
-   )
-
-   /** Best first for the two "good" measures, worst first for Javobsiz — in every mode
-    *  the TOP of the list is the person the reader is looking for. */
-   function rankList(rows: any[]) {
-      const m = rankMode.value
-      const sorted = [...rows].sort((a, b) =>
-         m === 'rate' ? (b.rate - a.rate) || (b.completed - a.completed)
-            : m === 'completed' ? (b.completed - a.completed) || (b.rate - a.rate)
-               : (b.never_accepted - a.never_accepted) || (a.rate - b.rate))
-      return sorted.map((r) => {
-         // Tone judges the VALUE, never the position: with a weak team the best response
-         // rate can still be poor, and a green "1" beside a red 44% would contradict itself.
-         const tone: 'good' | 'bad' | 'plain' =
-            m === 'never_accepted' ? (r.never_accepted ? 'bad' : 'good')
-               : m === 'completed' ? (r.completed ? 'good' : 'plain')
-                  : r.rate >= 0.8 ? 'good' : r.rate < 0.5 ? 'bad' : 'plain'
+         // Geometry attached here rather than called from the template: the template
+         // needs two values per slice, and a helper called per binding would rebuild the
+         // whole ring's arithmetic once for every arc it draws.
+         const geo = ringDashes(slices.map((sl) => sl.pct), PIE_R)
          return {
-            ...r,
-            tone,
-            headline: m === 'rate' ? `${Math.round(r.rate * 100)}%`
-               : m === 'completed' ? String(r.completed) : String(r.never_accepted),
-            headlineColor: tone === 'good' ? BUCKETS[0].color
-               : tone === 'bad' ? (m === 'never_accepted' ? BUCKETS[3].color : BUCKETS[2].color)
-                  : '#6b7280',
+            key: b.key, label: b.label, color: b.color, hint: b.hint, total,
+            slices: slices.map((sl, i) => ({ ...sl, ...geo[i] })),
          }
       })
    }
 
-   /** One board per POPULATION, never a mixed one. A crew member and an ellikboshi do not
-    *  receive comparable work, so ranking them against each other would say nothing. */
-   const rankGroups = computed(() => {
-      const byVolume = (a: any, b: any) => b.accountable - a.accountable
-      const build = (key: string, title: string, rows: any[]) => ({
-         key, title,
-         rows: rankList(rows.filter((r) => r.accountable >= MIN_RANK_CARDS)),
-         // Too few cards to rank fairly — kept beside their own board, never hidden:
-         // "received almost nothing" is itself worth seeing.
-         unranked: rows.filter((r) => r.accountable < MIN_RANK_CARDS).sort(byVolume),
-      })
-      if (s.scope !== 'all' || s.filterRole) {
-         return [build('one', `${personWord.value}lar`, rankRows.value)]
-      }
-      // The doctor rides with the ellikboshilar (see isLeaderLevel) — they receive only
-      // health needs, so their handful of cards would read as neglect on the crew's board.
-      return [
-         build('staff', 'Xodimlar', rankRows.value.filter((r) => !r.leaderLevel)),
-         build('ellikboshi', 'Ellikboshilar', rankRows.value.filter((r) => r.leaderLevel)),
-      ].filter((g) => g.rows.length || g.unranked.length)
-   })
+   const ratingBoards = computed(() => [
+      {
+         key: 'ellikboshi', title: 'Ellikboshilar',
+         people: filteredWorkers.value.filter((w) => isLeaderLevel(w)),
+      },
+      {
+         key: 'staff', title: 'Ishchi guruh',
+         people: filteredWorkers.value.filter((w) => !isLeaderLevel(w)),
+      },
+   ].filter((b) => b.people.length).map((b) => ({ ...b, pies: pies(b.people) })))
 
-   const hasRanking = computed(() =>
-      rankGroups.value.some((g) => g.rows.length || g.unranked.length))
+   /** The board actually shown. A scoped controller only ever has one, and the tab they
+    *  last chose may not exist in it — falling back rather than rendering nothing. */
+   const ratingBoard = computed(() =>
+      ratingBoards.value.find((b) => b.key === ratingTab.value) || ratingBoards.value[0] || null)
 
    // ── The drill-down ───────────────────────────────────────────────────────
 
@@ -473,7 +585,13 @@ export function useNazoratView() {
          const w = s.workers.find((x) => x.telegram_id === rec.telegram_id)
          return (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id)
       }
-      const taker = recs.find((rec) => rec.accepted_at)
+      // The EARLIEST accept, not whichever row came back first: accepting a staff card
+      // releases the colleagues so a need normally has one taker, but a leader card
+      // releases nobody and two ellikboshilar can both claim one need. Taking the first
+      // means this and the server's _need_outcome grade off the same row — the overview's
+      // counts ARE this list counted, so they cannot classify a need differently.
+      const taker = recs.filter((rec) => rec.accepted_at)
+         .sort((a, b) => new Date(a.accepted_at).getTime() - new Date(b.accepted_at).getTime())[0]
       const flagger = recs.find((rec) => rec.flagged_at && !rec.accepted_at)
       const reached = recs.filter((rec) => rec.delivered)
 
@@ -485,16 +603,17 @@ export function useNazoratView() {
       if (taker) {
          const wait = durBetween(taker.dm_sent_at, taker.accepted_at)
          if (taker.reopened_count > 0) {
-            return { key: 'reopened', label: 'Bajarilmagan', color: BUCKETS[2].color,
+            return { key: 'reopened', label: 'Bajarilmagan', color: BUCKET.reopened.color,
                icon: 'circle-exclamation',
-               detail: `${nameOf(taker)} qabul qildi, ziyoratchi qayta so'radi` }
+               detail: `${nameOf(taker)} qabul qildi, ziyoratchi keyin yana so'radi` }
          }
-         if (r.parent_request_id && !r.reopen_dismissed) {
-            return { key: 're_requests', label: "Takroriy so'rov", color: BUCKETS[1].color,
-               icon: 'arrows-rotate', detail: `${nameOf(taker)} · ${wait}` }
-         }
-         return { key: 'completed', label: 'Bajarildi', color: BUCKETS[0].color,
-            icon: 'circle-check', detail: `${nameOf(taker)} · ${wait}` }
+         // A repeat is NOT a separate outcome — it is done, by whoever took it. The row
+         // still says so, in the detail and in the «Takroriy» badge the jurnal prints
+         // before the text, but the GRADE is the same green a first-time need gets.
+         return { key: 'completed', label: 'Bajarildi', color: BUCKET.completed.color,
+            icon: 'circle-check',
+            detail: `${nameOf(taker)} · ${wait}`
+               + (r.parent_request_id && !r.reopen_dismissed ? " · oldin ham so'ralgan" : '') }
       }
       if (flagger) {
          // Slate, deliberately outside the four-colour vocabulary. A card marked
@@ -510,7 +629,7 @@ export function useNazoratView() {
       // Delivered to somebody, taken by nobody.
       const oldest = reached.reduce((a, b) =>
          new Date(a.dm_sent_at || 0) < new Date(b.dm_sent_at || 0) ? a : b)
-      return { key: 'never_accepted', label: 'Javobsiz', color: BUCKETS[3].color,
+      return { key: 'never_accepted', label: 'Javobsiz', color: BUCKET.never_accepted.color,
          icon: 'clock',
          detail: `${reached.length} ta ${personWordLower.value}ga bordi · `
             + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
@@ -571,35 +690,6 @@ export function useNazoratView() {
          .sort((a, b) => b.count - a.count)
    })
 
-   /** The needs behind «Javobsiz qolgan», each with the people it reached who never took
-    *  it — and the JOB each of them holds, which explains why they were asked. */
-   const unansweredNeeds = computed(() => {
-      const byId = new Map(s.workers.map((w) => [w.telegram_id, w]))
-      const out: any[] = []
-      for (const r of s.requests) {
-         const ignored = (r.recipients || []).filter((rec: any) =>
-            rec.delivered && !rec.accepted_at && !rec.flagged_at && !rec.released_at)
-         if (!ignored.length) continue
-         out.push({
-            id: r.id, text: r.text, created_at: r.created_at,
-            group_label: r.group_title || `Guruh ${r.chat_id}`,
-            city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
-            message_link: r.message_link,
-            ignored: ignored.map((rec: any) => {
-               const w = byId.get(rec.telegram_id)
-               return {
-                  telegram_id: rec.telegram_id,
-                  name: (w && personLabel(w)) || rec.username || ('ID ' + rec.telegram_id),
-                  role: rec.role,
-                  leaderLevel: w ? isLeaderLevel(w) : rec.role === 'ellikboshi',
-                  job: w ? jobLabel(w) : (rec.role === 'ellikboshi' ? 'Ellikboshi' : 'Xodim'),
-               }
-            }),
-         })
-      }
-      return out
-   })
-
    /** One request turned into a plain Uzbek sentence, plus the colour of its outcome.
     *  Still used on a PERSON's own screen, where the question really is "what did THIS
     *  person do about it" and a released card is a real answer. */
@@ -630,23 +720,25 @@ export function useNazoratView() {
       if (!e.accepted_at)   // delivered but never taken
          return {
             text: `${sent} da yuborildi. ${who} hali qabul qilmadi (javobsiz: ${durBetween(e.dm_sent_at, null)}).`,
-            rail: BUCKETS[3].color, ink: '#1d4ed8',
+            rail: BUCKET.never_accepted.color, ink: '#1d4ed8',
          }
       const acc = fmtTime(e.accepted_at)
       const wait = durBetween(e.dm_sent_at, e.accepted_at)
+      // The two ends of one event again — see BUCKETS. On this screen the sentences are
+      // long enough to say which ask the card is outright, so they do.
       if (e.reopened_count > 0)   // accepted, but the pilgrim came back -> false completion
          return {
-            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi qayta so'radi. Bajarilmagan.`,
-            rail: BUCKETS[2].color, ink: '#b91c1c',
+            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi keyin yana so'radi. Bajarilmagan.`,
+            rail: BUCKET.reopened.color, ink: '#a16207',
          }
       if (e.parent_request_id && !e.reopen_dismissed)   // accepted follow-up
          return {
-            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Takroriy so'rov, bajarildi.`,
-            rail: BUCKETS[1].color, ink: INK,
+            text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Ziyoratchi buni oldin ham so'ragan edi — takroriy so'rov.`,
+            rail: BUCKET.completed.color, ink: INK,
          }
       return {   // clean single-pass completion
          text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Bajarildi.`,
-         rail: BUCKETS[0].color, ink: INK,
+         rail: BUCKET.completed.color, ink: INK,
       }
    }
 
@@ -685,10 +777,11 @@ export function useNazoratView() {
 
    return {
       personWord, personWordLower, scopeTitle, isStaffScope, isLeaderScope,
-      groupChoices, filteredWorkers, workerNameOptions,
+      groupChoices, filteredWorkers,
       problems, activeProblems, clearedCount,
-      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds,
-      rankSort, rankGroups, hasRanking,
-      feed, journalPeople, unansweredNeeds, entriesFor,
+      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseRows,
+      reopenedNeeds,
+      ratingBoards, ratingBoard,
+      feed, journalPeople, entriesFor,
    }
 }

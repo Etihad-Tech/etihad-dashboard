@@ -5,29 +5,7 @@
            the days when nothing was wrong. It now lives behind the bell in the title
            bar, which carries the count. See Ogohlantirishlar.vue. -->
 
-      <!-- ──────────────── 1. THE HEADLINE ────────────────
-           One figure, given the whole card. The composition bar used to sit under it,
-           which quietly implied the two were the same set of things: they are not. This
-           number counts NEEDS (13 murojaat) while the bar counts RECIPIENT ROWS (17
-           kartochka), and the two denominators sitting in one card with no boundary
-           between them is how a reader ends up thinking 13 and 17 must reconcile. The
-           bar now lives in section 3, directly above the legend that states its total. -->
-      <section v-if="headline" class="card p-5 n-enter" style="--i: 0">
-         <div class="flex items-start gap-3.5">
-            <span class="n-ico" :style="{ '--c': headline.color }">
-               <font-awesome-icon :icon="headline.icon" class="w-[18px] h-[18px]" />
-            </span>
-            <div class="min-w-0 flex-1">
-               <p class="n-tile-label">{{ headline.label }}</p>
-               <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-1.5">
-                  {{ headline.value }}
-               </p>
-               <p class="n-tile-hint mt-2.5">{{ headline.hint }}</p>
-            </div>
-         </div>
-      </section>
-
-      <!-- ──────────────── 2. THE VERDICT ────────────────
+      <!-- ──────────────── 1. THE VERDICT ────────────────
            The donut and the legend that explains it, in one card, with the total they are
            both drawn from held in the ring's centre. The hint under every line is the
            owner's wording, kept verbatim (2026-07-31).
@@ -35,25 +13,33 @@
            A ring rather than the old stacked bar (owner, 2026-08-06). Four shares of one
            whole is what a donut is for, and the hole gives the denominator a home — so
            the card no longer has to open by spelling out «Jami N ta kartochka» in prose
-           above a bar whose total was stated nowhere on it. -->
+           above a bar whose total was stated nowhere on it.
+
+           The «Murojaatlar» headline used to lead this page and is gone (owner,
+           2026-08-07). It was the period's total, which is what the ring's hole now
+           holds — and it carried the only card-unit number on the screen, «N ta
+           kartochka yetib bordi», which the office does not read the panel for. The
+           fan-out is still on every jurnal card that has one («5 ta xodimga bordi»),
+           where it explains that one complaint rather than colouring the whole day. -->
       <section class="card p-5 n-enter" style="--i: 1">
+         <!-- No subtitle. The owner reads this panel every day and does not need the
+              screen explained to them each time (2026-08-07); the four category lines
+              below are the only prose kept, because they define what the colours MEAN
+              and that is not deducible from a label. -->
          <h3 class="n-h">{{ personWord }} javoblari</h3>
-         <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
-            Har bir {{ personWordLower }} uchun alohida sanaladi
-         </p>
 
          <!-- Every slice opens the same filtered Jurnal its legend row does, so the tap
               lands wherever the eye happened to stop. The slices are aria-hidden and the
               ring carries one description instead: each one already has a real <button>
               in the legend below, and a screen reader offered both would read the same
-              four destinations twice. -->
+              destinations twice. -->
          <div class="n-donut-wrap mt-5 mb-1">
             <svg class="n-donut" viewBox="0 0 120 120" role="img" :aria-label="donutLabel">
                <g class="n-donut-rot">
                   <g transform="rotate(-90 60 60)">
-                     <circle class="n-donut-track" cx="60" cy="60" r="46" />
+                     <circle class="n-donut-track" cx="60" cy="60" :r="R" />
                      <circle v-for="sg in donutSegments" :key="sg.key" class="n-donut-seg"
-                        cx="60" cy="60" r="46" :stroke="sg.color"
+                        cx="60" cy="60" :r="R" :stroke="sg.color"
                         :stroke-dasharray="sg.dash" :stroke-dashoffset="sg.offset"
                         aria-hidden="true" @click="openJurnal(sg.key)">
                         <title>{{ sg.label }}: {{ sg.value }} ({{ sg.pctLabel }})</title>
@@ -66,7 +52,7 @@
                   :class="bucketTotal ? '' : 'text-[color:var(--n-faint)]'">
                   {{ bucketTotal }}
                </p>
-               <p class="text-[12.5px] text-[color:var(--n-muted)] mt-1.5">kartochka</p>
+               <p class="text-[12.5px] text-[color:var(--n-muted)] mt-1.5">murojaat</p>
             </div>
          </div>
 
@@ -94,6 +80,14 @@
                   <p class="text-[13.5px] text-[color:var(--n-muted)] leading-snug mt-1">
                      {{ b.hint }}
                   </p>
+                  <!-- Takroriy, as the SUBSET it is. It used to be a fourth slice, which
+                       counted one repeat twice — amber on the ask that proved the failure
+                       and red on the ask that caused it — and put the person who picked
+                       the complaint up and fixed it outside «Bajarildi». -->
+                  <p v-if="b.key === 'completed' && takroriy"
+                     class="text-[13.5px] text-[color:var(--n-faint)] leading-snug mt-1">
+                     shundan {{ takroriy }} tasi — ziyoratchi oldin ham so'ragan edi
+                  </p>
                </div>
                <div class="shrink-0 flex items-center gap-1.5">
                   <div class="text-right">
@@ -110,15 +104,82 @@
                </div>
             </button>
          </div>
+
+         <!-- The 🟡/🔴 pairing note that sat here is gone with the other prose. What
+              stays is this: not a description but a COUNT, and the one number that would
+              otherwise be missing from the screen entirely. Without it the ring reads as
+              the whole period while the Jurnal's «Hammasi» quietly says something else —
+              which is the exact defect this screen was fixed for. It renders only when
+              there is a remainder, so on an ordinary day the card ends at the legend. -->
+         <p v-if="ungraded"
+            class="mt-3 pt-3 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
+            style="border-top: 1px solid var(--n-line-soft)">
+            Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
+            («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
+         </p>
+      </section>
+
+      <!-- ──────────────── 2. HOW LONG THE PILGRIM WAITED ────────────────
+           The period's average given the lead position, and under it the same figure per
+           person, slowest first — the office asked for the overall number "in the centre"
+           and the people around it (owner, 2026-08-07).
+
+           A ranked bar list rather than a second ring, for reasons that are measured
+           rather than felt — see responseRows in shared.ts. Short version: averages are
+           not parts of a whole, so an arc would have to encode a DIFFERENT quantity from
+           the number printed beside it; and a slice per person needs a hue per person,
+           which this panel cannot give (the violet accent sits ΔE 2.5 from the Javobsiz
+           blue under deuteranopia). Here the bar's length IS the number beside it, and
+           one hue serves every row because the name does the identifying. -->
+      <section v-if="responseRows.length" class="card p-5 n-enter" style="--i: 2">
+         <h3 class="n-h">O'rtacha javob vaqti</h3>
+
+         <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-3"
+            :class="s.report && s.report.avg_response_seconds !== null ? '' : 'text-[color:var(--n-faint)]'">
+            {{ dur(s.report ? s.report.avg_response_seconds : null) }}
+         </p>
+
+         <!-- Ellikboshilar, then Ishchi guruh. Every row opens that person's own screen,
+              the same rule the ranking rows follow: a number about somebody is a way in
+              to their evidence. -->
+         <div v-for="(g, gi) in responseRows" :key="g.key" class="space-y-0.5"
+            :class="gi ? 'mt-5 pt-4' : 'mt-5'"
+            :style="gi ? 'border-top: 1px solid var(--n-line-soft)' : ''">
+            <p class="n-tile-label mb-1.5">{{ g.title }}</p>
+            <button v-for="r in g.rows" :key="r.telegram_id" type="button"
+               class="row-tap w-full flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-[1.125rem]"
+               @click="openPerson(r.telegram_id)">
+               <span class="n-avatar" :class="r.leaderLevel ? 'n-avatar-leader' : ''">
+                  {{ r.initials }}
+               </span>
+               <div class="min-w-0 flex-1 text-left">
+                  <p class="text-[15px] font-semibold tracking-[-0.015em] truncate">{{ r.name }}</p>
+                  <div class="n-meter mt-2" style="--c: #7c5cfc">
+                     <i :style="{ width: r.share + '%' }"></i>
+                  </div>
+               </div>
+               <!-- Fixed width, so every meter shares one track edge. Left to size itself
+                    the column is as wide as its own text, and «2 soat 35 daq» next to
+                    «14 daq» made the bars underneath start together and end ragged —
+                    which reads as a difference in the data rather than in the labels. -->
+               <div class="shrink-0 text-right min-w-[5.75rem]">
+                  <p class="text-[15px] font-bold tabular-nums leading-none">{{ r.label }}</p>
+                  <p class="text-[12.5px] text-[color:var(--n-faint)] tabular-nums mt-1.5">
+                     {{ r.answered }} ta javob
+                  </p>
+               </div>
+            </button>
+         </div>
       </section>
 
       <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
            Tiles rather than a divided strip. Same numbers, same wording: «O'rtacha javob
            vaqti» is the owner's phrase and a tile lets it WRAP instead of being clipped
            to «O'rtacha jav…», which was the old row's only way of fitting it. -->
-      <section v-if="sideStats.length" class="grid grid-cols-2 gap-3">
-         <div v-for="(c, i) in sideStats" :key="c.key" class="n-tile n-enter"
-            :style="{ '--i': 2 + i }">
+      <section v-if="contextStats.length" class="grid gap-3"
+         :class="contextStats.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
+         <div v-for="(c, i) in contextStats" :key="c.key" class="n-tile n-enter"
+            :style="{ '--i': 3 + i }">
             <span class="n-ico n-ico-sm" :style="{ '--c': c.color }">
                <font-awesome-icon :icon="c.icon" class="w-4 h-4" />
             </span>
@@ -148,11 +209,10 @@
            the recording entirely, so the nazoratchi does not get them (the API enforces
            it too; this only avoids showing a button that 403s) -->
       <section v-if="isAdmin" class="card p-5 n-enter" style="--i: 5">
-         <h3 class="n-h mb-1.5">Sozlamalar</h3>
-         <p class="text-[13.5px] text-[color:var(--n-muted)] leading-snug mb-5">
-            Bir xil so'rov qayta kelganda: xodim uchun oyna tugagach, yangi so'rov;
-            ellikboshi uchun 0 = hech qachon tugamaydi (doim hal qilinmagan deb sanaladi).
-         </p>
+         <!-- The paragraph explaining the two windows is gone with the other prose. What
+              it actually had to say is in the field labels, where it belongs: the unit
+              (soat) and the one non-obvious value (0 = cheksiz). -->
+         <h3 class="n-h mb-5">Sozlamalar</h3>
          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                <label class="lbl">Xodim oynasi (soat)</label>
@@ -195,7 +255,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { useNazoratView } from './shared'
+import { PIE_R as R, dur, ringDashes, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()
@@ -216,59 +276,57 @@ async function openJurnal(key: string) {
          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
    }
 }
+/** A person's own screen — where their response time, and everything else about them,
+ *  is evidence rather than a single figure. */
+function openPerson(id: number) {
+   router.push(`/ai/nazorat/xodim/${id}`)
+}
+
 const {
-   personWord, personWordLower, bucketRows, bucketTotal, bucketSegments,
-   contextStats, errorKinds,
+   personWord, bucketRows, bucketTotal, bucketSegments,
+   contextStats, errorKinds, responseRows,
 } = useNazoratView()
 
 /** ── The composition donut ────────────────────────────────────────────────────
- *  One ring, drawn as four dashes on one circle rather than four arc paths: a dash is
- *  a length along the circumference, which is exactly what a share of a whole is, so
- *  there is no arc-sweep arithmetic to get wrong at the 100% and 0% ends.
+ *  One ring, drawn as dashes on one circle rather than as arc paths: a dash is a length
+ *  along the circumference, which is exactly what a share of a whole is, so there is no
+ *  arc-sweep arithmetic to get wrong at the 100% and 0% ends.
  *
- *  Geometry lives here rather than in shared.ts because it is this screen's drawing,
- *  not the panel's vocabulary — the numbers themselves come from `bucketSegments`,
- *  which the ranking rows and a person's screen read too. */
-const R = 46
-const C = 2 * Math.PI * R
-/** The 3-unit gap between neighbours, the ring's version of the split bar's 2px one:
- *  at these widths a gap separates two adjacent colours more reliably than a hue
- *  change does. A lone 100% slice gets none — there is no neighbour to separate it
- *  from, and the gap would read as a nick out of a full circle. */
-const GAP = 3
-
+ *  The arithmetic itself lives in shared.ts now that Reyting draws rings too — two
+ *  copies of it would drift, and a gap rule that differed by a unit between screens is
+ *  the kind of thing nobody notices and everybody feels. */
 const donutSegments = computed(() => {
    const segs = bucketSegments.value
-   const gap = segs.length > 1 ? GAP : 0
-   let start = 0
-   return segs.map((sg) => {
-      const len = (sg.pct / 100) * C
-      // Floor of 1 unit: a slice that is one card out of several hundred still has to
-      // be visible, and the length it loses is under a pixel at any size we draw at.
-      const dash = Math.max(len - gap, 1)
-      const seg = {
-         key: sg.key, label: sg.label, color: sg.color, value: sg.value,
-         pctLabel: sg.pctLabel,
-         dash: `${dash} ${C - dash}`,
-         offset: -start,
-      }
-      start += len
-      return seg
-   })
+   const geo = ringDashes(segs.map((sg) => sg.pct), R)
+   return segs.map((sg, i) => ({
+      key: sg.key, label: sg.label, color: sg.color, value: sg.value,
+      pctLabel: sg.pctLabel, ...geo[i],
+   }))
 })
 
 /** The ring's single description, in the order the slices are drawn. */
 const donutLabel = computed(() => {
-   if (!bucketTotal.value) return 'Kartochka yo\'q'
+   if (!bucketTotal.value) return 'Murojaat yo\'q'
    const parts = bucketSegments.value.map((sg) => `${sg.label} ${sg.value} (${sg.pctLabel})`)
-   return `Jami ${bucketTotal.value} ta kartochka: ${parts.join(', ')}`
+   return `Jami ${bucketTotal.value} ta murojaat: ${parts.join(', ')}`
 })
 
-/** The design's hero figure is the first context stat (Murojaatlar); the other two sit
- *  beside each other as tiles. Split here rather than in the composable so the numbers
- *  and their wording stay defined in exactly one place. */
-const headline = computed(() => contextStats.value[0] || null)
-const sideStats = computed(() => contextStats.value.slice(1))
+/** The needs the ring cannot grade: ruled «Xatolik» (a verdict on the BOT, deliberately
+ *  outside the four-colour vocabulary) or never delivered to anyone they were sent to.
+ *
+ *  The ring's hole holds what the slices SUM TO, which is the only number a donut's
+ *  centre can honestly hold. Since it is now the period's only total on this screen,
+ *  anything it leaves out has to be said out loud — otherwise the ring reads as the
+ *  whole day and the Jurnal's «Hammasi» quietly disagrees with it, which is the very
+ *  defect this screen was just fixed for. */
+const ungraded = computed(() =>
+   Math.max(0, (s.report?.requests || 0) - bucketTotal.value))
+
+/** How many of the completions were needs the pilgrim had already raised once. A subset
+ *  of Bajarildi, never a bucket beside it — adding it to the ring would count one
+ *  complaint twice. */
+const takroriy = computed(() => s.report?.re_requests || 0)
+
 
 // Only the admin may tune the control system (the API enforces it; this hides the form).
 const isAdmin = computed(() => !auth.role || auth.role === 'admin')

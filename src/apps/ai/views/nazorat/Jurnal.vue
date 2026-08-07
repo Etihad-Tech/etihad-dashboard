@@ -176,7 +176,10 @@ const filters = computed(() => {
       { key: 'all', label: 'Hammasi', count: feed.value.length },
       { key: 'never_accepted', label: 'Javobsiz', count: n('never_accepted') },
       { key: 'reopened', label: 'Bajarilmagan', count: n('reopened') },
-      { key: 're_requests', label: 'Takroriy', count: n('re_requests') },
+      // The one chip that is NOT an outcome: «Takroriy» cuts across the grades, because
+      // a repeat is a property of the complaint and not a verdict on the worker (see
+      // BUCKETS). A takroriy need is graded Bajarildi and still answers this chip.
+      { key: 'repeat', label: 'Takroriy', count: feed.value.filter((r) => r.is_repeat).length },
       { key: 'completed', label: 'Bajarildi', count: n('completed') },
       { key: 'flagged', label: 'Xatolik', count: n('flagged') },
       // Empty outcomes are dropped, EXCEPT the one currently selected: arriving from an
@@ -187,7 +190,9 @@ const filters = computed(() => {
 })
 
 const rows = computed(() =>
-   filter.value === 'all' ? feed.value : feed.value.filter((r) => r.outcome.key === filter.value))
+   filter.value === 'all' ? feed.value
+      : filter.value === 'repeat' ? feed.value.filter((r) => r.is_repeat)
+         : feed.value.filter((r) => r.outcome.key === filter.value))
 
 // This screen is the reason the drill-down exists, so it is the one that pays for it.
 onMounted(() => s.loadRequests())
