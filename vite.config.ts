@@ -14,8 +14,28 @@ import tailwindcss from '@tailwindcss/vite'
  *
  *  /team-api is proxied too because the login posts to BOTH apis (see stores/auth.ts).
  *  It is usually not running locally; that call failing is already the normal path. */
+/** The same proxy for `vite preview`, which serves the real production BUILD. On a phone
+ *  that is worth reaching for: the dev server ships raw ES modules plus an HMR socket,
+ *  and a browser that chokes on either renders a blank page with the failure only in a
+ *  console you cannot open on iOS. The built bundle is transpiled to the browser targets
+ *  the app actually ships to, so it is both the safer thing to test on a phone and the
+ *  thing that will really be deployed. */
+const apiProxy = {
+  '/ai-api': {
+    target: 'http://localhost:8000',
+    changeOrigin: true,
+    rewrite: (p: string) => p.replace(/^\/ai-api/, ''),
+  },
+  '/team-api': {
+    target: 'http://localhost:8001',
+    changeOrigin: true,
+    rewrite: (p: string) => p.replace(/^\/team-api/, ''),
+  },
+}
+
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  preview: { proxy: apiProxy },
   server: {
     proxy: {
       '/ai-api': {
