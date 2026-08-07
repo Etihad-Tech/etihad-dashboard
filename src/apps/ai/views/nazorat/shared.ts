@@ -363,16 +363,63 @@ export function useNazoratView() {
          // yetib bordi». The office reads this panel in complaints; how many people one
          // complaint was DM'd to belongs on that complaint's own jurnal card, not in a
          // headline over the whole day.
-         {
-            key: 'avg', label: "O'rtacha javob vaqti", value: dur(r.avg_response_seconds),
-            icon: 'clock', color: '#0891b2', hint: 'DM → Qabul',
-         },
+         // «O'rtacha javob vaqti» is no longer a tile either (owner, 2026-08-07): it now
+         // leads its own card, with the same figure per person underneath it. A tile
+         // repeating the number two cards above it would be the third place on one screen
+         // claiming to be the period's headline.
          {
             key: 'mistakes', label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
             icon: 'triangle-exclamation', color: BUCKETS[2].color,
             hint: r.flags_pending ? `${r.flags_pending} ta kutilmoqda` : 'IT tasdiqlagan',
          },
       ]
+   })
+
+   /** Response time per person, SLOWEST FIRST — the same rule the ranking follows: the
+    *  person the reader is looking for is at the top.
+    *
+    *  Deliberately a ranked bar list and not a second ring (owner asked for a donut,
+    *  2026-08-07). Two reasons, both measured rather than felt:
+    *
+    *    * A donut is parts of a whole, and average response times are not parts of
+    *      anything — they don't sum. The only real part-to-whole here is each person's
+    *      share of the TOTAL wait, which would make the arc mean one quantity while the
+    *      number printed beside it means another: a fat slice labelled «4 daq» next to a
+    *      thin one labelled «20 daq». In a bar, the length IS the number beside it.
+    *    * Slices would need one hue per person, and this panel has no hues left to give.
+    *      The four grades own green / amber / red / blue, and the accent violet #7c5cfc
+    *      sits ΔE 2.5 from the Javobsiz blue under deuteranopia — a violet slice reads as
+    *      «Javobsiz» to a deutan reader, one card below a ring where blue means exactly
+    *      that. One hue for all bars, with the name as the label, has no such problem.
+    *
+    *  `share` is against the SLOWEST person, not against the total: the bar answers "how
+    *  much longer than the worst" — which is the comparison a reader actually makes —
+    *  and it guarantees the top bar is full rather than 8% of a meaningless whole.
+    *
+    *  Only people who actually answered something appear: an average over no accepts is
+    *  not a fast worker, it is no data, and drawing them at 0 would put whoever ignored
+    *  everything at the top of a list of the best. */
+   const responseRows = computed(() => {
+      const rows = filteredWorkers.value
+         .filter((w) => w.avg_response_seconds !== null && w.avg_response_seconds !== undefined)
+         .map((w) => ({
+            telegram_id: w.telegram_id,
+            name: personLabel(w),
+            initials: initials(personLabel(w)),
+            job: jobLabel(w),
+            leaderLevel: isLeaderLevel(w),
+            seconds: w.avg_response_seconds as number,
+            answered: w.accepted || 0,
+            label: dur(w.avg_response_seconds),
+         }))
+         .sort((a, b) => b.seconds - a.seconds)
+      const worst = rows.length ? rows[0].seconds : 0
+      return rows.map((r) => ({
+         ...r,
+         // Floor of 4%: somebody who answered in seconds still gets a visible mark, and
+         // an invisible bar reads as missing data rather than as "very fast".
+         share: worst > 0 ? Math.max((r.seconds / worst) * 100, 4) : 4,
+      }))
    })
 
    /** The confirmed-mistake breakdown as [{label, count}], biggest first. */
@@ -720,7 +767,7 @@ export function useNazoratView() {
       personWord, personWordLower, scopeTitle, isStaffScope, isLeaderScope,
       groupChoices, filteredWorkers, workerNameOptions,
       problems, activeProblems, clearedCount,
-      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds,
+      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseRows,
       rankSort, rankGroups, hasRanking,
       feed, journalPeople, unansweredNeeds, entriesFor,
    }

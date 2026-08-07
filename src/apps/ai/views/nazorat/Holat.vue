@@ -116,13 +116,67 @@
          </div>
       </section>
 
-      <!-- ──────────────── 2. THE PERIOD'S OTHER TWO FACTS ────────────────
+      <!-- ──────────────── 2. HOW LONG THE PILGRIM WAITED ────────────────
+           The period's average given the lead position, and under it the same figure per
+           person, slowest first — the office asked for the overall number "in the centre"
+           and the people around it (owner, 2026-08-07).
+
+           A ranked bar list rather than a second ring, for reasons that are measured
+           rather than felt — see responseRows in shared.ts. Short version: averages are
+           not parts of a whole, so an arc would have to encode a DIFFERENT quantity from
+           the number printed beside it; and a slice per person needs a hue per person,
+           which this panel cannot give (the violet accent sits ΔE 2.5 from the Javobsiz
+           blue under deuteranopia). Here the bar's length IS the number beside it, and
+           one hue serves every row because the name does the identifying. -->
+      <section v-if="responseRows.length" class="card p-5 n-enter" style="--i: 2">
+         <h3 class="n-h">O'rtacha javob vaqti</h3>
+         <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1 leading-snug">
+            Kartochka yuborilgandan «Qabul qildim» bosilgunicha
+         </p>
+
+         <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-4"
+            :class="s.report && s.report.avg_response_seconds !== null ? '' : 'text-[color:var(--n-faint)]'">
+            {{ dur(s.report ? s.report.avg_response_seconds : null) }}
+         </p>
+         <p class="n-tile-hint mt-2">Butun davr bo'yicha</p>
+
+         <!-- Every row opens that person's own screen, the same rule the ranking rows
+              follow: a number about somebody is a way in to their evidence. -->
+         <div class="mt-5 space-y-0.5">
+            <button v-for="r in responseRows" :key="r.telegram_id" type="button"
+               class="row-tap w-full flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-[1.125rem]"
+               @click="openPerson(r.telegram_id)">
+               <span class="n-avatar" :class="r.leaderLevel ? 'n-avatar-leader' : ''">
+                  {{ r.initials }}
+               </span>
+               <div class="min-w-0 flex-1 text-left">
+                  <p class="text-[15px] font-semibold tracking-[-0.015em] truncate">{{ r.name }}</p>
+                  <div class="n-meter mt-2" style="--c: #7c5cfc">
+                     <i :style="{ width: r.share + '%' }"></i>
+                  </div>
+               </div>
+               <!-- Fixed width, so every meter shares one track edge. Left to size itself
+                    the column is as wide as its own text, and «2 soat 35 daq» next to
+                    «14 daq» made the bars underneath start together and end ragged —
+                    which reads as a difference in the data rather than in the labels. -->
+               <div class="shrink-0 text-right min-w-[5.75rem]">
+                  <p class="text-[15px] font-bold tabular-nums leading-none">{{ r.label }}</p>
+                  <p class="text-[12.5px] text-[color:var(--n-faint)] tabular-nums mt-1.5">
+                     {{ r.answered }} ta javob
+                  </p>
+               </div>
+            </button>
+         </div>
+      </section>
+
+      <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
            Tiles rather than a divided strip. Same numbers, same wording: «O'rtacha javob
            vaqti» is the owner's phrase and a tile lets it WRAP instead of being clipped
            to «O'rtacha jav…», which was the old row's only way of fitting it. -->
-      <section v-if="contextStats.length" class="grid grid-cols-2 gap-3">
+      <section v-if="contextStats.length" class="grid gap-3"
+         :class="contextStats.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
          <div v-for="(c, i) in contextStats" :key="c.key" class="n-tile n-enter"
-            :style="{ '--i': 2 + i }">
+            :style="{ '--i': 3 + i }">
             <span class="n-ico n-ico-sm" :style="{ '--c': c.color }">
                <font-awesome-icon :icon="c.icon" class="w-4 h-4" />
             </span>
@@ -199,7 +253,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { BUCKETS, useNazoratView } from './shared'
+import { BUCKETS, dur, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()
@@ -220,9 +274,15 @@ async function openJurnal(key: string) {
          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
    }
 }
+/** A person's own screen — where their response time, and everything else about them,
+ *  is evidence rather than a single figure. */
+function openPerson(id: number) {
+   router.push(`/ai/nazorat/xodim/${id}`)
+}
+
 const {
    personWord, bucketRows, bucketTotal, bucketSegments,
-   contextStats, errorKinds,
+   contextStats, errorKinds, responseRows,
 } = useNazoratView()
 
 /** ── The composition donut ────────────────────────────────────────────────────
