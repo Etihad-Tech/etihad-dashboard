@@ -329,6 +329,24 @@ export function useNazoratView() {
          color: BUCKET.reopened.color,
          hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
       })
+      // Back on the bell by owner request (2026-08-07). It earns its place for the
+      // opposite reason to the other two: nothing has failed YET. These people never
+      // pressed start, so the bot cannot DM them at all — their cards simply never
+      // arrive, and the panel would score that as «Yetib bormadi» rather than as the
+      // one thing here that can be fixed before it costs anybody anything.
+      if (s.staffReadiness.length) out.push({
+         key: 'readiness', value: s.staffReadiness.length, label: "DM yuborib bo'lmadi",
+         color: '#a16207',
+         // Owner's wording, 2026-07-31. It reads as a label for the chips right under
+         // it rather than as a sentence about them, which is why it ends in a colon.
+         hint: 'Botga start bermaganlar:',
+         people: s.staffReadiness.map((r2) =>
+            (r2.username || r2.name || '—')
+            + (r2.location ? ` · ${cityLabel(r2.location)}` : '')
+            + (r2.group ? ` · ${r2.group}` : '')
+            + (r2.role === 'ellikboshi' && r2.in_pool === false
+               ? " · ro'yxatdan o'chirilgan" : '')),
+      })
       return out
    })
 

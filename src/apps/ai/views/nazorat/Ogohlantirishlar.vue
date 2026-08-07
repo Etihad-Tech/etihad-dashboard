@@ -56,11 +56,15 @@
 
             <div v-else class="divide-y divide-gray-100">
                <div v-for="p in activeProblems" :key="p.key">
-                  <!-- Both notices open. A count nobody can act on is half a notice: the
-                       question is always WHICH message, and for the aggression alarm also
-                       WHOSE group — so tapping names them. -->
-                  <button type="button" class="w-full text-left px-5 py-4 flex gap-3.5 active:bg-gray-50"
-                     @click="toggle(p.key)">
+                  <!-- The two message notices open: a count nobody can act on is half a
+                       notice, and the question is always WHICH message — for the
+                       aggression alarm, also WHOSE group. «DM yuborib bo'lmadi» does not
+                       open, because it has no messages behind it: it names PEOPLE, and
+                       they are already on the row as chips. -->
+                  <component :is="p.people ? 'div' : 'button'" type="button"
+                     class="w-full text-left px-5 py-4 flex gap-3.5"
+                     :class="p.people ? '' : 'active:bg-gray-50'"
+                     @click="!p.people && toggle(p.key)">
                      <span class="n-ico n-ico-sm mt-0.5" :style="{ '--c': p.color }">
                         <span class="w-2.5 h-2.5 rounded-full" :style="{ background: p.color }"></span>
                      </span>
@@ -69,13 +73,19 @@
                            <span class="text-[22px] leading-none font-bold tabular-nums tracking-[-0.03em]"
                               :style="{ color: p.color }">{{ p.value }}</span>
                            <span class="text-[16px] font-semibold tracking-[-0.015em]">{{ p.label }}</span>
-                           <span class="ml-auto text-[14px] font-semibold text-[color:var(--n-muted)] whitespace-nowrap">
+                           <span v-if="!p.people"
+                              class="ml-auto text-[14px] font-semibold text-[color:var(--n-muted)] whitespace-nowrap">
                               {{ open === p.key ? 'Yashirish' : "Ko'rish" }}
                            </span>
                         </div>
                         <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1.5 leading-snug">{{ p.hint }}</p>
+                        <!-- WHO cannot be reached, with the city or the group that still
+                             assigns them — the one fact that makes it fixable. -->
+                        <div v-if="p.people && p.people.length" class="flex flex-wrap gap-1.5 mt-2.5">
+                           <span v-for="(who, i) in p.people" :key="i" class="chip">{{ who }}</span>
+                        </div>
                      </div>
-                  </button>
+                  </component>
 
                   <!-- THE ANGRY MESSAGES. The ellikboshi is named on every one: an
                        aggressive complaint has to be settled now, and the person
