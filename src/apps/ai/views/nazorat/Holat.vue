@@ -80,6 +80,14 @@
                   <p class="text-[13.5px] text-[color:var(--n-muted)] leading-snug mt-1">
                      {{ b.hint }}
                   </p>
+                  <!-- Takroriy, as the SUBSET it is. It used to be a fourth slice, which
+                       counted one repeat twice — amber on the ask that proved the failure
+                       and red on the ask that caused it — and put the person who picked
+                       the complaint up and fixed it outside «Bajarildi». -->
+                  <p v-if="b.key === 'completed' && takroriy"
+                     class="text-[13.5px] text-[color:var(--n-faint)] leading-snug mt-1">
+                     shundan {{ takroriy }} tasi — ziyoratchi oldin ham so'ragan edi
+                  </p>
                </div>
                <div class="shrink-0 flex items-center gap-1.5">
                   <div class="text-right">
@@ -131,10 +139,14 @@
             {{ dur(s.report ? s.report.avg_response_seconds : null) }}
          </p>
 
-         <!-- Every row opens that person's own screen, the same rule the ranking rows
-              follow: a number about somebody is a way in to their evidence. -->
-         <div class="mt-5 space-y-0.5">
-            <button v-for="r in responseRows" :key="r.telegram_id" type="button"
+         <!-- Ellikboshilar, then Ishchi guruh. Every row opens that person's own screen,
+              the same rule the ranking rows follow: a number about somebody is a way in
+              to their evidence. -->
+         <div v-for="(g, gi) in responseRows" :key="g.key" class="space-y-0.5"
+            :class="gi ? 'mt-5 pt-4' : 'mt-5'"
+            :style="gi ? 'border-top: 1px solid var(--n-line-soft)' : ''">
+            <p class="n-tile-label mb-1.5">{{ g.title }}</p>
+            <button v-for="r in g.rows" :key="r.telegram_id" type="button"
                class="row-tap w-full flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-[1.125rem]"
                @click="openPerson(r.telegram_id)">
                <span class="n-avatar" :class="r.leaderLevel ? 'n-avatar-leader' : ''">
@@ -328,6 +340,11 @@ const donutLabel = computed(() => {
  *  defect this screen was just fixed for. */
 const ungraded = computed(() =>
    Math.max(0, (s.report?.requests || 0) - bucketTotal.value))
+
+/** How many of the completions were needs the pilgrim had already raised once. A subset
+ *  of Bajarildi, never a bucket beside it — adding it to the ring would count one
+ *  complaint twice. */
+const takroriy = computed(() => s.report?.re_requests || 0)
 
 
 // Only the admin may tune the control system (the API enforces it; this hides the form).

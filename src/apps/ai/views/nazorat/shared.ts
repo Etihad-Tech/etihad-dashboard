@@ -4,12 +4,21 @@ import { useNazoratStore, type GroupOption, type Worker } from '../../stores/naz
 /** The vocabulary of the Nazorat panel — colours, labels and the small pure helpers —
  *  defined ONCE so the three screens can never drift from each other. */
 
-/** The four outcomes. The split bar, the legend, the ranking bars, the table headers
- *  and the per-row bars all read from here.
+/** THREE outcomes since 2026-08-07, not four. «Takroriy so'rov» was the fourth and was
+ *  never an outcome: green, amber and blue all answer "what did the worker do", while it
+ *  answered "which message is this" — which is why no rewording ever told it apart from
+ *  Bajarilmagan. One repeat wrote two graded cards for one event, and the second landed
+ *  on whoever picked the complaint up and fixed it. A repeat is now counted once, as
+ *  Bajarilmagan on the accept that turned out to be false, and the takroriy count rides
+ *  under Bajarildi as a subset. `is_repeat` still badges the row in the jurnal.
  *
- *  Palette: validated with the dataviz skill's checker against a white surface —
- *  lightness band, chroma floor, CVD separation (worst adjacent pair ΔE 13.0, target
- *  ≥8) and the normal-vision floor (19.8, floor 15) all PASS. Amber sits below 3:1
+ *  Bajarilmagan is AMBER, not red (owner's call, same day). Red is no longer an outcome
+ *  colour at all — see ALARM_RED, which now belongs to the angry pilgrim and the
+ *  confirmed bot mistake, the two things that are not somebody's daily grade.
+ *
+ *  Palette: validated with the dataviz skill's checker against a white surface. All
+ *  pairs PASS — lightness band, chroma floor, CVD separation (worst pair ΔE 13.0 protan,
+ *  target ≥8) and the normal-vision floor (24.0, floor 15). Amber sits below 3:1
  *  contrast, so it is never the only carrier of meaning: every use is paired with a
  *  visible label, and table VALUES are ink with the colour reduced to a header dot. */
 export const BUCKETS = [
@@ -17,21 +26,9 @@ export const BUCKETS = [
       key: 'completed', label: 'Bajarildi', short: 'Bajarildi', color: '#059669',
       hint: "qabul qilingan, ziyoratchi qayta so'ramagan",
    },
-   // Yellow and red are ONE event told from its two ends, and their old hints said so in
-   // the same two clauses swapped round ("accepted" + "the pilgrim asked again"), which
-   // is why they read as near-duplicates (owner, 2026-08-07). The distinction is not what
-   // the worker did — both were accepted — but WHICH ask the card is, so each hint now
-   // turns on one word: the pilgrim asked again OLDIN (this card is that repeat) or KEYIN
-   // (this card is what the repeat came back to). The pairing itself is stated under the
-   // legend, since a reader who sees both counters move needs to know it is one event.
    {
-      key: 're_requests', label: "Takroriy so'rov", short: 'Takroriy', color: '#f59e0b',
-      hint: "ziyoratchi buni OLDIN ham so'ragan edi — bu o'sha so'rovning takrori,"
-         + ' qabul qilingan',
-   },
-   {
-      key: 'reopened', label: 'Bajarilmagan', short: 'Bajarilmagan', color: '#ef4444',
-      hint: "qabul qilingan, lekin ziyoratchi KEYIN yana so'ragan —"
+      key: 'reopened', label: 'Bajarilmagan', short: 'Bajarilmagan', color: '#f59e0b',
+      hint: "qabul qilingan, lekin ziyoratchi keyin yana so'ragan —"
          + ' demak aslida bajarilmagan',
    },
    {
@@ -41,6 +38,16 @@ export const BUCKETS = [
       hint: 'yetib bordi, lekin umuman qabul qilinmadi',
    },
 ] as const
+
+/** By key, because a bucket's POSITION is not a fact about it. Every BUCKETS[2] in the
+ *  panel silently meant something different the moment the fourth one was removed. */
+export const BUCKET = Object.fromEntries(BUCKETS.map((b) => [b.key, b])) as
+   Record<string, { key: string; label: string; short: string; color: string; hint: string }>
+
+/** Red, reserved. Not an outcome — nobody's daily grade is red any more — so it is free
+ *  to mean the two things that must never be read as routine: a pilgrim who is angry
+ *  right now, and a bot mistake the office has confirmed. */
+export const ALARM_RED = '#ef4444'
 
 export const PERIODS = [
    { value: 'day', label: 'Kunlik' },
@@ -277,12 +284,12 @@ export function useNazoratView() {
       // failure that already happened, this one is a pilgrim who is angry NOW.
       if (s.aggressive.total) out.push({
          key: 'aggressive', value: s.aggressive.total, label: 'Qattiq norozilik',
-         color: BUCKETS[2].color,
+         color: ALARM_RED,
          hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
       })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
-         color: BUCKETS[2].color,
+         color: BUCKET.reopened.color,
          hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
       })
       return out
@@ -365,7 +372,7 @@ export function useNazoratView() {
          // claiming to be the period's headline.
          {
             key: 'mistakes', label: 'Bot xatosi (tasdiqlangan)', value: r.bot_mistakes,
-            icon: 'triangle-exclamation', color: BUCKETS[2].color,
+            icon: 'triangle-exclamation', color: ALARM_RED,
             // Only when there IS a queue. «IT tasdiqlagan» used to fill this line
             // otherwise, which restated the label's own «(tasdiqlangan)» — the hint slot
             // is for a number the tile would not otherwise carry, not for prose.
@@ -412,13 +419,23 @@ export function useNazoratView() {
             label: dur(w.avg_response_seconds),
          }))
          .sort((a, b) => b.seconds - a.seconds)
+      // Scaled against the slowest ACROSS BOTH groups, not per group: two sections each
+      // with a full-width top bar would say the slowest ellikboshi and the slowest xodim
+      // waited the same, which is the one comparison the card exists to make.
       const worst = rows.length ? rows[0].seconds : 0
-      return rows.map((r) => ({
+      const withShare = rows.map((r) => ({
          ...r,
          // Floor of 4%: somebody who answered in seconds still gets a visible mark, and
          // an invisible bar reads as missing data rather than as "very fast".
          share: worst > 0 ? Math.max((r.seconds / worst) * 100, 4) : 4,
       }))
+      // Ellikboshilar first, then the crew (owner, 2026-08-07). Same split and the same
+      // doctor-rides-with-the-leaders rule as the ranking boards, so a person is never in
+      // one group here and the other one there.
+      return [
+         { key: 'ellikboshi', title: 'Ellikboshilar', rows: withShare.filter((r) => r.leaderLevel) },
+         { key: 'staff', title: 'Ishchi guruh', rows: withShare.filter((r) => !r.leaderLevel) },
+      ].filter((g) => g.rows.length)
    })
 
    /** The confirmed-mistake breakdown as [{label, count}], biggest first. */
@@ -487,8 +504,9 @@ export function useNazoratView() {
             tone,
             headline: m === 'rate' ? `${Math.round(r.rate * 100)}%`
                : m === 'completed' ? String(r.completed) : String(r.never_accepted),
-            headlineColor: tone === 'good' ? BUCKETS[0].color
-               : tone === 'bad' ? (m === 'never_accepted' ? BUCKETS[3].color : BUCKETS[2].color)
+            headlineColor: tone === 'good' ? BUCKET.completed.color
+               : tone === 'bad' ? (m === 'never_accepted'
+                  ? BUCKET.never_accepted.color : BUCKET.reopened.color)
                   : '#6b7280',
          }
       })
@@ -552,19 +570,17 @@ export function useNazoratView() {
       if (taker) {
          const wait = durBetween(taker.dm_sent_at, taker.accepted_at)
          if (taker.reopened_count > 0) {
-            return { key: 'reopened', label: 'Bajarilmagan', color: BUCKETS[2].color,
+            return { key: 'reopened', label: 'Bajarilmagan', color: BUCKET.reopened.color,
                icon: 'circle-exclamation',
                detail: `${nameOf(taker)} qabul qildi, ziyoratchi keyin yana so'radi` }
          }
-         if (r.parent_request_id && !r.reopen_dismissed) {
-            // Green's detail is «who · how long» too, so without the last clause a
-            // takroriy row and a bajarildi row read identically under different pills.
-            return { key: 're_requests', label: "Takroriy so'rov", color: BUCKETS[1].color,
-               icon: 'arrows-rotate',
-               detail: `${nameOf(taker)} · ${wait} · oldin ham so'ralgan` }
-         }
-         return { key: 'completed', label: 'Bajarildi', color: BUCKETS[0].color,
-            icon: 'circle-check', detail: `${nameOf(taker)} · ${wait}` }
+         // A repeat is NOT a separate outcome — it is done, by whoever took it. The row
+         // still says so, in the detail and in the «Takroriy» badge the jurnal prints
+         // before the text, but the GRADE is the same green a first-time need gets.
+         return { key: 'completed', label: 'Bajarildi', color: BUCKET.completed.color,
+            icon: 'circle-check',
+            detail: `${nameOf(taker)} · ${wait}`
+               + (r.parent_request_id && !r.reopen_dismissed ? " · oldin ham so'ralgan" : '') }
       }
       if (flagger) {
          // Slate, deliberately outside the four-colour vocabulary. A card marked
@@ -580,7 +596,7 @@ export function useNazoratView() {
       // Delivered to somebody, taken by nobody.
       const oldest = reached.reduce((a, b) =>
          new Date(a.dm_sent_at || 0) < new Date(b.dm_sent_at || 0) ? a : b)
-      return { key: 'never_accepted', label: 'Javobsiz', color: BUCKETS[3].color,
+      return { key: 'never_accepted', label: 'Javobsiz', color: BUCKET.never_accepted.color,
          icon: 'clock',
          detail: `${reached.length} ta ${personWordLower.value}ga bordi · `
             + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
@@ -671,7 +687,7 @@ export function useNazoratView() {
       if (!e.accepted_at)   // delivered but never taken
          return {
             text: `${sent} da yuborildi. ${who} hali qabul qilmadi (javobsiz: ${durBetween(e.dm_sent_at, null)}).`,
-            rail: BUCKETS[3].color, ink: '#1d4ed8',
+            rail: BUCKET.never_accepted.color, ink: '#1d4ed8',
          }
       const acc = fmtTime(e.accepted_at)
       const wait = durBetween(e.dm_sent_at, e.accepted_at)
@@ -680,16 +696,16 @@ export function useNazoratView() {
       if (e.reopened_count > 0)   // accepted, but the pilgrim came back -> false completion
          return {
             text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}), LEKIN ziyoratchi keyin yana so'radi. Bajarilmagan.`,
-            rail: BUCKETS[2].color, ink: '#b91c1c',
+            rail: BUCKET.reopened.color, ink: '#a16207',
          }
       if (e.parent_request_id && !e.reopen_dismissed)   // accepted follow-up
          return {
             text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Ziyoratchi buni oldin ham so'ragan edi — takroriy so'rov.`,
-            rail: BUCKETS[1].color, ink: INK,
+            rail: BUCKET.completed.color, ink: INK,
          }
       return {   // clean single-pass completion
          text: `${sent} da yuborildi. ${who} ${acc} da qabul qildi (${wait}). Bajarildi.`,
-         rail: BUCKETS[0].color, ink: INK,
+         rail: BUCKET.completed.color, ink: INK,
       }
    }
 

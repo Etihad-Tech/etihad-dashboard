@@ -27,7 +27,7 @@
          <div class="overflow-y-auto overscroll-contain">
             <!-- Genuinely nothing wrong. -->
             <div v-if="!problems.length" class="px-5 py-10 flex items-center gap-3.5">
-               <span class="n-ico" :style="{ '--c': BUCKETS[0].color }">
+               <span class="n-ico" :style="{ '--c': BUCKET.completed.color }">
                   <font-awesome-icon icon="check" class="w-4 h-4" />
                </span>
                <div>
@@ -161,7 +161,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useNazoratStore, MAX_REQ_LIMIT } from '../../stores/nazorat'
-import { BUCKETS, cityLabel, fmtDateTime, useNazoratView } from './shared'
+import { BUCKET, cityLabel, fmtDateTime, useNazoratView } from './shared'
 
 const emit = defineEmits<{ close: [] }>()
 
