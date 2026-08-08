@@ -132,6 +132,29 @@ export function dur(s: number | null): string {
    return rem ? `${h} soat ${rem} daq` : `${h} soat`
 }
 
+/** The same duration, short enough to sit on top of a column ~60px wide on a phone:
+ *  «5s 33d», «17d», «3d». The full wording stays in the column's title and on the
+ *  person's own screen — this is the label, not the record. */
+export function durCompact(s: number | null): string {
+   if (s === null || s === undefined) return '—'
+   if (s < 60) return `${Math.round(s)}s`
+   const m = Math.floor(s / 60)
+   if (m < 60) return `${m}d`
+   const h = Math.floor(m / 60)
+   const rem = m % 60
+   return rem ? `${h}s ${rem}d` : `${h}s`
+}
+
+/** Below this many answers an average is not yet a fact about the person — one card of
+ *  5 soat 33 daq is an incident, not a habit. Such columns are drawn hollow and
+ *  captioned rather than hidden: the number is real, its WEIGHT is what differs. */
+export const MIN_SAMPLE = 3
+
+/** Candidate axis steps, in seconds — 1/5/10/15/30 min, then 1/2/3/6/12 h. The chart
+ *  takes the first that fits the peak in four steps or fewer, so the gridlines always
+ *  land on a duration a person would say out loud. */
+export const AXIS_STEPS = [60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200]
+
 export function fmtTime(iso: string | null): string {
    if (!iso) return '—'
    return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
@@ -455,61 +478,73 @@ export function useNazoratView() {
       ]
    })
 
-   /** Response time per person, SLOWEST FIRST — the same rule the ranking follows: the
-    *  person the reader is looking for is at the top.
+   /** Response time as a COLUMN CHART per person — a value axis, a baseline, and one
+    *  column each (owner, 2026-08-08, pointing at «Murojaatlar dinamikasi» as the shape).
     *
-    *  Deliberately a ranked bar list and not a second ring (owner asked for a donut,
-    *  2026-08-07). Two reasons, both measured rather than felt:
+    *  NOT sorted by time. It was, and that made a ranking out of an average: a leader
+    *  with ONE answer of 5 soat 33 daq stood above one who answered twelve times, as
+    *  though a single card were a verdict. Ordered by how many answers the number is
+    *  built from instead — the most-evidenced person first, the thinnest last, where a
+    *  long bar reads as "we barely know" rather than as "the worst".
     *
-    *    * A donut is parts of a whole, and average response times are not parts of
-    *      anything — they don't sum. The only real part-to-whole here is each person's
-    *      share of the TOTAL wait, which would make the arc mean one quantity while the
-    *      number printed beside it means another: a fat slice labelled «4 daq» next to a
-    *      thin one labelled «20 daq». In a bar, the length IS the number beside it.
-    *    * Slices would need one hue per person, and this panel has no hues left to give.
-    *      The four grades own green / amber / red / blue, and the accent violet #7c5cfc
-    *      sits ΔE 2.5 from the Javobsiz blue under deuteranopia — a violet slice reads as
-    *      «Javobsiz» to a deutan reader, one card below a ring where blue means exactly
-    *      that. One hue for all bars, with the name as the label, has no such problem.
+    *  A column under MIN_SAMPLE answers is drawn hollow and captioned. Nothing is hidden
+    *  and nothing is dropped: an average over one card is real, it is just not yet a fact
+    *  about the person, and the chart has to say which it is showing.
     *
-    *  `share` is against the SLOWEST person, not against the total: the bar answers "how
-    *  much longer than the worst" — which is the comparison a reader actually makes —
-    *  and it guarantees the top bar is full rather than 8% of a meaningless whole.
-    *
-    *  Only people who actually answered something appear: an average over no accepts is
-    *  not a fast worker, it is no data, and drawing them at 0 would put whoever ignored
-    *  everything at the top of a list of the best. */
-   const responseRows = computed(() => {
-      const rows = filteredWorkers.value
+    *  One scale across BOTH groups. Two charts each scaled to their own worst would put a
+    *  leader and a xodim at the same height while meaning different things, and comparing
+    *  the two crews is most of why the card is split in the first place. */
+   const responseChart = computed(() => {
+      const people = filteredWorkers.value
          .filter((w) => w.avg_response_seconds !== null && w.avg_response_seconds !== undefined)
          .map((w) => ({
             telegram_id: w.telegram_id,
             name: personLabel(w),
-            initials: initials(personLabel(w)),
+            // The axis label. Uzbek names are long and a column is ~60px on a phone, so
+            // the first word goes under the bar and the whole name rides in the title.
+            short: personLabel(w).split(/[\s]+/)[0],
             job: jobLabel(w),
             leaderLevel: isLeaderLevel(w),
             seconds: w.avg_response_seconds as number,
             answered: w.accepted || 0,
             label: dur(w.avg_response_seconds),
+            compact: durCompact(w.avg_response_seconds as number),
+            thin: (w.accepted || 0) < MIN_SAMPLE,
          }))
-         .sort((a, b) => b.seconds - a.seconds)
-      // Scaled against the slowest ACROSS BOTH groups, not per group: two sections each
-      // with a full-width top bar would say the slowest ellikboshi and the slowest xodim
-      // waited the same, which is the one comparison the card exists to make.
-      const worst = rows.length ? rows[0].seconds : 0
-      const withShare = rows.map((r) => ({
-         ...r,
-         // Floor of 4%: somebody who answered in seconds still gets a visible mark, and
-         // an invisible bar reads as missing data rather than as "very fast".
-         share: worst > 0 ? Math.max((r.seconds / worst) * 100, 4) : 4,
+         .sort((a, b) => b.answered - a.answered || a.seconds - b.seconds)
+
+      // The scale is set by the averages we TRUST. A single 5 soat answer used to push
+      // the axis to six hours and flatten every other column on both charts — one card
+      // deciding what the whole card looks like. A thin column that runs past the top is
+      // drawn cut off, with its real value above it, so it reads as "off the scale"
+      // rather than being quietly rescaled away.
+      const solid = people.filter((p) => !p.thin)
+      const peak = (solid.length ? solid : people).reduce((m, p) => Math.max(m, p.seconds), 0)
+      const step = AXIS_STEPS.find((v) => peak / v <= 4) || AXIS_STEPS[AXIS_STEPS.length - 1]
+      const top = Math.max(Math.ceil(peak / step) * step, step)
+      // Bottom-up, so the template can place each line by its own share of the height.
+      const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, i) => ({
+         at: (i * step / top) * 100, label: i ? dur(i * step) : '0',
       }))
-      // Ellikboshilar first, then the crew (owner, 2026-08-07). Same split and the same
-      // doctor-rides-with-the-leaders rule as the ranking boards, so a person is never in
-      // one group here and the other one there.
-      return [
-         { key: 'ellikboshi', title: 'Ellikboshilar', rows: withShare.filter((r) => r.leaderLevel) },
-         { key: 'staff', title: 'Ishchi guruh', rows: withShare.filter((r) => !r.leaderLevel) },
-      ].filter((g) => g.rows.length)
+
+      const groups = [
+         { key: 'ellikboshi', title: 'Ellikboshilar' },
+         { key: 'staff', title: 'Ishchi guruh' },
+      ].map((g) => ({
+         ...g,
+         cols: people
+            .filter((p) => (g.key === 'ellikboshi' ? p.leaderLevel : !p.leaderLevel))
+            .map((p) => ({
+               ...p,
+               // Floor of 2%: somebody who answered in seconds still gets a visible mark
+               // on the baseline, and an invisible column reads as missing data, not as
+               // fast. Ceiling of 100%: past the top the column is cut, not scaled.
+               height: Math.min(Math.max((p.seconds / top) * 100, 2), 100),
+               over: p.seconds > top,
+            })),
+      })).filter((g) => g.cols.length)
+
+      return { ticks, groups, hasThin: people.some((p) => p.thin) }
    })
 
    /** The confirmed-mistake breakdown as [{label, count}], biggest first. */
@@ -811,7 +846,7 @@ export function useNazoratView() {
       personWord, personWordLower, scopeTitle, isStaffScope, isLeaderScope,
       groupChoices, filteredWorkers,
       problems, activeProblems, clearedCount,
-      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseRows,
+      bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseChart,
       reopenedNeeds,
       ratingBoards, ratingBoard,
       feed, journalPeople, entriesFor,

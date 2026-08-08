@@ -630,6 +630,133 @@
 .nazorat .n-donut-sm {
    width: min(48vw, 148px);
 }
+
+/* ── The column chart ────────────────────────────────────────────────────────
+   Response time per person: a value axis, a baseline, one column each. Built in CSS
+   rather than SVG because every part of it is a box — the bars ARE the layout, so they
+   reflow with the card instead of being scaled inside a fixed viewBox.
+
+   The plot and the names are two separate rows on purpose. With the labels inside each
+   column the bars were laid out in (plot height − label height) while the gridlines were
+   drawn against the full height, so nothing sat on the baseline and the longest name was
+   clipped off the bottom. Two flex rows with the same gap and the same flex basis stay
+   in step without either one borrowing the other's space. */
+.nazorat .n-chart { position: relative; }
+.nazorat .n-chart-plot {
+   position: relative;
+   height: 10.5rem;
+   /* Room for the axis labels, which hang in the gutter to the left of the plot. */
+   margin-left: 3.25rem;
+}
+.nazorat .n-chart-axis { position: absolute; inset: 0; pointer-events: none; }
+.nazorat .n-chart-tick {
+   position: absolute;
+   left: -3.25rem;
+   right: 0;
+   display: flex;
+   align-items: center;
+   gap: 0.5rem;
+   /* The line sits ON its value, so half of it hangs below the mark. */
+   transform: translateY(50%);
+}
+.nazorat .n-chart-tick > span {
+   width: 2.75rem;
+   flex: none;
+   text-align: right;
+   font-size: 11px;
+   font-variant-numeric: tabular-nums;
+   color: var(--n-faint);
+}
+/* Hairline, solid, recessive: a gridline is the one part of a chart that must stay
+   behind the data, and a dashed rule competes with it instead. */
+.nazorat .n-chart-tick > i { flex: 1; height: 1px; background: var(--n-line-soft); }
+
+.nazorat .n-chart-cols,
+.nazorat .n-chart-names {
+   display: flex;
+   align-items: flex-end;
+   gap: 0.5rem;
+}
+.nazorat .n-chart-cols { position: absolute; inset: 0; }
+.nazorat .n-chart-names { margin: 0.4rem 0 0 3.25rem; align-items: flex-start; }
+
+.nazorat .n-chart-col,
+.nazorat .n-chart-name {
+   flex: 1 1 0;
+   min-width: 0;
+}
+.nazorat .n-chart-col {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: flex-end;
+   height: 100%;
+   background: none;
+   border: 0;
+   padding: 0;
+   -webkit-tap-highlight-color: transparent;
+}
+.nazorat .n-chart-val {
+   font-size: 11px;
+   font-weight: 700;
+   font-variant-numeric: tabular-nums;
+   color: var(--n-ink-2);
+   margin-bottom: 0.2rem;
+   white-space: nowrap;
+}
+/* 4px rounded top, square to the baseline — a bar grows FROM the axis, so only the free
+   end is rounded. */
+.nazorat .n-chart-bar {
+   width: 100%;
+   max-width: 2.5rem;
+   border-radius: 4px 4px 0 0;
+   background: #7c5cfc;
+   transition: height 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s;
+}
+.nazorat .n-chart-col:active .n-chart-bar { opacity: 0.65; }
+/* Hatched = an average built on too few answers to trust yet. Outlined rather than
+   greyed: grey would read as "no data", and there IS data — just not enough of it. */
+/* Runs past the top of the scale. Cut square with a torn edge rather than rounded, so
+   the eye reads "this continues" instead of "this is the tallest" — the real value is
+   printed above it either way. */
+.nazorat .n-chart-bar.is-over {
+   border-radius: 0;
+   -webkit-mask-image: linear-gradient(to bottom, transparent 0 3px, #000 3px),
+      repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
+   -webkit-mask-size: 100% 100%, 100% 4px;
+   -webkit-mask-position: 0 0, 0 0;
+   -webkit-mask-repeat: no-repeat, repeat-x;
+   -webkit-mask-composite: source-over;
+   mask-image: linear-gradient(to bottom, transparent 0 3px, #000 3px),
+      repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
+   mask-size: 100% 100%, 100% 4px;
+   mask-position: 0 0, 0 0;
+   mask-repeat: no-repeat, repeat-x;
+}
+.nazorat .n-chart-bar.is-thin {
+   background: repeating-linear-gradient(
+      135deg, rgba(124, 92, 252, 0.24) 0 5px, rgba(124, 92, 252, 0.05) 5px 10px);
+   box-shadow: inset 0 0 0 1.5px rgba(124, 92, 252, 0.5);
+}
+/* The name wraps to two lines rather than truncating: it is the axis label, and an
+   ellipsised «ABDUN…» under a column makes the chart unreadable in exactly the place it
+   is supposed to be legible. */
+.nazorat .n-chart-name {
+   text-align: center;
+   font-size: 11px;
+   font-weight: 600;
+   line-height: 1.25;
+   color: var(--n-ink-2);
+   overflow-wrap: anywhere;
+}
+.nazorat .n-chart-n {
+   display: block;
+   font-size: 10.5px;
+   font-weight: 500;
+   font-variant-numeric: tabular-nums;
+   color: var(--n-faint);
+}
+
 .nazorat .n-donut {
    display: block;
    width: 100%;

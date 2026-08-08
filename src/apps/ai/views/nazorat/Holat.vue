@@ -120,18 +120,21 @@
       </section>
 
       <!-- ──────────────── 2. HOW LONG THE PILGRIM WAITED ────────────────
-           The period's average given the lead position, and under it the same figure per
-           person, slowest first — the office asked for the overall number "in the centre"
-           and the people around it (owner, 2026-08-07).
+           A COLUMN CHART: a value axis, a baseline, one column per person (owner,
+           2026-08-08, pointing at «Murojaatlar dinamikasi» as the shape). It was a row of
+           horizontal bars sorted worst-first, which read as a leaderboard rather than as
+           a chart — and worse, ranked an average: one leader with a single 5 soat answer
+           stood above one who had answered twelve times.
 
-           A ranked bar list rather than a second ring, for reasons that are measured
-           rather than felt — see responseRows in shared.ts. Short version: averages are
-           not parts of a whole, so an arc would have to encode a DIFFERENT quantity from
-           the number printed beside it; and a slice per person needs a hue per person,
-           which this panel cannot give (the violet accent sits ΔE 2.5 from the Javobsiz
-           blue under deuteranopia). Here the bar's length IS the number beside it, and
-           one hue serves every row because the name does the identifying. -->
-      <section v-if="responseRows.length" class="card p-5 n-enter" style="--i: 2">
+           So the columns are ordered by HOW MANY answers each average is built from, not
+           by the average. The best-evidenced person leads and the thinnest sits last,
+           where a tall column reads as "we barely know yet" instead of "the worst". Those
+           columns are drawn hollow and the footnote says why. Nothing is hidden: the
+           number is real, it is its weight that differs.
+
+           One scale across both groups — two charts each scaled to their own worst would
+           draw a leader and a xodim the same height while meaning different things. -->
+      <section v-if="responseChart.groups.length" class="card p-5 n-enter" style="--i: 2">
          <h3 class="n-h">O'rtacha javob vaqti</h3>
 
          <p class="text-[42px] font-bold tracking-[-0.045em] tabular-nums leading-[0.95] mt-3"
@@ -139,37 +142,53 @@
             {{ dur(s.report ? s.report.avg_response_seconds : null) }}
          </p>
 
-         <!-- Ellikboshilar, then Ishchi guruh. Every row opens that person's own screen,
-              the same rule the ranking rows follow: a number about somebody is a way in
-              to their evidence. -->
-         <div v-for="(g, gi) in responseRows" :key="g.key" class="space-y-0.5"
-            :class="gi ? 'mt-5 pt-4' : 'mt-5'"
+         <div v-for="(g, gi) in responseChart.groups" :key="g.key"
+            :class="gi ? 'mt-6 pt-4' : 'mt-5'"
             :style="gi ? 'border-top: 1px solid var(--n-line-soft)' : ''">
-            <p class="n-tile-label mb-1.5">{{ g.title }}</p>
-            <button v-for="r in g.rows" :key="r.telegram_id" type="button"
-               class="row-tap w-full flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-[1.125rem]"
-               @click="openPerson(r.telegram_id)">
-               <span class="n-avatar" :class="r.leaderLevel ? 'n-avatar-leader' : ''">
-                  {{ r.initials }}
-               </span>
-               <div class="min-w-0 flex-1 text-left">
-                  <p class="text-[15px] font-semibold tracking-[-0.015em] truncate">{{ r.name }}</p>
-                  <div class="n-meter mt-2" style="--c: #7c5cfc">
-                     <i :style="{ width: r.share + '%' }"></i>
+            <p class="n-tile-label mb-3">{{ g.title }}</p>
+
+            <div class="n-chart">
+               <div class="n-chart-plot">
+                  <!-- The axis. Gridlines are hairlines and solid: dashing a rule adds
+                       noise to the one part of a chart that must stay behind the data. -->
+                  <div class="n-chart-axis">
+                     <div v-for="t in responseChart.ticks" :key="t.at" class="n-chart-tick"
+                        :style="{ bottom: t.at + '%' }">
+                        <span>{{ t.label }}</span><i></i>
+                     </div>
+                  </div>
+
+                  <!-- One column each. Tapping opens that person, the same rule every
+                       number about somebody on this panel follows. -->
+                  <div class="n-chart-cols">
+                     <button v-for="c in g.cols" :key="c.telegram_id" type="button"
+                        class="n-chart-col"
+                        :title="`${c.name} · ${c.label} · ${c.answered} ta javob`"
+                        @click="openPerson(c.telegram_id)">
+                        <span class="n-chart-val">{{ c.compact }}</span>
+                        <span class="n-chart-bar"
+                           :class="[c.thin ? 'is-thin' : '', c.over ? 'is-over' : '']"
+                           :style="{ height: c.height + '%' }"></span>
+                     </button>
                   </div>
                </div>
-               <!-- Fixed width, so every meter shares one track edge. Left to size itself
-                    the column is as wide as its own text, and «2 soat 35 daq» next to
-                    «14 daq» made the bars underneath start together and end ragged —
-                    which reads as a difference in the data rather than in the labels. -->
-               <div class="shrink-0 text-right min-w-[5.75rem]">
-                  <p class="text-[15px] font-bold tabular-nums leading-none">{{ r.label }}</p>
-                  <p class="text-[12.5px] text-[color:var(--n-faint)] tabular-nums mt-1.5">
-                     {{ r.answered }} ta javob
-                  </p>
+
+               <!-- The axis labels, in their OWN row so they cannot eat the plot's height
+                    or be clipped by it. Same gap and flex basis, so they stay in step. -->
+               <div class="n-chart-names">
+                  <span v-for="c in g.cols" :key="c.telegram_id" class="n-chart-name">
+                     {{ c.short }}
+                     <b class="n-chart-n">{{ c.answered }} ta</b>
+                  </span>
                </div>
-            </button>
+            </div>
          </div>
+
+         <p v-if="responseChart.hasThin"
+            class="mt-4 pt-3 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
+            style="border-top: 1px solid var(--n-line-soft)">
+            Ochiq ustunlar — {{ MIN_SAMPLE }} tadan kam javob. O'rtacha hali aniq emas.
+         </p>
       </section>
 
       <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
@@ -255,7 +274,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { PIE_R as R, dur, ringDashes, useNazoratView } from './shared'
+import { MIN_SAMPLE, PIE_R as R, dur, ringDashes, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()
@@ -284,7 +303,7 @@ function openPerson(id: number) {
 
 const {
    personWord, bucketRows, bucketTotal, bucketSegments,
-   contextStats, errorKinds, responseRows,
+   contextStats, errorKinds, responseChart,
 } = useNazoratView()
 
 /** ── The composition donut ────────────────────────────────────────────────────
