@@ -184,11 +184,6 @@
             </div>
          </div>
 
-         <p v-if="responseChart.hasThin"
-            class="mt-4 pt-3 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
-            style="border-top: 1px solid var(--n-line-soft)">
-            Ochiq ustunlar — {{ MIN_SAMPLE }} tadan kam javob. O'rtacha hali aniq emas.
-         </p>
       </section>
 
       <!-- ──────────────── 3. THE PERIOD'S OTHER TWO FACTS ────────────────
@@ -274,7 +269,7 @@ import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import { useAuthStore } from '../../../../stores/auth'
-import { MIN_SAMPLE, PIE_R as R, dur, ringDashes, useNazoratView } from './shared'
+import { PIE_R as R, dur, ringDashes, useNazoratView } from './shared'
 
 const s = useNazoratStore()
 const auth = useAuthStore()

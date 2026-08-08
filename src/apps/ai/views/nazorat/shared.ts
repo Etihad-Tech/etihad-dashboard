@@ -146,8 +146,10 @@ export function durCompact(s: number | null): string {
 }
 
 /** Below this many answers an average is not yet a fact about the person — one card of
- *  5 soat 33 daq is an incident, not a habit. Such columns are drawn hollow and
- *  captioned rather than hidden: the number is real, its WEIGHT is what differs. */
+ *  5 soat 33 daq is an incident, not a habit. Such columns are hatched rather than
+ *  hidden, and they do not set the chart's scale: the number is real, its WEIGHT is what
+ *  differs. The hatching and the answer count under each name carry that on their own —
+ *  the sentence that used to explain it came off with the rest of the panel's prose. */
 export const MIN_SAMPLE = 3
 
 /** Candidate axis steps, in seconds — 1/5/10/15/30 min, then 1/2/3/6/12 h. The chart
@@ -487,9 +489,11 @@ export function useNazoratView() {
     *  built from instead — the most-evidenced person first, the thinnest last, where a
     *  long bar reads as "we barely know" rather than as "the worst".
     *
-    *  A column under MIN_SAMPLE answers is drawn hollow and captioned. Nothing is hidden
-    *  and nothing is dropped: an average over one card is real, it is just not yet a fact
-    *  about the person, and the chart has to say which it is showing.
+    *  A column under MIN_SAMPLE answers is drawn hatched, and the answer count sits under
+    *  every name — the two together say "this one is not settled yet" without a sentence
+    *  explaining it (owner, 2026-08-08: the footnote came off with the rest of the prose).
+    *  Nothing is hidden and nothing is dropped: an average over one card is real, it is
+    *  just not yet a fact about the person.
     *
     *  One scale across BOTH groups. Two charts each scaled to their own worst would put a
     *  leader and a xodim at the same height while meaning different things, and comparing
@@ -544,7 +548,7 @@ export function useNazoratView() {
             })),
       })).filter((g) => g.cols.length)
 
-      return { ticks, groups, hasThin: people.some((p) => p.thin) }
+      return { ticks, groups }
    })
 
    /** The confirmed-mistake breakdown as [{label, count}], biggest first. */
