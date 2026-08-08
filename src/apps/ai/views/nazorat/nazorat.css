@@ -724,3 +724,62 @@
       transition-duration: 0.01ms !important;
    }
 }
+
+/* ── The controllers' chat ───────────────────────────────────────────────────
+   Deliberately quiet: this is a work channel between three colleagues inside an
+   evidence panel, not a messenger. One accent (the panel's ink) for your own messages,
+   the sunken surface for theirs, and no colour beyond that — the hues on this screen
+   belong to the outcome vocabulary and must not be spent on chrome. */
+.nazorat .n-chat-scroll {
+   max-height: min(52vh, 26rem);
+   overflow-y: auto;
+   overscroll-behavior: contain;
+   /* Room for the last bubble's shadow, and for a thumb to scroll past it. */
+   padding: 0.25rem 0.125rem;
+}
+.nazorat .n-bubble {
+   max-width: 82%;
+   padding: 0.55rem 0.8rem;
+   border-radius: var(--r-inner);
+   background: var(--n-sunken);
+   font-size: 15px;
+   line-height: 1.35;
+   /* The corner nearest the speaker is squared off — the one cue that says which side a
+      message came from without spending a colour on it. */
+   border-bottom-left-radius: 0.375rem;
+}
+.nazorat .n-bubble.is-mine {
+   background: var(--n-ink);
+   color: #fff;
+   border-bottom-left-radius: var(--r-inner);
+   border-bottom-right-radius: 0.375rem;
+}
+.nazorat .n-bubble-meta {
+   margin-top: 0.25rem;
+   font-size: 11px;
+   font-variant-numeric: tabular-nums;
+   color: var(--n-faint);
+}
+.nazorat .n-bubble.is-mine .n-bubble-meta { color: rgba(255, 255, 255, 0.6); }
+
+/* Grows with the message instead of scrolling inside one line, up to a point — a
+   composer that never grows makes people send three short messages instead of one. */
+.nazorat .n-chat-input {
+   flex: 1;
+   min-height: 2.75rem;
+   max-height: 8rem;
+   resize: none;
+   field-sizing: content;
+}
+
+/* The unread count. Ink rather than a hue: an unread message is not an OUTCOME, and the
+   colours on this panel all mean one. */
+.nazorat .chip-unread {
+   display: inline-block;
+   min-width: 1.5rem;
+   text-align: center;
+   background: var(--n-ink);
+   color: #fff;
+   font-weight: 700;
+   font-variant-numeric: tabular-nums;
+}

@@ -77,7 +77,9 @@
                </div>
             </div>
 
-            <div v-if="!isDetail" class="seg mt-3.5 lg:inline-flex lg:w-auto">
+            <!-- Not over the chat: a conversation does not answer to a period, and a
+                 date filter above it invites the reader to think their messages do. -->
+            <div v-if="!isDetail && !isChat" class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
                   {{ p.label }}
@@ -88,7 +90,7 @@
          <div class="nazorat-scroll px-5 pt-4 lg:px-0 lg:pb-0">
             <!-- WHICH SLICE. Applied on the SERVER, so the cards, the ranking, the
                  journal and the person screens can never describe different slices. -->
-            <div v-if="!isDetail" class="flex flex-wrap items-center gap-2 mb-4">
+            <div v-if="!isDetail && !isChat" class="flex flex-wrap items-center gap-2 mb-4">
                <select v-model="s.filterGroup" @change="s.setSlice()"
                   class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
                   <option value="">Barcha guruhlar</option>
@@ -134,7 +136,11 @@
 
             <!-- A person's screen replaces everything, on a phone and on a desktop alike:
                  it is a different question, not a section of the same page. -->
-            <router-view v-else-if="isDetail" />
+            <!-- The person screen and the CHAT get their own view even on a desktop.
+                 The one-scroll below is four REPORTS read together in a meeting; a
+                 conversation is not one of them, and dropping a message composer between
+                 the ranking and the journal would make both harder to read. -->
+            <router-view v-else-if="isDetail || isChat" />
 
             <!-- One screen at a time on a phone; on a desktop the same four panels stay a
                  single scroll, because the office reads the whole thing in a meeting and
@@ -168,7 +174,16 @@
          <nav v-if="!isDesktop && !isDetail" class="nazorat-tabbar">
             <router-link v-for="t in TABS" :key="t.to" :to="t.to"
                :class="route.path === t.to ? 'is-active' : ''">
-               <font-awesome-icon :icon="t.icon" class="w-[22px] h-[22px]" />
+               <span class="relative inline-flex">
+                  <font-awesome-icon :icon="t.icon" class="w-[22px] h-[22px]" />
+                  <!-- Unread messages, on the tab that holds them. Same badge the bell
+                       wears: this panel already has one vocabulary for "there is
+                       something here", and a second one would read as a different kind
+                       of thing. -->
+                  <span v-if="t.key === 'suhbat' && s.chatUnread" class="n-bell-badge">
+                     {{ s.chatUnread }}
+                  </span>
+               </span>
                <span class="truncate max-w-full">{{ t.label }}</span>
             </router-link>
          </nav>
@@ -187,7 +202,7 @@ import Reyting from './nazorat/Reyting.vue'
 import Jurnal from './nazorat/Jurnal.vue'
 import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
-import { useNazoratStore } from '../stores/nazorat'
+import { CHAT_ROLES, useNazoratStore } from '../stores/nazorat'
 import { useAuthStore } from '../../../stores/auth'
 import { PERIODS, useNazoratView } from './nazorat/shared'
 import './nazorat/nazorat.css'
@@ -209,10 +224,17 @@ const TABS = [
    ...(auth.role === 'nazoratchi_staff'
       ? []
       : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
+   // Only the three controller logins have a conversation to open. `admin` reaches the
+   // endpoints (require_role always allows admin) but is not one of them, so the API
+   // answers an empty inbox — and a tab that can only ever be empty is worse than no tab.
+   ...(CHAT_ROLES.includes(auth.role || '')
+      ? [{ key: 'suhbat', to: '/ai/nazorat/suhbat', label: 'Suhbat', icon: 'comments' }]
+      : []),
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
+const isChat = computed(() => route.path === '/ai/nazorat/suhbat')
 
 /** Which population this login reads, as a subtitle under the panel's name. Empty for
  *  the combined account, which sees everyone and so has nothing to qualify. */
