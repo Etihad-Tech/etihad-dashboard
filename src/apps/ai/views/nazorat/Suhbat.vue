@@ -29,14 +29,10 @@
          </button>
       </div>
 
-      <!-- ONE CONVERSATION. -->
+      <!-- ONE CONVERSATION. The back arrow and the peer's name live in the panel's top
+           bar (see Nazorat.vue's isChatThread), where a phone expects them — and where
+           they do not cost the messages a row of vertical space. -->
       <template v-else>
-         <button type="button" class="btn-ghost inline-flex items-center gap-2"
-            @click="close()">
-            <font-awesome-icon icon="chevron-left" class="w-3 h-3" />
-            {{ peerLabel }}
-         </button>
-
          <div class="card p-4">
             <div v-if="s.chatLoading" class="space-y-3 py-2">
                <div v-for="i in 3" :key="i" class="h-8 rounded-[1.125rem] bg-gray-100 animate-pulse"
@@ -94,17 +90,11 @@ const router = useRouter()
  *  of leaving the panel, and a conversation can be linked to. */
 const peer = computed(() =>
    typeof route.query.suhbat === 'string' && route.query.suhbat ? route.query.suhbat : '')
-const peerLabel = computed(() =>
-   s.chatPeers.find((p) => p.role === peer.value)?.label || 'Orqaga')
-
 const draft = ref('')
 const scroller = ref<HTMLElement | null>(null)
 
 function open(role: string) {
    router.push({ path: route.path, query: { suhbat: role } })
-}
-function close() {
-   router.push({ path: route.path, query: {} })
 }
 
 /** Pinned to the bottom: a conversation opens at its newest message, not its oldest. */

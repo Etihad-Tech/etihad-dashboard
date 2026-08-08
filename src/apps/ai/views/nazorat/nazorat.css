@@ -731,7 +731,9 @@
    the sunken surface for theirs, and no colour beyond that — the hues on this screen
    belong to the outcome vocabulary and must not be spent on chrome. */
 .nazorat .n-chat-scroll {
-   max-height: min(52vh, 26rem);
+   /* dvh, not vh: on a phone the address bar collapses as you scroll and vh would leave
+      the composer under it. The three controller accounts are used on phones. */
+   max-height: min(62dvh, 32rem);
    overflow-y: auto;
    overscroll-behavior: contain;
    /* Room for the last bubble's shadow, and for a thumb to scroll past it. */
@@ -772,8 +774,14 @@
    field-sizing: content;
 }
 
-/* The unread count. Ink rather than a hue: an unread message is not an OUTCOME, and the
-   colours on this panel all mean one. */
+/* The unread count, wherever it appears. INK, never the bell's red: red on this panel is
+   the alarm (an angry pilgrim, a confirmed bot mistake) and an unread message from a
+   colleague is not one of those. Same shape as the bell badge so it reads as the same
+   KIND of thing — "there is something here" — without borrowing its urgency. */
+.nazorat .n-bell-badge.is-chat {
+   background: var(--n-ink);
+   box-shadow: 0 0 0 2px var(--n-page);
+}
 .nazorat .chip-unread {
    display: inline-block;
    min-width: 1.5rem;

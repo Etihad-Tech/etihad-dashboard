@@ -17,7 +17,8 @@
                  40px buttons and a title left neither of them room on a 390px row,
                  which is what the owner saw as everything sticking together. -->
             <div class="flex items-center gap-3">
-               <button v-if="isDetail" @click="router.back()" class="n-topbtn -ml-0.5 shrink-0">
+               <button v-if="isDetail || isChatThread" @click="router.back()"
+                  class="n-topbtn -ml-0.5 shrink-0">
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                      <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round" />
@@ -33,8 +34,8 @@
                <!-- The phone's title. One copy, one size, one place — it neither moves
                     nor resizes as the page scrolls under it. -->
                <div class="min-w-0 flex-1 lg:hidden">
-                  <h2 class="n-title truncate">{{ isDetail ? personWord : 'Nazorat' }}</h2>
-                  <p v-if="!isDetail && scopeSuffix" class="n-title-scope truncate">
+                  <h2 class="n-title truncate">{{ topTitle }}</h2>
+                  <p v-if="!isDetail && !isChatThread && scopeSuffix" class="n-title-scope truncate">
                      {{ scopeSuffix }}
                   </p>
                </div>
@@ -43,9 +44,9 @@
                     two-row arrangement below exists for the phone. -->
                <div class="hidden lg:block min-w-0 flex-1">
                   <h2 class="text-[30px] leading-none font-bold tracking-[-0.03em] truncate">
-                     {{ isDetail ? personWord : 'Nazorat' }}
+                     {{ topTitle }}
                   </h2>
-                  <p v-if="!isDetail && scopeSuffix"
+                  <p v-if="!isDetail && !isChatThread && scopeSuffix"
                      class="text-[13.5px] font-medium text-[color:var(--n-muted)] mt-1.5 truncate">
                      {{ scopeSuffix }}
                   </p>
@@ -61,7 +62,7 @@
                      class="n-topbtn" title="Suhbat">
                      <span class="relative inline-flex">
                         <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
-                        <span v-if="s.chatUnread" class="n-bell-badge">{{ s.chatUnread }}</span>
+                        <span v-if="s.chatUnread" class="n-bell-badge is-chat">{{ s.chatUnread }}</span>
                      </span>
                      <span class="sr-only">Suhbat</span>
                   </router-link>
@@ -184,7 +185,7 @@
               scrolling under it, and padded for the home indicator: the panel is
               installed to the home screen, so an unpadded bar would sit under the
               iPhone's own. -->
-         <nav v-if="!isDesktop && !isDetail" class="nazorat-tabbar">
+         <nav v-if="!isDesktop && !isDetail && !isChatThread" class="nazorat-tabbar">
             <router-link v-for="t in TABS" :key="t.to" :to="t.to"
                :class="route.path === t.to ? 'is-active' : ''">
                <span class="relative inline-flex">
@@ -193,7 +194,7 @@
                        wears: this panel already has one vocabulary for "there is
                        something here", and a second one would read as a different kind
                        of thing. -->
-                  <span v-if="t.key === 'suhbat' && s.chatUnread" class="n-bell-badge">
+                  <span v-if="t.key === 'suhbat' && s.chatUnread" class="n-bell-badge is-chat">
                      {{ s.chatUnread }}
                   </span>
                </span>
@@ -252,9 +253,21 @@ const TABS = [
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
 const isChat = computed(() => route.path === '/ai/nazorat/suhbat')
+/** An OPEN CONVERSATION, not just the inbox. It behaves like the person screen — its own
+ *  title, a back arrow, and no tab bar — because the composer lives at the bottom of the
+ *  viewport and the tab bar is `position: fixed` over exactly that space. */
+const isChatThread = computed(() => isChat.value && !!route.query.suhbat)
+const chatPeerLabel = computed(() =>
+   s.chatPeers.find((p) => p.role === route.query.suhbat)?.label || 'Suhbat')
 
 /** Which population this login reads, as a subtitle under the panel's name. Empty for
  *  the combined account, which sees everyone and so has nothing to qualify. */
+/** What the bar is titled. A conversation is titled by WHO it is with — the panel's name
+ *  above somebody's messages tells the reader nothing they need. */
+const topTitle = computed(() =>
+   isDetail.value ? personWord.value
+      : isChatThread.value ? chatPeerLabel.value : 'Nazorat')
+
 const scopeSuffix = computed(() =>
    isStaffScope.value ? 'Xodimlar' : isLeaderScope.value ? 'Ellikboshilar' : '')
 
