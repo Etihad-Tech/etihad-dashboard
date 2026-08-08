@@ -545,20 +545,33 @@ export function useNazoratView() {
             .filter((p) => p.value > 0)
             .sort((a, c) => c.value - a.value)
          const total = people.reduce((sum, p) => sum + p.value, 0)
-         const head = people.slice(0, PIE_MAX)
-         const tail = people.slice(PIE_MAX)
-         const slices = head.map((p, i) => ({
-            ...p, color: PIE_COLORS[i], pct: total ? (p.value / total) * 100 : 0,
+         const pct = (v: number) => (total ? (v / total) * 100 : 0)
+
+         // EVERY person, named, counted and tappable (owner, 2026-08-08). The list used
+         // to stop at three and roll the rest into «Yana N kishi» — which on a real day
+         // put 42% of the javobsiz complaints into an anonymous grey row that opened
+         // nothing. The cap was serving the palette instead of the reader, which is
+         // backwards: a colour limit may decide how many ARCS are separable, never how
+         // many people the office is allowed to see.
+         const list = people.map((p, i) => ({
+            ...p, pct: pct(p.value),
+            // The first three carry the ring's hues; everyone after shares the grey of
+            // the arc they are actually part of, which is the honest thing for the swatch
+            // to say — "you are in that grey together" — rather than inventing a fourth
+            // colour the ring cannot draw.
+            color: i < PIE_MAX ? PIE_COLORS[i] : PIE_REST,
          }))
+
+         // The RING still shows three plus a remainder, because three is the number of
+         // arcs a reader can actually tell apart — see PIE_COLORS. The legend below is
+         // what carries the detail now, so nothing is hidden by that limit.
+         const tail = people.slice(PIE_MAX)
+         const slices = list.slice(0, PIE_MAX).map((p) => ({ ...p }))
          if (tail.length) {
-            // Not a person, so deliberately NOT tappable: telegram_id 0 opens nothing.
-            // The count is still honest — silently dropping the tail would make three
-            // people look like the whole board.
             const rest = tail.reduce((sum, p) => sum + p.value, 0)
             slices.push({
                telegram_id: 0, name: `Yana ${tail.length} kishi`, initials: '+',
-               job: '', value: rest, color: PIE_REST,
-               pct: total ? (rest / total) * 100 : 0,
+               job: '', value: rest, color: PIE_REST, pct: pct(rest),
             })
          }
          // Geometry attached here rather than called from the template: the template
@@ -568,6 +581,7 @@ export function useNazoratView() {
          return {
             key: b.key, label: b.label, color: b.color, hint: b.hint, total,
             slices: slices.map((sl, i) => ({ ...sl, ...geo[i] })),
+            list,
          }
       })
    }

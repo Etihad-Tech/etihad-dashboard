@@ -60,14 +60,16 @@
                   </div>
                </div>
 
-               <!-- The legend IS the list: name, share, count — and the way in to the
-                    person. «Yana N kishi» carries telegram_id 0 and opens nothing, so it
-                    is rendered as a plain row rather than a dead button. -->
+               <!-- The legend IS the list, and it holds EVERY person — not just the three
+                    the ring can colour. It stopped at three once, rolling the rest into a
+                    grey «Yana N kishi» that opened nothing; on a real day that hid 42% of
+                    the javobsiz complaints behind a row you could not tap (owner,
+                    2026-08-08). The ring's three-arc limit is about what the eye can
+                    separate, and it has no business deciding who the office may see.
+                    Everyone here is named, counted and opens their own screen. -->
                <div class="mt-3 space-y-0.5">
-                  <component v-for="(sg, i) in p.slices" :key="i"
-                     :is="sg.telegram_id ? 'button' : 'div'" type="button"
-                     class="w-full flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-[1.125rem]"
-                     :class="sg.telegram_id ? 'row-tap' : ''"
+                  <button v-for="(sg, i) in p.list" :key="i" type="button"
+                     class="row-tap w-full flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-[1.125rem]"
                      @click="open(sg.telegram_id)">
                      <span class="w-3 h-3 rounded-full shrink-0" :style="{ background: sg.color }"></span>
                      <span class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left">
@@ -85,9 +87,9 @@
                            {{ pct(sg.pct) }}
                         </span>
                      </span>
-                     <font-awesome-icon v-if="sg.telegram_id" icon="chevron-right"
+                     <font-awesome-icon icon="chevron-right"
                         class="w-3 h-3 text-[color:var(--n-faint)] shrink-0" />
-                  </component>
+                  </button>
                </div>
             </template>
          </section>
