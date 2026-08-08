@@ -52,6 +52,19 @@
                </div>
 
                <div class="flex items-center gap-2.5 shrink-0">
+                  <!-- The way into the chat on a DESKTOP. The tab bar below is phone-only,
+                       and Suhbat is the one screen that is not also rendered inline in the
+                       desktop one-scroll — so without this button it could only be reached
+                       by typing the URL. Hidden on a phone, where the tab already leads
+                       there and a second entry would just be clutter. -->
+                  <router-link v-if="canChat && isDesktop" to="/ai/nazorat/suhbat"
+                     class="n-topbtn" title="Suhbat">
+                     <span class="relative inline-flex">
+                        <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
+                        <span v-if="s.chatUnread" class="n-bell-badge">{{ s.chatUnread }}</span>
+                     </span>
+                     <span class="sr-only">Suhbat</span>
+                  </router-link>
                   <!-- The exceptions live here now instead of on top of the main screen.
                        The badge is the whole point: the panel is worth opening only when
                        it has something in it. -->
@@ -215,6 +228,10 @@ const {
    personWord, groupChoices, activeProblems, isStaffScope, isLeaderScope,
 } = useNazoratView()
 
+/** Whether this login has anybody to talk to. Mirrors CHAT_ROLES; the API is the
+ *  authority and answers everyone else an empty inbox. */
+const canChat = computed(() => CHAT_ROLES.includes(auth.role || ''))
+
 const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
    { key: 'reyting', to: '/ai/nazorat/reyting', label: 'Reyting', icon: 'ranking-star' },
@@ -227,7 +244,7 @@ const TABS = [
    // Only the three controller logins have a conversation to open. `admin` reaches the
    // endpoints (require_role always allows admin) but is not one of them, so the API
    // answers an empty inbox — and a tab that can only ever be empty is worse than no tab.
-   ...(CHAT_ROLES.includes(auth.role || '')
+   ...(canChat.value
       ? [{ key: 'suhbat', to: '/ai/nazorat/suhbat', label: 'Suhbat', icon: 'comments' }]
       : []),
 ]
@@ -309,4 +326,21 @@ function logout() {
 }
 
 onMounted(() => s.load())
+
+/** The unread badge, owned by the shell. It used to be refreshed only by the chat screen
+ *  itself, which meant it only became correct once the reader had already opened the
+ *  thing it exists to announce. Polled here it is right on whichever screen they are on,
+ *  and it costs one small request a minute.
+ *
+ *  Deliberately slower than the chat's own 10s poll: a badge is an interruption, and it
+ *  does not need to be to the second. Skipped entirely while the tab is hidden. */
+let unreadTimer: number | undefined
+onMounted(() => {
+   if (!canChat.value) return
+   s.loadChatUnread()
+   unreadTimer = window.setInterval(() => {
+      if (!document.hidden) s.loadChatUnread()
+   }, 60000)
+})
+onUnmounted(() => { if (unreadTimer) window.clearInterval(unreadTimer) })
 </script>
