@@ -202,26 +202,45 @@ function groupLabel(g: GroupOption): string {
 }
 
 /** Reyting is one pie per outcome, sliced by person (owner, 2026-08-07) — «who are the
- *  javobsiz ones» rather than a table to read down. Six segments is the readable ceiling
- *  for a pie, so five people are drawn and the rest fold into «Boshqalar».
+ *  javobsiz ones» rather than a table to read down.
  *
- *  Each pie is a ramp of its OWN category's colour, light→dark by share. Slices are
- *  people, which normally calls for a categorical palette — but this panel has no hues
- *  spare (the outcomes hold green/amber/blue and red is the alarm), and nine per-person
- *  hues would collide with the vocabulary the reader has just learned. A single-hue ramp
- *  keeps every pie unmistakably its own category, and identity comes from the legend
- *  beside each slice, never from the colour.
+ *  DISTINCT HUES, not one ramp (owner, same day: the single-colour version was hard to
+ *  read). A ramp passed the contrast checks and still failed the only job the colour has
+ *  here — tying an arc to its row — because six steps of one hue are not six things a
+ *  reader can tell apart at a glance.
  *
- *  Ramps validated with the dataviz skill's checker (--ordinal, light surface): all three
- *  PASS monotone lightness, adjacent ΔL ≥ 0.06, and a light end clearing 2:1 on white.
- *  Amber has the least room — its lightest legal step IS the bucket colour — so it runs
- *  amber → brown rather than starting pale. */
-export const PIE_MAX = 5
-export const RATING_RAMPS: Record<string, string[]> = {
-   completed: ['#34c79a', '#0aa87c', '#058560', '#046a4c', '#035038', '#023626'],
-   reopened: ['#f59e0b', '#d3870a', '#b06f08', '#8d5807', '#6b4205', '#492c03'],
-   never_accepted: ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#104281', '#0b2d59'],
-}
+ *  THREE named people, then «Boshqalar». That cap is the price of the hues: a pie is an
+ *  all-pairs form (any slice can be compared with any other), and the dataviz skill's own
+ *  gate is that only three categorical slots clear all-pairs — past three, colours stop
+ *  being reliably distinguishable and the palette is lying about how many things it can
+ *  separate. Five faint steps of one hue was the same lie told differently.
+ *
+ *  The hues are deliberately NOT the panel's own: green, amber and blue mean an OUTCOME
+ *  here, and a person's slice must never read as a grade. Chosen by measurement, not
+ *  taste — validated all-pairs (light surface) against the three outcome colours, which
+ *  are on this very screen as the pie-title dots:
+ *
+ *    violet #4a3aa7 · magenta #e87ba4 · rust #9a3412   →  ALL CHECKS PASS
+ *
+ *  Two candidates were rejected by the same run and are worth recording so nobody tries
+ *  them again: aqua #1baf7a sits ΔE 7.4 from «Bajarildi» green at NORMAL vision (below
+ *  the floor of 15 — a green-looking person), and a second violet #a21caf sits ΔE 2.1
+ *  from this one under protanopia. The remaining sub-floor pair in the palette is magenta
+ *  against ALARM_RED, at 13.3 — allowed only because red never appears on this screen at
+ *  all; it belongs to the bell and the bot-mistake tile.
+ *
+ *  Magenta is under 3:1 on white, so the relief rule applies: every slice carries a
+ *  visible label in the legend beside it, and the arcs are separated by a real gap.
+ *
+ *  Colour is assigned by rank WITHIN a pie, so the same person can be violet in one and
+ *  magenta in another. That is deliberate: with three slots and three pies there are not
+ *  enough hues to key them to people, and the colour here is doing a within-chart job —
+ *  "this arc is that row" — with the name, never the hue, carrying who it is. */
+export const PIE_MAX = 3
+export const PIE_COLORS = ['#4a3aa7', '#e87ba4', '#9a3412']
+/** Everybody else. Deliberately outside the palette and achromatic: it is not a person,
+ *  it is the remainder, and giving it a hue would make it look like one more of them. */
+export const PIE_REST = '#9ca3af'
 
 // Module-level so the chosen tab survives a screen switch — Reyting is unmounted while
 // the reader is in the Jurnal, and coming back to a silently reset board reads as "the
@@ -515,7 +534,6 @@ export function useNazoratView() {
     *  table made you read for: not "rank these people" but "who are the javobsiz ones". */
    function pies(rows: Worker[]) {
       return BUCKETS.map((b) => {
-         const ramp = RATING_RAMPS[b.key]
          const people = rows
             .map((w) => ({
                telegram_id: w.telegram_id,
@@ -530,16 +548,16 @@ export function useNazoratView() {
          const head = people.slice(0, PIE_MAX)
          const tail = people.slice(PIE_MAX)
          const slices = head.map((p, i) => ({
-            ...p, color: ramp[i], pct: total ? (p.value / total) * 100 : 0,
+            ...p, color: PIE_COLORS[i], pct: total ? (p.value / total) * 100 : 0,
          }))
          if (tail.length) {
             // Not a person, so deliberately NOT tappable: telegram_id 0 opens nothing.
-            // The count is still honest — silently dropping the tail would make five
+            // The count is still honest — silently dropping the tail would make three
             // people look like the whole board.
             const rest = tail.reduce((sum, p) => sum + p.value, 0)
             slices.push({
                telegram_id: 0, name: `Yana ${tail.length} kishi`, initials: '+',
-               job: '', value: rest, color: ramp[PIE_MAX],
+               job: '', value: rest, color: PIE_REST,
                pct: total ? (rest / total) * 100 : 0,
             })
          }
