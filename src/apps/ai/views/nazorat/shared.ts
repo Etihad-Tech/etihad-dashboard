@@ -96,6 +96,21 @@ export function isLeaderLevel(p: { role: string; staff_role?: string | null }): 
    return p.role === 'ellikboshi' || p.staff_role === 'doctor'
 }
 
+/** What to CALL that group, which is not always «Ellikboshilar».
+ *
+ *  The staff controller's login never sees a leader — the API filters them out — but the
+ *  doctor is a xodim, so they survive that filter and then land in the leader-level group
+ *  by the rule above. That login was being shown a board headed «Ellikboshilar» holding
+ *  one Shifokor and nobody else (owner asked whether the scoped accounts were affected,
+ *  2026-08-08; they were).
+ *
+ *  So the group is named after who is in it. A heading is a claim about its contents, and
+ *  this one was false for exactly the account that can never check it against the other
+ *  population. */
+export function leaderGroupTitle(people: { role: string }[]): string {
+   return people.some((p) => p.role === 'ellikboshi') ? 'Ellikboshilar' : 'Shifokor'
+}
+
 /** The lavozim dropdown, honouring the same regrouping — picking «Ellikboshi» must
  *  return exactly the people the Ellikboshilar board holds, or the two disagree. */
 export function matchesRoleFilter(
@@ -508,6 +523,9 @@ export function useNazoratView() {
             // the first word goes under the bar and the whole name rides in the title.
             short: personLabel(w).split(/[\s]+/)[0],
             job: jobLabel(w),
+            // Carried so the group can be NAMED after who is in it — a doctor is
+            // leader-level but is not an ellikboshi. See leaderGroupTitle.
+            role: w.role,
             leaderLevel: isLeaderLevel(w),
             seconds: w.avg_response_seconds as number,
             answered: w.accepted || 0,
@@ -532,7 +550,7 @@ export function useNazoratView() {
       }))
 
       const groups = [
-         { key: 'ellikboshi', title: 'Ellikboshilar' },
+         { key: 'ellikboshi', title: leaderGroupTitle(people.filter((p) => p.leaderLevel)) },
          { key: 'staff', title: 'Ishchi guruh' },
       ].map((g) => ({
          ...g,
@@ -627,7 +645,8 @@ export function useNazoratView() {
 
    const ratingBoards = computed(() => [
       {
-         key: 'ellikboshi', title: 'Ellikboshilar',
+         key: 'ellikboshi',
+         title: leaderGroupTitle(filteredWorkers.value.filter((w) => isLeaderLevel(w))),
          people: filteredWorkers.value.filter((w) => isLeaderLevel(w)),
       },
       {
