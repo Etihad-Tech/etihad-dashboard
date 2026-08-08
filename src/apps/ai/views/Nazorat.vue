@@ -17,7 +17,8 @@
                  40px buttons and a title left neither of them room on a 390px row,
                  which is what the owner saw as everything sticking together. -->
             <div class="flex items-center gap-3">
-               <button v-if="isDetail" @click="router.back()" class="n-topbtn -ml-0.5 shrink-0">
+               <button v-if="isDetail || isChatThread" @click="router.back()"
+                  class="n-topbtn -ml-0.5 shrink-0">
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                      <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round" />
@@ -33,8 +34,8 @@
                <!-- The phone's title. One copy, one size, one place — it neither moves
                     nor resizes as the page scrolls under it. -->
                <div class="min-w-0 flex-1 lg:hidden">
-                  <h2 class="n-title truncate">{{ isDetail ? personWord : 'Nazorat' }}</h2>
-                  <p v-if="!isDetail && scopeSuffix" class="n-title-scope truncate">
+                  <h2 class="n-title truncate">{{ topTitle }}</h2>
+                  <p v-if="!isDetail && !isChatThread && scopeSuffix" class="n-title-scope truncate">
                      {{ scopeSuffix }}
                   </p>
                </div>
@@ -43,15 +44,28 @@
                     two-row arrangement below exists for the phone. -->
                <div class="hidden lg:block min-w-0 flex-1">
                   <h2 class="text-[30px] leading-none font-bold tracking-[-0.03em] truncate">
-                     {{ isDetail ? personWord : 'Nazorat' }}
+                     {{ topTitle }}
                   </h2>
-                  <p v-if="!isDetail && scopeSuffix"
+                  <p v-if="!isDetail && !isChatThread && scopeSuffix"
                      class="text-[13.5px] font-medium text-[color:var(--n-muted)] mt-1.5 truncate">
                      {{ scopeSuffix }}
                   </p>
                </div>
 
                <div class="flex items-center gap-2.5 shrink-0">
+                  <!-- The way into the chat on a DESKTOP. The tab bar below is phone-only,
+                       and Suhbat is the one screen that is not also rendered inline in the
+                       desktop one-scroll — so without this button it could only be reached
+                       by typing the URL. Hidden on a phone, where the tab already leads
+                       there and a second entry would just be clutter. -->
+                  <router-link v-if="canChat && isDesktop" to="/ai/nazorat/suhbat"
+                     class="n-topbtn" title="Suhbat">
+                     <span class="relative inline-flex">
+                        <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
+                        <span v-if="s.chatUnread" class="n-bell-badge is-chat">{{ s.chatUnread }}</span>
+                     </span>
+                     <span class="sr-only">Suhbat</span>
+                  </router-link>
                   <!-- The exceptions live here now instead of on top of the main screen.
                        The badge is the whole point: the panel is worth opening only when
                        it has something in it. -->
@@ -77,7 +91,9 @@
                </div>
             </div>
 
-            <div v-if="!isDetail" class="seg mt-3.5 lg:inline-flex lg:w-auto">
+            <!-- Not over the chat: a conversation does not answer to a period, and a
+                 date filter above it invites the reader to think their messages do. -->
+            <div v-if="!isDetail && !isChat" class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
                   {{ p.label }}
@@ -88,7 +104,7 @@
          <div class="nazorat-scroll px-5 pt-4 lg:px-0 lg:pb-0">
             <!-- WHICH SLICE. Applied on the SERVER, so the cards, the ranking, the
                  journal and the person screens can never describe different slices. -->
-            <div v-if="!isDetail" class="flex flex-wrap items-center gap-2 mb-4">
+            <div v-if="!isDetail && !isChat" class="flex flex-wrap items-center gap-2 mb-4">
                <select v-model="s.filterGroup" @change="s.setSlice()"
                   class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
                   <option value="">Barcha guruhlar</option>
@@ -134,7 +150,11 @@
 
             <!-- A person's screen replaces everything, on a phone and on a desktop alike:
                  it is a different question, not a section of the same page. -->
-            <router-view v-else-if="isDetail" />
+            <!-- The person screen and the CHAT get their own view even on a desktop.
+                 The one-scroll below is four REPORTS read together in a meeting; a
+                 conversation is not one of them, and dropping a message composer between
+                 the ranking and the journal would make both harder to read. -->
+            <router-view v-else-if="isDetail || isChat" />
 
             <!-- One screen at a time on a phone; on a desktop the same four panels stay a
                  single scroll, because the office reads the whole thing in a meeting and
@@ -165,10 +185,19 @@
               scrolling under it, and padded for the home indicator: the panel is
               installed to the home screen, so an unpadded bar would sit under the
               iPhone's own. -->
-         <nav v-if="!isDesktop && !isDetail" class="nazorat-tabbar">
+         <nav v-if="!isDesktop && !isDetail && !isChatThread" class="nazorat-tabbar">
             <router-link v-for="t in TABS" :key="t.to" :to="t.to"
                :class="route.path === t.to ? 'is-active' : ''">
-               <font-awesome-icon :icon="t.icon" class="w-[22px] h-[22px]" />
+               <span class="relative inline-flex">
+                  <font-awesome-icon :icon="t.icon" class="w-[22px] h-[22px]" />
+                  <!-- Unread messages, on the tab that holds them. Same badge the bell
+                       wears: this panel already has one vocabulary for "there is
+                       something here", and a second one would read as a different kind
+                       of thing. -->
+                  <span v-if="t.key === 'suhbat' && s.chatUnread" class="n-bell-badge is-chat">
+                     {{ s.chatUnread }}
+                  </span>
+               </span>
                <span class="truncate max-w-full">{{ t.label }}</span>
             </router-link>
          </nav>
@@ -187,7 +216,7 @@ import Reyting from './nazorat/Reyting.vue'
 import Jurnal from './nazorat/Jurnal.vue'
 import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
-import { useNazoratStore } from '../stores/nazorat'
+import { CHAT_ROLES, useNazoratStore } from '../stores/nazorat'
 import { useAuthStore } from '../../../stores/auth'
 import { PERIODS, useNazoratView } from './nazorat/shared'
 import './nazorat/nazorat.css'
@@ -200,6 +229,10 @@ const {
    personWord, groupChoices, activeProblems, isStaffScope, isLeaderScope,
 } = useNazoratView()
 
+/** Whether this login has anybody to talk to. Mirrors CHAT_ROLES; the API is the
+ *  authority and answers everyone else an empty inbox. */
+const canChat = computed(() => CHAT_ROLES.includes(auth.role || ''))
+
 const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
    { key: 'reyting', to: '/ai/nazorat/reyting', label: 'Reyting', icon: 'ranking-star' },
@@ -209,13 +242,32 @@ const TABS = [
    ...(auth.role === 'nazoratchi_staff'
       ? []
       : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
+   // Only the three controller logins have a conversation to open. `admin` reaches the
+   // endpoints (require_role always allows admin) but is not one of them, so the API
+   // answers an empty inbox — and a tab that can only ever be empty is worse than no tab.
+   ...(canChat.value
+      ? [{ key: 'suhbat', to: '/ai/nazorat/suhbat', label: 'Suhbat', icon: 'comments' }]
+      : []),
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
 const isDetail = computed(() => route.path.startsWith('/ai/nazorat/xodim/'))
+const isChat = computed(() => route.path === '/ai/nazorat/suhbat')
+/** An OPEN CONVERSATION, not just the inbox. It behaves like the person screen — its own
+ *  title, a back arrow, and no tab bar — because the composer lives at the bottom of the
+ *  viewport and the tab bar is `position: fixed` over exactly that space. */
+const isChatThread = computed(() => isChat.value && !!route.query.suhbat)
+const chatPeerLabel = computed(() =>
+   s.chatPeers.find((p) => p.role === route.query.suhbat)?.label || 'Suhbat')
 
 /** Which population this login reads, as a subtitle under the panel's name. Empty for
  *  the combined account, which sees everyone and so has nothing to qualify. */
+/** What the bar is titled. A conversation is titled by WHO it is with — the panel's name
+ *  above somebody's messages tells the reader nothing they need. */
+const topTitle = computed(() =>
+   isDetail.value ? personWord.value
+      : isChatThread.value ? chatPeerLabel.value : 'Nazorat')
+
 const scopeSuffix = computed(() =>
    isStaffScope.value ? 'Xodimlar' : isLeaderScope.value ? 'Ellikboshilar' : '')
 
@@ -287,4 +339,21 @@ function logout() {
 }
 
 onMounted(() => s.load())
+
+/** The unread badge, owned by the shell. It used to be refreshed only by the chat screen
+ *  itself, which meant it only became correct once the reader had already opened the
+ *  thing it exists to announce. Polled here it is right on whichever screen they are on,
+ *  and it costs one small request a minute.
+ *
+ *  Deliberately slower than the chat's own 10s poll: a badge is an interruption, and it
+ *  does not need to be to the second. Skipped entirely while the tab is hidden. */
+let unreadTimer: number | undefined
+onMounted(() => {
+   if (!canChat.value) return
+   s.loadChatUnread()
+   unreadTimer = window.setInterval(() => {
+      if (!document.hidden) s.loadChatUnread()
+   }, 60000)
+})
+onUnmounted(() => { if (unreadTimer) window.clearInterval(unreadTimer) })
 </script>

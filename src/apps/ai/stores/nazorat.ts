@@ -67,6 +67,23 @@ export interface AggressiveItem {
 }
 export interface Aggressive { total: number; items: AggressiveItem[] }
 
+/** The three controller logins that may talk to each other. Mirrors CHAT_ROLES on the
+ *  server, which is the authority — this copy only decides whether to render the tab, and
+ *  the API refuses anything it disagrees with. `admin` is deliberately absent: it reads
+ *  the panel, it is not one of the three watchers the chat exists for, and the API
+ *  answers it an empty inbox. */
+export const CHAT_ROLES = ['nazoratchi', 'nazoratchi_staff', 'nazoratchi_ellikboshi']
+
+export interface ChatPeer {
+   role: string; label: string; unread: number
+   last_text: string | null; last_at: string | null; last_from_me: boolean
+}
+export interface ChatMessage {
+   id: number; text: string; from_me: boolean
+   sender_role: string; sender_label: string
+   created_at: string | null; read_at: string | null
+}
+
 // `location` is null for an ellikboshi — a leader belongs to a GROUP, not a city, and
 // `group` is that group's title (null for crew). Which group still assigns them is the
 // one fact that makes the warning actionable: the fix is on the Guruhlar page.
@@ -101,6 +118,16 @@ export const useNazoratStore = defineStore('nazorat', () => {
    // by owner request (2026-08-07) after a few hours off it: it is the one warning where
    // nothing is failing yet — the cards simply never arrive, silently.
    const staffReadiness = ref<StaffReady[]>([])
+
+   // ── The controllers' 1:1 chat ─────────────────────────────────────────────
+   // Kept OUT of load(): it answers to no period and no group/city slice, and re-pulling
+   // a conversation because the reader changed the date filter would be both wasteful and
+   // misleading — it would imply the messages belong to that window.
+   const chatPeers = ref<ChatPeer[]>([])
+   const chatThread = ref<ChatMessage[]>([])
+   const chatUnread = ref(0)
+   const chatLoading = ref(false)
+   const chatSending = ref(false)
    // The roster screen. Kept OUT of load(): it takes no period and no group/city slice,
    // so re-pulling it whenever the window changes would be pure waste — and worse, it
    // would imply to the reader that it answers to the selector like everything else does.
@@ -310,6 +337,60 @@ export const useNazoratStore = defineStore('nazorat', () => {
       }
    }
 
+   /** The badge only. Polled on a timer while the panel is open, so it is its own tiny
+    *  read rather than a side effect of the heavier ones. */
+   async function loadChatUnread() {
+      try {
+         const { data } = await api.get('/control/chat/unread')
+         chatUnread.value = data?.unread || 0
+      } catch { /* a dead poll must never surface as a page error */ }
+   }
+
+   async function loadChatPeers() {
+      try {
+         const { data } = await api.get('/control/chat/peers')
+         chatPeers.value = data || []
+      } catch { chatPeers.value = [] }
+   }
+
+   /** One conversation. `silent` is the polling path: it refreshes the messages without
+    *  the skeleton, so a thread the reader is looking at does not blink every few seconds. */
+   async function loadChatThread(peer: string, silent = false) {
+      if (!silent) chatLoading.value = true
+      try {
+         const { data } = await api.get(`/control/chat/${peer}`)
+         chatThread.value = data || []
+      } catch {
+         if (!silent) chatThread.value = []
+      } finally {
+         chatLoading.value = false
+      }
+   }
+
+   async function sendChat(peer: string, text: string): Promise<boolean> {
+      const body = (text || '').trim()
+      if (!body || chatSending.value) return false
+      chatSending.value = true
+      try {
+         await api.post(`/control/chat/${peer}`, { text: body })
+         await loadChatThread(peer, true)
+         return true
+      } catch {
+         return false
+      } finally {
+         chatSending.value = false
+      }
+   }
+
+   /** The reader opened the thread. Marks THEIR incoming messages and refreshes the
+    *  badge, so the tab stops shouting the moment they have actually looked. */
+   async function markChatRead(peer: string) {
+      try {
+         await api.post(`/control/chat/${peer}/read`)
+         await loadChatUnread()
+      } catch { /* the badge is not worth an error toast */ }
+   }
+
    return {
       period, loading, loadError, saving, savedMsg,
       report, workers, groupOptions, aggressive, staffReadiness, scope,
@@ -319,5 +400,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       form, sliceQuery, dismissed,
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
       dismissProblems, restoreProblems, dismissReopen, save,
+      chatPeers, chatThread, chatUnread, chatLoading, chatSending,
+      loadChatUnread, loadChatPeers, loadChatThread, sendChat, markChatRead,
    }
 })
