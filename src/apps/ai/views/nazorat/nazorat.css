@@ -641,6 +641,19 @@
    drawn against the full height, so nothing sat on the baseline and the longest name was
    clipped off the bottom. Two flex rows with the same gap and the same flex basis stay
    in step without either one borrowing the other's space. */
+/* A chart with more columns than fit scrolls inside its OWN box — the page itself must
+   never scroll sideways. Used by the Guruhlar workload chart, which has one column per
+   ellikboshi and so has no fixed width; the value sits above every column, so the axis
+   labels scrolling out of view costs nothing. */
+.nazorat .n-chart-scroll {
+   overflow-x: auto;
+   overflow-y: hidden;
+   -webkit-overflow-scrolling: touch;
+   /* The topmost gridline's label is centred ON its line, so half of it hangs above the
+      plot. Without this the y-clip that comes with overflow-x shears the top number in
+      half — the one number that says how tall the scale is. */
+   padding-top: 0.5rem;
+}
 .nazorat .n-chart { position: relative; }
 .nazorat .n-chart-plot {
    position: relative;

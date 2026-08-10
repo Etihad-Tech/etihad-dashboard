@@ -18,6 +18,109 @@
          </div>
       </div>
 
+      <!-- ──────────────── WORKLOAD IN A WINDOW ────────────────
+           The same people, the other question: not "how many groups are theirs" but "how
+           many were they running THIS week / THIS month" — the workload figure the extra
+           reward is decided on (owner, 2026-08-10).
+
+           Its own Haftalik/Oylik switch, not the panel's period selector: the roster
+           below is deliberately period-free and says so in as many words, and one screen
+           obeying two different period controls is how a reader ends up misreading both
+           numbers. The window it actually got is printed under the switch, so the chart
+           never leaves you guessing which days you are looking at.
+
+           Only leaders who ran at least one group get a column — a row of flat zeroes is
+           a wall, not a chart — and the count of those who ran none is stated beneath it,
+           so nothing is silently dropped. -->
+      <div v-if="s.periodCountsError !== 'forbidden'" class="card p-5 n-enter" style="--i: 1">
+         <h3 class="n-h">Davr bo'yicha yuklama</h3>
+         <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1.5 leading-snug">
+            Tanlangan davrda har bir ellikboshi nechta guruhni olib borgan.
+         </p>
+
+         <div class="seg mt-3.5 lg:inline-flex lg:w-auto">
+            <button v-for="p in GROUP_PERIODS" :key="p.value"
+               @click="s.setGroupPeriod(p.value)"
+               :class="s.groupPeriod === p.value ? 'is-on' : ''">
+               {{ p.label }}
+            </button>
+         </div>
+         <p v-if="s.periodRange.from" class="text-[12.5px] text-[color:var(--n-faint)] mt-2 tabular-nums">
+            {{ dmy(s.periodRange.from) }} — {{ dmy(s.periodRange.to) }}
+         </p>
+
+         <div v-if="s.periodCountsLoading" class="mt-5 h-[10.5rem] rounded-2xl bg-gray-100 animate-pulse"></div>
+
+         <div v-else-if="s.periodCountsError === 'failed'" class="mt-5 text-center py-6">
+            <p class="text-[15px] text-[color:var(--n-muted)] mb-4">Ma'lumot yuklanmadi.</p>
+            <button @click="s.loadPeriodCounts()" class="btn-primary">Qayta urinish</button>
+         </div>
+
+         <p v-else-if="!periodChart.cols.length"
+            class="mt-5 text-[14.5px] text-[color:var(--n-muted)] leading-snug">
+            Bu davrda birorta guruh yo'lda bo'lmagan.
+         </p>
+
+         <div v-else class="mt-5">
+            <!-- Wide charts scroll inside their own box rather than squeezing every
+                 column to a hairline: with a dozen ellikboshilar an equal-share row is
+                 unreadable, and the value sits above each column anyway. -->
+            <div class="n-chart-scroll">
+               <div class="n-chart" :style="{ minWidth: periodChart.cols.length * 4.25 + 'rem' }">
+                  <div class="n-chart-plot">
+                     <div class="n-chart-axis">
+                        <div v-for="t in periodChart.ticks" :key="t.at" class="n-chart-tick"
+                           :style="{ bottom: t.at + '%' }">
+                           <span>{{ t.label }}</span><i></i>
+                        </div>
+                     </div>
+                     <div class="n-chart-cols">
+                        <button v-for="c in periodChart.cols" :key="c.username" type="button"
+                           class="n-chart-col"
+                           :title="`${c.name} · ${c.group_count} guruh`"
+                           @click="openCol = openCol === c.username ? '' : c.username">
+                           <span class="n-chart-val">{{ c.group_count }}</span>
+                           <span class="n-chart-bar"
+                              :style="{ height: c.height + '%', '--c': c.color }"></span>
+                        </button>
+                     </div>
+                  </div>
+                  <div class="n-chart-names">
+                     <span v-for="c in periodChart.cols" :key="c.username" class="n-chart-name">
+                        {{ c.short }}
+                     </span>
+                  </div>
+               </div>
+            </div>
+
+            <!-- Tapping a column names ITS OWN groups, with the trip dates that put each
+                 one inside this window. The roster's drill-down below answers a different
+                 question (everything ever assigned), so the two must not share a list. -->
+            <div v-if="openGroups.length" class="mt-3.5 pt-3.5" style="border-top: 1px solid var(--n-line-soft)">
+               <p class="n-tile-label">{{ openName }}</p>
+               <ul class="mt-2 space-y-1.5">
+                  <li v-for="g in openGroups" :key="g.telegram_id"
+                     class="text-[13.5px] text-[color:var(--n-muted)]">
+                     {{ g.title || ('Guruh ' + g.telegram_id) }}
+                     <span class="text-[color:var(--n-faint)] tabular-nums">
+                        · {{ dmy(g.trip_start_date) }} — {{ dmy(g.trip_end_date) }}
+                     </span>
+                  </li>
+               </ul>
+            </div>
+
+            <p class="mt-3.5 text-[12.5px] text-[color:var(--n-faint)] leading-snug">
+               <span v-if="periodIdle">{{ periodIdle }} ellikboshida bu davrda guruh bo'lmagan.</span>
+               <!-- The same caveat the API carries: a group with no trip dates cannot be
+                    placed in any window, so it is counted nowhere. Said out loud, because
+                    silence about it reads as "there were none". -->
+               <span v-if="s.periodUnscheduled">
+                  {{ s.periodUnscheduled }} ta guruhda safar sanasi yo'q — hisobga olinmadi.
+               </span>
+            </p>
+         </div>
+      </div>
+
       <div v-if="s.leaderGroupsLoading" class="card divide-y divide-gray-100 overflow-hidden">
          <div v-for="i in 5" :key="i" class="flex items-center gap-3.5 px-5 py-3.5">
             <span class="w-9 h-9 rounded-full bg-gray-100 shrink-0 animate-pulse"></span>
@@ -102,15 +205,73 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useNazoratStore } from '../../stores/nazorat'
-import { initials } from './shared'
+import { initials, PIE_COLORS } from './shared'
 
 const s = useNazoratStore()
 const open = ref('')
+// Separate from `open` on purpose: the chart's drill-down lists the groups that ran in
+// THIS WINDOW, the roster's lists everything ever assigned. One ref would make tapping a
+// column silently answer the other question.
+const openCol = ref('')
 
 const totalGroups = computed(() => s.leaderGroups.reduce((n, l) => n + l.group_count, 0))
 const withoutGroups = computed(() => s.leaderGroups.filter((l) => !l.group_count).length)
 
-// Loaded here rather than in the panel's load(): this read takes no period and no
-// group/city slice, so it must not be re-pulled every time the selector moves.
-onMounted(() => { if (!s.leaderGroups.length) s.loadLeaderGroups() })
+const GROUP_PERIODS = [
+   { value: 'week' as const, label: 'Haftalik' },
+   { value: 'month' as const, label: 'Oylik' },
+]
+
+/** 2026-08-10 -> 10.08. The year is dropped: both ends of a window this short are in the
+ *  same one, and the pair has to fit on a phone. */
+function dmy(iso: string) {
+   const [, m, d] = (iso || '').split('-')
+   return d && m ? `${d}.${m}` : ''
+}
+
+/** The columns, biggest workload first — unlike the response-time chart next door, a
+ *  ranking is exactly what this number is for: more groups IS more work, and that is the
+ *  question the extra reward is decided on.
+ *
+ *  The axis is in whole groups. AXIS_STEPS is not reused: it is a duration ladder (30
+ *  daq, 1 soat…) and would put fractional groups on the scale. */
+const periodChart = computed(() => {
+   const cols = s.periodCounts
+      .filter((l) => l.group_count > 0)
+      .slice()
+      .sort((a, b) => b.group_count - a.group_count
+         || (a.name || a.username).localeCompare(b.name || b.username))
+   const peak = cols.reduce((m, c) => Math.max(m, c.group_count), 0)
+   // One line per group up to 5, then a coarser step, so the axis never becomes a comb.
+   const step = peak <= 5 ? 1 : Math.ceil(peak / 4)
+   const top = Math.max(Math.ceil(peak / step) * step, step)
+   const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, i) => ({
+      at: (i * step / top) * 100, label: String(i * step),
+   }))
+   return {
+      ticks,
+      cols: cols.map((c, i) => ({
+         ...c,
+         short: (c.name || c.username).replace(/^@/, '').split(/\s+/)[0],
+         // Floor of 4%: one group must still be a visible block, not a hairline.
+         height: Math.max((c.group_count / top) * 100, 4),
+         color: PIE_COLORS[i % PIE_COLORS.length],
+      })),
+   }
+})
+
+/** Leaders in the pool who ran nothing in the window — stated under the chart rather
+ *  than drawn as flat zero columns. */
+const periodIdle = computed(() => s.periodCounts.filter((l) => !l.group_count).length)
+
+const openRow = computed(() => s.periodCounts.find((l) => l.username === openCol.value))
+const openGroups = computed(() => openRow.value?.groups || [])
+const openName = computed(() => openRow.value ? (openRow.value.name || openRow.value.username) : '')
+
+// Loaded here rather than in the panel's load(): both reads take no group/city slice and
+// the roster takes no period at all, so neither must be re-pulled when the selector moves.
+onMounted(() => {
+   if (!s.leaderGroups.length) s.loadLeaderGroups()
+   if (!s.periodCounts.length) s.loadPeriodCounts()
+})
 </script>
