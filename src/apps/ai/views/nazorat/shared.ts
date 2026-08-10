@@ -512,7 +512,16 @@ export function useNazoratView() {
     *
     *  One scale across BOTH groups. Two charts each scaled to their own worst would put a
     *  leader and a xodim at the same height while meaning different things, and comparing
-    *  the two crews is most of why the card is split in the first place. */
+    *  the two crews is most of why the card is split in the first place.
+    *
+    *  COLOUR PER COLUMN (owner, 2026-08-10) — the columns were all one violet. They cycle
+    *  PIE_COLORS, the panel's existing person palette, rather than a new one: it was
+    *  already measured all-pairs against the three outcome colours, so a column can never
+    *  read as a GRADE, which is the rule the whole panel is built on (green/amber/blue mean
+    *  an outcome; red is the alarm). Cycling — rather than the pie's hard cap of three — is
+    *  safe HERE because a column is labelled directly beneath it: the name carries who it
+    *  is, and the hue is only separating neighbours, so a repeat three columns away costs
+    *  nothing. On a pie, with no label on the arc, it would. */
    const responseChart = computed(() => {
       const people = filteredWorkers.value
          .filter((w) => w.avg_response_seconds !== null && w.avg_response_seconds !== undefined)
@@ -556,13 +565,16 @@ export function useNazoratView() {
          ...g,
          cols: people
             .filter((p) => (g.key === 'ellikboshi' ? p.leaderLevel : !p.leaderLevel))
-            .map((p) => ({
+            .map((p, i) => ({
                ...p,
                // Floor of 2%: somebody who answered in seconds still gets a visible mark
                // on the baseline, and an invisible column reads as missing data, not as
                // fast. Ceiling of 100%: past the top the column is cut, not scaled.
                height: Math.min(Math.max((p.seconds / top) * 100, 2), 100),
                over: p.seconds > top,
+               // Cycled per GROUP, so each chart starts at the same first colour and the
+               // two crews read as two charts of the same kind rather than one long run.
+               color: PIE_COLORS[i % PIE_COLORS.length],
             })),
       })).filter((g) => g.cols.length)
 
