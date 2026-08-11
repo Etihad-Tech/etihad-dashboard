@@ -52,6 +52,18 @@ export interface LeaderGroups {
    groups: { telegram_id: number; title: string | null }[]
 }
 
+/** One ellikboshi's WORKLOAD in an arbitrary window — how many of their groups were on
+ *  the road during it. A different question from LeaderGroups above, which is the
+ *  standing roster and answers to no period at all; both live on the Guruhlar screen and
+ *  the screen has to say which is which. */
+export interface LeaderPeriodCount {
+   username: string; name: string | null
+   in_pool: boolean
+   group_count: number
+   groups: { telegram_id: number; title: string | null
+             trip_start_date: string; trip_end_date: string }[]
+}
+
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 
 /** One complaint that carried real hostility, and the ellikboshi who has to settle it.
@@ -134,6 +146,19 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const leaderGroups = ref<LeaderGroups[]>([])
    const leaderGroupsLoading = ref(false)
    const leaderGroupsError = ref<'' | 'forbidden' | 'failed'>('')
+
+   // The PERIOD workload on the same screen (owner, 2026-08-10: "number of groups per
+   // ellikboshi weekly and monthly"). It has its OWN week/month switch rather than
+   // reading the panel's Kunlik/Haftalik/Oylik selector: the roster above it is
+   // deliberately period-free and says so, and one screen answering to two different
+   // period controls at once is how a reader ends up misreading both numbers. Also kept
+   // out of load() for the same reason as the roster.
+   const groupPeriod = ref<'week' | 'month'>('week')
+   const periodCounts = ref<LeaderPeriodCount[]>([])
+   const periodRange = ref<{ from: string; to: string }>({ from: '', to: '' })
+   const periodUnscheduled = ref(0)
+   const periodCountsLoading = ref(false)
+   const periodCountsError = ref<'' | 'forbidden' | 'failed'>('')
 
    // Which population this LOGIN may see: 'staff' | 'ellikboshi' | 'all'. Comes from the
    // API (the token decides it), never from a dropdown — a scoped controller cannot
@@ -297,6 +322,48 @@ export const useNazoratStore = defineStore('nazorat', () => {
       }
    }
 
+   /** YYYY-MM-DD in the READER's own day, which is what they mean by "this week". The
+    *  server counts trips by calendar date, so a day either side of midnight is the whole
+    *  error — not worth a timezone conversion that would then disagree with the date the
+    *  reader sees on their phone. */
+   function isoDay(d: Date) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+   }
+
+   /** The window's per-ellikboshi group count. WORKLOAD, not activity: the server counts
+    *  every group whose trip RAN inside the window, whether or not it produced a single
+    *  message — counting only groups that generated needs would pay a leader LESS when
+    *  their groups went well. The dates come back in the response, so the screen always
+    *  states the window it actually got rather than the one it asked for. */
+   async function loadPeriodCounts() {
+      const days = groupPeriod.value === 'week' ? 7 : 30
+      const to = new Date()
+      const from = new Date()
+      from.setDate(from.getDate() - (days - 1))
+      periodCountsLoading.value = true
+      periodCountsError.value = ''
+      try {
+         const { data } = await api.get('/ellikboshilar/group-counts', {
+            params: { date_from: isoDay(from), date_to: isoDay(to) },
+         })
+         periodCounts.value = data?.leaders || []
+         periodUnscheduled.value = data?.unscheduled_groups || 0
+         periodRange.value = { from: data?.date_from || '', to: data?.date_to || '' }
+      } catch (e: any) {
+         periodCounts.value = []
+         periodUnscheduled.value = 0
+         periodCountsError.value = e?.response?.status === 403 ? 'forbidden' : 'failed'
+      } finally {
+         periodCountsLoading.value = false
+      }
+   }
+
+   function setGroupPeriod(p: 'week' | 'month') {
+      if (groupPeriod.value === p && periodCounts.value.length) return
+      groupPeriod.value = p
+      loadPeriodCounts()
+   }
+
    /** A slice change invalidates everything, so both reads restart. */
    function setSlice() {
       reqLimit.value = REQ_PAGE
@@ -395,6 +462,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
       period, loading, loadError, saving, savedMsg,
       report, workers, groupOptions, aggressive, staffReadiness, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
+      groupPeriod, periodCounts, periodRange, periodUnscheduled,
+      periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupPeriod,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,
       form, sliceQuery, dismissed,

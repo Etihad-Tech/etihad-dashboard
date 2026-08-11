@@ -168,7 +168,7 @@
                         <span class="n-chart-val">{{ c.compact }}</span>
                         <span class="n-chart-bar"
                            :class="[c.thin ? 'is-thin' : '', c.over ? 'is-over' : '']"
-                           :style="{ height: c.height + '%' }"></span>
+                           :style="{ height: c.height + '%', '--c': c.color }"></span>
                      </button>
                   </div>
                </div>

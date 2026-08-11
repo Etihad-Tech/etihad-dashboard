@@ -641,6 +641,19 @@
    drawn against the full height, so nothing sat on the baseline and the longest name was
    clipped off the bottom. Two flex rows with the same gap and the same flex basis stay
    in step without either one borrowing the other's space. */
+/* A chart with more columns than fit scrolls inside its OWN box — the page itself must
+   never scroll sideways. Used by the Guruhlar workload chart, which has one column per
+   ellikboshi and so has no fixed width; the value sits above every column, so the axis
+   labels scrolling out of view costs nothing. */
+.nazorat .n-chart-scroll {
+   overflow-x: auto;
+   overflow-y: hidden;
+   -webkit-overflow-scrolling: touch;
+   /* The topmost gridline's label is centred ON its line, so half of it hangs above the
+      plot. Without this the y-clip that comes with overflow-x shears the top number in
+      half — the one number that says how tall the scale is. */
+   padding-top: 0.5rem;
+}
 .nazorat .n-chart { position: relative; }
 .nazorat .n-chart-plot {
    position: relative;
@@ -706,11 +719,14 @@
 }
 /* 4px rounded top, square to the baseline — a bar grows FROM the axis, so only the free
    end is rounded. */
+/* --c is the column's own colour, set per bar from PIE_COLORS (see responseChart). The
+   fallback is the panel violet the whole chart used before it was coloured, so a bar
+   still draws if a caller ever forgets to pass one. */
 .nazorat .n-chart-bar {
    width: 100%;
    max-width: 2.5rem;
    border-radius: 4px 4px 0 0;
-   background: #7c5cfc;
+   background: var(--c, #7c5cfc);
    transition: height 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s;
 }
 .nazorat .n-chart-col:active .n-chart-bar { opacity: 0.65; }
@@ -733,10 +749,14 @@
    mask-position: 0 0, 0 0;
    mask-repeat: no-repeat, repeat-x;
 }
+/* The hatch is mixed FROM the column's own colour, so a thin column stays recognisably
+   the same person's — it is the same bar drawn as "not settled yet", not another one. */
 .nazorat .n-chart-bar.is-thin {
    background: repeating-linear-gradient(
-      135deg, rgba(124, 92, 252, 0.24) 0 5px, rgba(124, 92, 252, 0.05) 5px 10px);
-   box-shadow: inset 0 0 0 1.5px rgba(124, 92, 252, 0.5);
+      135deg,
+      color-mix(in srgb, var(--c, #7c5cfc) 24%, transparent) 0 5px,
+      color-mix(in srgb, var(--c, #7c5cfc) 5%, transparent) 5px 10px);
+   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c, #7c5cfc) 50%, transparent);
 }
 /* The name wraps to two lines rather than truncating: it is the axis label, and an
    ellipsised «ABDUN…» under a column makes the chart unreadable in exactly the place it
