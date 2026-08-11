@@ -4,8 +4,9 @@
       <div class="animate-fade-up">
         <h2 class="text-2xl font-bold text-gray-900">Guruhlar</h2>
         <p class="text-sm text-gray-500 mt-1">
-          Har bir guruh uchun safar kechalari (Madina / Makka), mehmonxona, paket va ellikboshini sozlang.
-          Bot joriy shaharni shu kechalar soniga qarab aniqlaydi (kun = safar boshlanish sanasidan hisoblanadi).
+          Har bir guruhning jo'nash sanasi va shaharlarda necha <b>kecha</b> turishini yozing.
+          Safar uzunligi, qaytish sanasi va joriy shahar shu raqamlardan hisoblanadi — reys jadvalidan emas,
+          shuning uchun bir kunda uchadigan turli paketlar (ANJUM-6, ANJUM-13, TAJ-13) bir-biriga xalaqit bermaydi.
         </p>
         <p class="text-xs text-gray-400 mt-1">
           Faqat Turon tizimida ro'yxatdan o'tgan (safarga biriktirilgan) guruhlar ko'rsatiladi — botga tasodifan
@@ -35,7 +36,6 @@
                 <p class="text-[11px] text-gray-400">{{ g.id }}</p>
               </div>
               <span v-if="!hasLocation(g)" class="text-[11px] text-rose-600 shrink-0">Kechalar kiritilmagan — bot shaharni bilmaydi</span>
-              <span v-else-if="hotelGap(g)" class="text-[11px] text-amber-600 shrink-0">{{ hotelGap(g) }}</span>
               <span v-if="savedId === g.id" class="text-emerald-600 text-xs flex items-center gap-1 shrink-0">
                 <font-awesome-icon icon="circle" class="w-2 h-2" /> Saqlandi
               </span>
@@ -43,70 +43,53 @@
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div class="col-span-2 sm:col-span-1">
-                <label class="block text-[11px] text-gray-400 mb-1">Safar boshlanish sanasi</label>
+                <label class="block text-[11px] text-gray-400 mb-1">Jo'nash sanasi</label>
                 <input v-model="g.trip_start_date" type="date" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <p class="text-[11px] text-gray-400 mt-1">{{ startWeekday(g) }}</p>
               </div>
-              <div>
-                <label class="block text-[11px] text-gray-400 mb-1">Paket (tier)</label>
-                <select v-model="g.hotel_tier" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">— avtomatik —</option>
-                  <option value="comfort">comfort</option>
-                  <option value="premium">premium</option>
+              <div class="col-span-2 sm:col-span-2">
+                <label class="block text-[11px] text-gray-400 mb-1">Marshrut</label>
+                <select v-model="g.order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="makka_madina">{{ routeLabel(g, 'makka_madina') }}</option>
+                  <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
                 </select>
               </div>
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">Ellikboshi</label>
                 <input v-model="g.ellikboshi_username" type="text" placeholder="@username" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
-              <div class="hidden sm:block"></div>
+            </div>
 
-              <div class="col-span-2 sm:col-span-1">
-                <label class="block text-[11px] text-gray-400 mb-1">Ketma-ketlik</label>
-                <select v-model="g.order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="madina_makka">Avval Madina, keyin Makka</option>
-                  <option value="makka_madina">Avval Makka, keyin Madina</option>
+            <!-- One row per leg, in travel order: nights and hotel belong to the same
+                 stay, so they are read and fixed together, and each leg shows the trip
+                 days it works out to. -->
+            <div class="mt-3 rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+              <div v-for="leg in legs(g)" :key="leg.city"
+                class="flex items-center gap-3 px-3 py-2.5" :class="leg.nights ? 'bg-white' : 'bg-gray-50/60'">
+                <span class="w-1.5 h-6 rounded-full shrink-0" :class="leg.dot"></span>
+                <span class="w-14 text-sm font-medium text-gray-700 shrink-0">{{ leg.label }}</span>
+                <input v-model="g[leg.nightsKey]" type="number" min="0" placeholder="—"
+                  class="w-16 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <span class="text-[11px] text-gray-400 shrink-0 hidden sm:inline">kecha</span>
+                <select v-model="g[leg.hotelKey]" @change="leg.city === 'makka' && applyHotelTier(g)"
+                  class="flex-1 min-w-0 bg-gray-50 border rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  :class="leg.nights && !g[leg.hotelKey] ? 'border-rose-300 ring-1 ring-rose-200' : 'border-gray-200'">
+                  <option value="">— mehmonxona —</option>
+                  <option v-for="h in hotelOptions(leg.city, g[leg.hotelKey])" :key="h" :value="h">{{ h }}</option>
                 </select>
+                <span class="w-20 text-right text-[11px] shrink-0"
+                  :class="leg.nights ? 'text-gray-500' : 'text-gray-300'">{{ leg.days }}</span>
               </div>
-              <div>
-                <label class="block text-[11px] text-amber-600 mb-1">Jidda — necha kecha</label>
-                <input v-model="g.jidda_nights" type="number" min="0" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-              <div>
-                <label class="block text-[11px] text-emerald-600 mb-1">Madina — necha kecha</label>
-                <input v-model="g.madina_nights" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-              <div>
-                <label class="block text-[11px] text-sky-600 mb-1">Makka — necha kecha</label>
-                <input v-model="g.makka_nights" type="number" min="1" placeholder="—" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-              <div class="col-span-2">
-                <p class="text-[11px] text-gray-400">{{ rangeHint(g) }}</p>
-              </div>
+            </div>
 
-              <div class="col-span-2">
-                <label class="block text-[11px] text-gray-400 mb-1">Madina mehmonxonasi</label>
-                <select v-model="g.hotel_madina" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">—</option>
-                  <option v-for="h in hotelOptions('madina', g.hotel_madina)" :key="h" :value="h">{{ h }}</option>
-                </select>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-[11px] text-gray-400 mb-1">Makka mehmonxonasi</label>
-                <select v-model="g.hotel_makka" @change="applyHotelTier(g)" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">—</option>
-                  <option v-for="h in hotelOptions('makka', g.hotel_makka)" :key="h" :value="h">{{ h }}</option>
-                </select>
-              </div>
-              <div v-if="hasJidda(g)" class="col-span-2">
-                <label class="block text-[11px] text-gray-400 mb-1">
-                  Jidda (kelish) mehmonxonasi
-                  <span class="text-amber-600">— {{ jiddaDayLabel(g) }}</span>
-                </label>
-                <select v-model="g.hotel_jidda" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">—</option>
-                  <option v-for="h in hotelOptions('jidda', g.hotel_jidda)" :key="h" :value="h">{{ h }}</option>
-                </select>
-              </div>
+            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+              <span class="font-medium text-gray-700">{{ summary(g) }}</span>
+              <span class="text-gray-400">Daraja:</span>
+              <select v-model="g.hotel_tier" class="bg-transparent text-gray-600 border-0 p-0 text-[11px] focus:outline-none cursor-pointer">
+                <option value="">avtomatik</option>
+                <option value="comfort">comfort</option>
+                <option value="premium">premium</option>
+              </select>
             </div>
 
             <div class="flex items-center justify-end gap-3 mt-4">
@@ -119,13 +102,8 @@
           </div>
         </div>
         <p class="text-[11px] text-gray-400">
-          Eslatma: har bir shaharda necha <b>kecha</b> turishini yozing — <b>safar uzunligi shu uch raqamdan kelib chiqadi</b>,
-          reys jadvalidan emas. Shuning uchun bir xil kunda uchadigan turli paketlar (masalan
-          <b>ANJUM-6</b> → Jidda 1, Makka 2, Madina 2 = 5 kecha; <b>ANJUM-13</b> → 1 / 7 / 4 = 12 kecha;
-          <b>TAJ-13</b> → 1 / 8 / 3 = 12 kecha) bir-biriga xalaqit bermaydi.
-          Bot kun raqamini safar boshlanish sanasidan o'zi hisoblaydi (1 kecha = 1 kun), qaytish sanasini,
-          shaharlar almashinuvini (Haramain poyezdi) va safar tugashini ham shundan biladi.
-          Jidda kechasi yo'q bo'lsa <b>0</b> yozing. Madina/Makka qiymatini o'chirib bo'lmaydi — faqat ustiga yangi qiymat yozish mumkin.
+          Shahar kechasi yo'q bo'lsa <b>0</b> yozing. Har bir kartochkada chiqadigan <b>qaytish sanasi</b> —
+          kechalar to'g'ri kiritilganini tekshirishning eng oson yo'li: uni jadvaldagi qaytish sanasi bilan solishtiring.
         </p>
       </template>
     </div>
@@ -192,39 +170,6 @@ function hasLocation(g: Grp) {
   return (g.madina_nights != null && g.madina_nights !== '') || (g.makka_nights != null && g.makka_nights !== '')
 }
 
-// The arrival (Jidda) hotel slot shows whenever the group actually has a Jidda night.
-// It used to show on Saturday departures only, back when the weekday identified the
-// itinerary; it no longer does — several packages of different shapes fly the same
-// Saturday plane, and the night count is what says whether there is a Jidda stay.
-function hasJidda(g: Grp): boolean {
-  return (numOrNull(g.jidda_nights) || 0) > 0
-}
-
-// A city with nights but no hotel, or a hotel with no nights. Worth surfacing on the
-// card: the night counts now drive the trip's whole shape, so a leg that is half
-// configured is the difference between the bot naming the right hotel and saying
-// nothing. Returns '' when the group is consistent.
-function hotelGap(g: Grp): string {
-  const legs: [string, number | null, string][] = [
-    ['Jidda', numOrNull(g.jidda_nights), g.hotel_jidda],
-    ['Madina', numOrNull(g.madina_nights), g.hotel_madina],
-    ['Makka', numOrNull(g.makka_nights), g.hotel_makka],
-  ]
-  const missingHotel = legs.filter(([, n, h]) => n && !h).map(([c]) => c)
-  if (missingHotel.length) return `${missingHotel.join(', ')} — mehmonxona tanlanmagan`
-  const missingNights = legs.filter(([, n, h]) => h && !n).map(([c]) => c)
-  if (missingNights.length) return `${missingNights.join(', ')} — kecha soni yo'q`
-  return ''
-}
-
-function jiddaDayLabel(g: Grp): string {
-  const r = computeRanges(g)
-  if (!r.jidda_start_day) return ''
-  return r.jidda_start_day === r.jidda_end_day
-    ? `${r.jidda_start_day}-kun`
-    : `${r.jidda_start_day}–${r.jidda_end_day}-kun`
-}
-
 function numOrNull(v: number | string | null): number | null {
   if (v === '' || v === null || v === undefined) return null
   const n = Number(v)
@@ -266,23 +211,88 @@ function computeRanges(g: Grp) {
   return out
 }
 
-function rangeHint(g: Grp): string {
-  const r = computeRanges(g)
-  const parts: string[] = []
-  const span = (label: string, s: number | null, e: number | null) => {
-    if (!s || !e) return
-    parts.push(s === e ? `${label}: ${s}-kun` : `${label}: ${s}–${e}-kun`)
-  }
-  span('Jidda', r.jidda_start_day, r.jidda_end_day)
-  span('Madina', r.madina_start_day, r.madina_end_day)
-  span('Makka', r.makka_start_day, r.makka_end_day)
-  const total = (numOrNull(g.jidda_nights) || 0)
+const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
+const CITY_META = {
+  jidda: { label: 'Jidda', dot: 'bg-amber-400' },
+  madina: { label: 'Madina', dot: 'bg-emerald-400' },
+  makka: { label: 'Makka', dot: 'bg-sky-400' },
+} as const
+type City = keyof typeof CITY_META
+
+/** Parse the date parts explicitly so the weekday is never shifted by timezone. */
+function parseStart(iso: string): Date | null {
+  if (!iso) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
+}
+
+function fmt(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`
+}
+
+/** Departure weekday, spelled out — a date typed into the wrong week is otherwise
+ *  invisible, and the weekday is what picks the flight. */
+function startWeekday(g: Grp): string {
+  const d = parseStart(g.trip_start_date)
+  return d ? WEEKDAYS[d.getDay()] : 'Sana kiritilmagan'
+}
+
+function totalNights(g: Grp): number {
+  return (numOrNull(g.jidda_nights) || 0)
     + (numOrNull(g.madina_nights) || 0)
     + (numOrNull(g.makka_nights) || 0)
-  // Spell out the fly-home day: it is the number the bot derives everything else from
-  // (return date, trip-end thanks), so a wrong night count is visible right here.
-  if (total) parts.push(`Jami: ${total} kecha · uyga ${total + 1}-kun`)
-  return parts.length ? parts.join(' · ') : 'Kecha kiritilmagan'
+}
+
+/** Cities in travel order: Jidda is the arrival airport, so it always comes first when
+ *  there is a night there; the select then orders the two holy cities. */
+function cityOrder(g: Grp): City[] {
+  return g.order === 'makka_madina'
+    ? ['jidda', 'makka', 'madina']
+    : ['jidda', 'madina', 'makka']
+}
+
+function routeLabel(g: Grp, order: Order): string {
+  const seq: City[] = order === 'makka_madina'
+    ? ['jidda', 'makka', 'madina']
+    : ['jidda', 'madina', 'makka']
+  // Name the route the group actually flies — a Jidda leg it does not have should not
+  // appear in the label the admin picks from.
+  const nights = { jidda: numOrNull(g.jidda_nights), madina: numOrNull(g.madina_nights), makka: numOrNull(g.makka_nights) }
+  return seq.filter(c => c === 'jidda' ? nights.jidda : true).map(c => CITY_META[c].label).join(' → ')
+}
+
+/** One descriptor per leg, in travel order — the row model for the card. */
+function legs(g: Grp) {
+  const r = computeRanges(g)
+  return cityOrder(g).map(city => {
+    const s = r[`${city}_start_day`]
+    const e = r[`${city}_end_day`]
+    return {
+      city,
+      label: CITY_META[city].label,
+      dot: CITY_META[city].dot,
+      nightsKey: `${city}_nights` as const,
+      hotelKey: `hotel_${city}` as const,
+      nights: numOrNull(g[`${city}_nights` as 'jidda_nights']) || 0,
+      days: !s || !e ? '—' : s === e ? `${s}-kun` : `${s}–${e}-kun`,
+    }
+  })
+}
+
+/** Total nights, the fly-home day, and the RETURN DATE. The date is the line to check
+ *  against the season sheet — a wrong night count shows up there as a wrong day, where
+ *  the day-number alone would not look wrong to anyone. */
+function summary(g: Grp): string {
+  const total = totalNights(g)
+  if (!total) return 'Kecha kiritilmagan'
+  const start = parseStart(g.trip_start_date)
+  const base = `Jami ${total} kecha · uyga ${total + 1}-kun`
+  if (!start) return base
+  const ret = new Date(start)
+  ret.setDate(ret.getDate() + total)
+  return `${base} · qaytish ${fmt(ret)} (${WEEKDAYS[ret.getDay()]})`
 }
 
 // Stored day-ranges -> per-city night-counts for the simplified inputs (1 night =
