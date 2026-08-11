@@ -20,6 +20,11 @@
           yoki boshqa kunga ko'chsa</b>, "Kechikish / o'zgarishlar" bo'limidan qo'shing — bot o'sha kuni uchadigan
           guruhga <b>avtomatik xabar yuboradi</b>.
         </p>
+        <p class="text-amber-700 mt-2">
+          Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil paketlar
+          birga uchadi (ANJUM-6, ANJUM-13, TAJ-13), shuning uchun <b>safar necha kecha davom etishi bu yerda emas,
+          «Guruhlar» bo'limida</b> — har bir guruhning Jidda / Makka / Madina kechalarida — belgilanadi.
+        </p>
       </div>
 
       <!-- Add a weekly flight -->
@@ -153,8 +158,9 @@
 
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
-              <label class="block text-xs text-gray-400 mb-1">Tunlar soni</label>
+              <label class="block text-xs text-gray-400 mb-1">Tunlar soni (zaxira)</label>
               <input v-model.number="s.nights" type="number" min="1" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <p class="text-[11px] text-gray-400 mt-1">Faqat «Guruhlar»da kechalari kiritilmagan guruh uchun ishlatiladi</p>
             </div>
             <div>
               <label class="block text-xs text-gray-400 mb-1">Aviakompaniya (ixtiyoriy)</label>
