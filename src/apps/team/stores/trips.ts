@@ -42,7 +42,6 @@ export const useTripsStore = defineStore('team-trips', () => {
   const inactive = ref<Trip[]>([])
   const current = ref<Trip | null>(null)
   const users = ref<TripUser[]>([])
-  const roadmap = ref<Roadmap | null>(null)
   const loading = ref(false)
 
   async function fetchTrips() {
@@ -111,31 +110,9 @@ export const useTripsStore = defineStore('team-trips', () => {
     return data
   }
 
-  async function fetchRoadmap(tripId: string) {
-    try {
-      const { data } = await api.get(`/api/trips/${tripId}/roadmap`)
-      roadmap.value = data
-    } catch {
-      roadmap.value = null
-    }
-    return roadmap.value
-  }
-
-  async function saveRoadmap(tripId: string, content: string) {
-    if (current.value?.roadmap_id) {
-      const { data } = await api.put(`/api/trips/${tripId}/roadmap`, { content })
-      roadmap.value = data
-    } else {
-      const { data } = await api.post(`/api/trips/${tripId}/roadmap`, { content })
-      roadmap.value = data
-    }
-    return roadmap.value
-  }
-
   return {
-    items, inactive, current, users, roadmap, loading,
+    items, inactive, current, users, loading,
     fetchTrips, fetchInactive, fetchTrip, createTrip, updateTrip,
     toggleRegistration, toggleStatus, deleteTrip, fetchUsers,
-    fetchRoadmap, saveRoadmap,
   }
 })
