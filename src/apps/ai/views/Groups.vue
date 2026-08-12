@@ -54,7 +54,7 @@
                   <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
                 </select>
                 <p v-if="routeLooksWrong(g)" class="text-[11px] text-amber-600 mt-1">
-                  Shanba reysi Makka'dan boshlanadi — marshrutni tekshiring va saqlang.
+                  {{ routeWarning(g) }}
                 </p>
               </div>
               <div>
@@ -240,27 +240,44 @@ function fmt(d: Date): string {
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`
 }
 
-// The Shanba plane flies Toshkent -> Jidda and home from Madina, so every package on
-// it runs Makka first; the Payshanba one is the other way round. This is the SAME
-// route table the bot's flight wordings use.
-const SATURDAY = 6
-
-/** The route to assume for a group whose stored map cannot say — it is blank, or only
- *  one leg is filled in. The departure weekday decides, because the plane does: a blank
- *  Shanba card defaulting to Madina-first wrote Madina over the days the group is
- *  actually in Makka, and the city is what picks the crew to tag. A stored map with
- *  both legs always wins over this. */
-function defaultOrder(iso: string): Order {
-  const d = parseStart(iso)
-  return d && d.getDay() === SATURDAY ? 'makka_madina' : 'madina_makka'
+// Which city a group starts in is decided by the PLANE, and the season runs two
+// rotations (Reyslar): the Shanba one flies Toshkent -> Jidda and home from Madina, so
+// those groups start Makka-side; the Payshanba one flies Toshkent -> Madina and home
+// from Jidda, so they start in Madina and take the Haramain train across. getDay():
+// Sunday=0, so Payshanba=4 and Shanba=6. Any other weekday is not a rotation we fly —
+// we make no claim about it rather than guess.
+const ROUTE_BY_WEEKDAY: Record<number, Order> = {
+  4: 'madina_makka',  // Payshanba — lands in Madina
+  6: 'makka_madina',  // Shanba    — lands in Jidda
 }
 
-/** A Shanba group set to Madina-first: every package on that plane goes to Makka first,
- *  so this is nearly always a card that was saved before the default was fixed — and it
- *  tags the wrong city's crew for the whole first leg. Flagged rather than corrected:
- *  the office owns the itinerary, and a package could change. */
+function routeForWeekday(iso: string): Order | null {
+  const d = parseStart(iso)
+  return d ? (ROUTE_BY_WEEKDAY[d.getDay()] ?? null) : null
+}
+
+/** The route to assume for a group whose stored map cannot say — it is blank, or only
+ *  one leg is filled in. A blank Shanba card defaulting to Madina-first wrote Madina
+ *  over the days the group is actually in Makka, and the city is what picks the crew to
+ *  tag. A stored map with both legs always wins over this. */
+function defaultOrder(iso: string): Order {
+  return routeForWeekday(iso) ?? 'madina_makka'
+}
+
+/** The card contradicts its own plane: a Shanba group going Madina-first, or a
+ *  Payshanba one going Makka-first. One of the two — the route or the departure date —
+ *  is wrong, and the office is the only one who knows which, so this is flagged and not
+ *  corrected. Left alone it is invisible: the day map still looks filled in, and the bot
+ *  quietly tags the other city's crew. */
 function routeLooksWrong(g: Grp): boolean {
-  return g.order === 'madina_makka' && defaultOrder(g.trip_start_date) === 'makka_madina'
+  const route = routeForWeekday(g.trip_start_date)
+  return route !== null && g.order !== route
+}
+
+function routeWarning(g: Grp): string {
+  return routeForWeekday(g.trip_start_date) === 'makka_madina'
+    ? "Shanba reysi Jiddaga qo'nadi — avval Makka bo'lishi kerak. Marshrut yoki sanani tekshiring."
+    : "Payshanba reysi Madinaga qo'nadi — avval Madina bo'lishi kerak. Marshrut yoki sanani tekshiring."
 }
 
 /** Departure weekday, spelled out — a date typed into the wrong week is otherwise
