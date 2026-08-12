@@ -183,36 +183,53 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const reqLimit = ref(REQ_PAGE)
    const requestsTruncated = computed(() => requests.value.length >= reqLimit.value)
 
-   /** Cleared notifications, as `key -> the value it held when it was cleared`.
+   /** Cleared notifications, as `kind -> the SIGNATURE that was on screen`.
     *
-    *  Storing the VALUE and not just the key is the whole safeguard. These are live
-    *  counts, not messages: «36 Javobsiz qolgan» is a fact about the period, and a
-    *  «clear» that hid it permanently would let a worsening situation sit invisible
-    *  behind a calm bell. Cleared at 36, it stays hidden while it is still 36 and comes
-    *  straight back at 37 — or when the period or the slice changes the number.
+    *  This used to live in localStorage keyed on the notification's COUNT, and the owner
+    *  put it plainly: "there is no clear function, it just hides the notification". It
+    *  cleared on one device only — the same controller opening the panel on a phone saw
+    *  everything again — and it came back whenever the number moved, even when nothing
+    *  new had happened.
     *
-    *  Kept in localStorage so it survives a reload, the way a phone app's badge does. */
-   const DISMISS_KEY = 'nazorat_dismissed'
-   function readDismissed(): Record<string, number> {
-      try {
-         const raw = localStorage.getItem(DISMISS_KEY)
-         return raw ? JSON.parse(raw) : {}
-      } catch { return {} }
-   }
-   const dismissed = ref<Record<string, number>>(readDismissed())
+    *  So a clear is stored on the SERVER, per controller login, against a signature of
+    *  the exact items behind the notice (see problemSignature in nazorat/shared.ts): the
+    *  newest complaint's id, the newest unfinished need's id, the set of people the bot
+    *  cannot DM. Same signature -> stays cleared, everywhere that login opens. A new
+    *  complaint changes the signature and the bell rings again — which is the one thing
+    *  a "cleared forever" must never swallow. */
+   const dismissed = ref<Record<string, string>>({})
 
-   function persistDismissed() {
-      try { localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed.value)) } catch { /* private mode */ }
+   async function loadSeen() {
+      try {
+         const { data } = await api.get('/control/seen')
+         dismissed.value = data || {}
+      } catch { /* leave what we have: failing to READ a bookmark must not un-clear one */ }
    }
-   function dismissProblems(items: { key: string; value: number }[]) {
+
+   async function dismissProblems(items: { key: string; sig: string }[]) {
+      // Optimistic: the sheet closes on the same tap. A failed write is put back, so a
+      // notice can never LOOK cleared while the server still has it — which on this panel
+      // would mean an angry pilgrim silently disappearing from one person's bell.
+      const before = { ...dismissed.value }
       const next = { ...dismissed.value }
-      for (const i of items) next[i.key] = i.value
+      for (const i of items) next[i.key] = i.sig
       dismissed.value = next
-      persistDismissed()
+      try {
+         await Promise.all(items.map((i) =>
+            api.post('/control/seen', { kind: i.key, signature: i.sig })))
+      } catch {
+         dismissed.value = before
+      }
    }
-   function restoreProblems() {
+
+   async function restoreProblems() {
+      const before = { ...dismissed.value }
       dismissed.value = {}
-      persistDismissed()
+      try {
+         await api.delete('/control/seen')
+      } catch {
+         dismissed.value = before
+      }
    }
 
    const form = ref({
@@ -255,6 +272,9 @@ export const useNazoratStore = defineStore('nazorat', () => {
             // groups, otherwise picking one would leave you unable to pick a different one.
             api.get(`/control/groups?period=${period.value}`),
          ])
+         // Which notices this login has already cleared. Read on every load so a clear
+         // made on the phone is already in force when the laptop opens the panel.
+         void loadSeen()
          report.value = rep.data
          workers.value = wrk.data
          aggressive.value = agg.data || { total: 0, items: [] }

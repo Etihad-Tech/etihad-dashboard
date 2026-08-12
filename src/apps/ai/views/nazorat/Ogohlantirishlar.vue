@@ -38,7 +38,8 @@
 
             <!-- Cleared — which is NOT the same as nothing being wrong, and must never
                  be allowed to look like it. The problems are still true; they were only
-                 put away, and each one returns on its own as soon as its number moves. -->
+                 put away, and each one returns on its own as soon as a NEW item arrives
+                 behind it (a newer complaint, a different person the bot cannot DM). -->
             <div v-else-if="!activeProblems.length" class="px-5 py-10 flex items-center gap-3.5">
                <span class="n-ico" style="--c: #8a8a90">
                   <font-awesome-icon icon="check" class="w-4 h-4" />
@@ -48,7 +49,7 @@
                      {{ clearedCount }} ta bildirishnoma tozalandi
                   </p>
                   <p class="text-[13.5px] text-[color:var(--n-muted)] leading-snug mt-0.5">
-                     Holat o'zgarmadi. Raqam o'zgarishi bilan qaytadi.
+                     Holat o'zgarmadi. Yangisi kelsa, o'zi qaytadi.
                   </p>
                   <button @click="s.restoreProblems()" class="btn-ghost mt-3">Qaytarish</button>
                </div>
