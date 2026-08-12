@@ -37,7 +37,6 @@ export const useTemplatesStore = defineStore('team-templates', () => {
   const items = ref<Template[]>([])
   const current = ref<Template | null>(null)
   const posts = ref<TemplatePost[]>([])
-  const roadmap = ref<Roadmap | null>(null)
   const loading = ref(false)
 
   async function fetchAll() {
@@ -89,47 +88,6 @@ export const useTemplatesStore = defineStore('team-templates', () => {
     await api.post(`/api/templates/${templateId}/import/${tripId}`)
   }
 
-  async function fetchRoadmap(templateId: number) {
-    try {
-      const { data } = await api.get(`/api/templates/${templateId}/roadmap`)
-      roadmap.value = data
-    } catch {
-      roadmap.value = null
-    }
-    return roadmap.value
-  }
-
-  async function saveRoadmap(templateId: number, content: string) {
-    const tpl = items.value.find(t => t.id === templateId)
-    if (tpl?.roadmap_id) {
-      const { data } = await api.put(`/api/templates/${templateId}/roadmap`, { content })
-      roadmap.value = data
-    } else {
-      const { data } = await api.post(`/api/templates/${templateId}/roadmap`, { content })
-      roadmap.value = data
-    }
-    return roadmap.value
-  }
-
-  async function updateLocationDays(
-    templateId: number,
-    madinaStart: number,
-    madinaEnd: number,
-    makkaStart: number,
-    makkaEnd: number
-  ) {
-    const { data } = await api.put(`/api/templates/${templateId}`, {
-      madina_start_day: madinaStart,
-      madina_end_day: madinaEnd,
-      makka_start_day: makkaStart,
-      makka_end_day: makkaEnd,
-    })
-    const idx = items.value.findIndex(t => t.id === templateId)
-    if (idx !== -1) items.value[idx] = data
-    if (current.value?.id === templateId) current.value = data
-    return data
-  }
-
   async function fetchTemplate(templateId: number) {
     await fetchAll()
     current.value = items.value.find(t => t.id === templateId) || null
@@ -137,9 +95,8 @@ export const useTemplatesStore = defineStore('team-templates', () => {
   }
 
   return {
-    items, current, posts, roadmap, loading,
+    items, current, posts, loading,
     fetchAll, fetchTemplate, createTemplate, deleteTemplate,
     fetchPosts, addPost, updatePost, deletePost, importToTrip,
-    fetchRoadmap, saveRoadmap, updateLocationDays,
   }
 })

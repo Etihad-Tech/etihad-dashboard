@@ -367,47 +367,17 @@ export function useNazoratView() {
     *  that makes each one actionable — these are notifications now, read in a panel and
     *  dismissed, not paragraphs read on the main screen. Each one keeps exactly one
     *  fact beyond its own label: what happened, or what to do about it. */
-   const problems = computed(() => {
-      const r = s.report
-      if (!r) return [] as any[]
-      const out: any[] = []
-      // TWO things only, owner 2026-08-07: an angry pilgrim, and a job somebody said was
-      // done and was not. Everything else this bell used to raise — «Javobsiz qolgan»,
-      // «DM yuborib bo'lmaydi», «Asossiz Xatolik» — is a number on a screen, and a
-      // notification that fires for every number is one nobody reads.
-      //
-      // The aggression alarm leads, and not because it is bigger: the other one is a
-      // failure that already happened, this one is a pilgrim who is angry NOW.
-      if (s.aggressive.total) out.push({
-         key: 'aggressive', value: s.aggressive.total, label: 'Qattiq norozilik',
-         color: ALARM_RED,
-         hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
-      })
-      if (r.reopened) out.push({
-         key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
-         color: BUCKET.reopened.color,
-         hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
-      })
-      // Back on the bell by owner request (2026-08-07). It earns its place for the
-      // opposite reason to the other two: nothing has failed YET. These people never
-      // pressed start, so the bot cannot DM them at all — their cards simply never
-      // arrive, and the panel would score that as «Yetib bormadi» rather than as the
-      // one thing here that can be fixed before it costs anybody anything.
-      if (s.staffReadiness.length) out.push({
-         key: 'readiness', value: s.staffReadiness.length, label: "DM yuborib bo'lmadi",
-         color: '#a16207',
-         // Owner's wording, 2026-07-31. It reads as a label for the chips right under
-         // it rather than as a sentence about them, which is why it ends in a colon.
-         hint: 'Botga start bermaganlar:',
-         people: s.staffReadiness.map((r2) =>
-            (r2.username || r2.name || '—')
-            + (r2.location ? ` · ${cityLabel(r2.location)}` : '')
-            + (r2.group ? ` · ${r2.group}` : '')
-            + (r2.role === 'ellikboshi' && r2.in_pool === false
-               ? " · ro'yxatdan o'chirilgan" : '')),
-      })
-      return out
-   })
+   /** A short, stable stand-in for a set of names — the readiness notice is a list of
+    *  PEOPLE and has no ids to point at, and the stored signature is a short column.
+    *  FNV-1a: tiny, deterministic, and all we need is "same set or not". */
+   function fold(parts: string[]): string {
+      let h = 0x811c9dc5
+      for (const c of parts.join('|')) {
+         h ^= c.charCodeAt(0)
+         h = Math.imul(h, 0x01000193) >>> 0
+      }
+      return h.toString(36)
+   }
 
    /** The needs behind «Bajarilmagan», newest first — the messages a worker accepted and
     *  the pilgrim then had to raise again. Graded through needOutcome so the list and the
@@ -425,10 +395,63 @@ export function useNazoratView() {
          })),
    )
 
+   const problems = computed(() => {
+      const r = s.report
+      if (!r) return [] as any[]
+      const out: any[] = []
+      // TWO things only, owner 2026-08-07: an angry pilgrim, and a job somebody said was
+      // done and was not. Everything else this bell used to raise — «Javobsiz qolgan»,
+      // «DM yuborib bo'lmaydi», «Asossiz Xatolik» — is a number on a screen, and a
+      // notification that fires for every number is one nobody reads.
+      //
+      // The aggression alarm leads, and not because it is bigger: the other one is a
+      // failure that already happened, this one is a pilgrim who is angry NOW.
+      if (s.aggressive.total) out.push({
+         key: 'aggressive', value: s.aggressive.total, label: 'Qattiq norozilik',
+         // The NEWEST complaint's id. Clearing at that id keeps the notice away while it
+         // is still the newest, and the next angry message raises it again — including
+         // when the total happens to fall back to the same number.
+         sig: 'a:' + Math.max(0, ...s.aggressive.items.map((i) => i.id)),
+         color: ALARM_RED,
+         hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
+      })
+      if (r.reopened) out.push({
+         key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
+         sig: 'r:' + Math.max(0, ...reopenedNeeds.value.map((n) => n.id)),
+         color: BUCKET.reopened.color,
+         hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
+      })
+      // Back on the bell by owner request (2026-08-07). It earns its place for the
+      // opposite reason to the other two: nothing has failed YET. These people never
+      // pressed start, so the bot cannot DM them at all — their cards simply never
+      // arrive, and the panel would score that as «Yetib bormadi» rather than as the
+      // one thing here that can be fixed before it costs anybody anything.
+      if (s.staffReadiness.length) out.push({
+         key: 'readiness', value: s.staffReadiness.length, label: "DM yuborib bo'lmadi",
+         // No ids on this one — it names people. The signature is the SET, so it stays
+         // cleared while the same people are missing and returns the moment a different
+         // person cannot be reached, even though the count did not move.
+         sig: 'p:' + fold([...s.staffReadiness]
+            .map((r2) => `${r2.role}:${r2.username || r2.name || '—'}`).sort()),
+         color: '#a16207',
+         // Owner's wording, 2026-07-31. It reads as a label for the chips right under
+         // it rather than as a sentence about them, which is why it ends in a colon.
+         hint: 'Botga start bermaganlar:',
+         people: s.staffReadiness.map((r2) =>
+            (r2.username || r2.name || '—')
+            + (r2.location ? ` · ${cityLabel(r2.location)}` : '')
+            + (r2.group ? ` · ${r2.group}` : '')
+            + (r2.role === 'ellikboshi' && r2.in_pool === false
+               ? " · ro'yxatdan o'chirilgan" : '')),
+      })
+      return out
+   })
+
    /** What the bell actually shows: the problems that have not been cleared AT THEIR
-    *  CURRENT VALUE. A cleared notice returns by itself the moment its number moves. */
+    *  CURRENT SIGNATURE. Cleared stays cleared — on every device that login opens — and
+    *  a notice returns only when the items behind it change, not when the count does. */
    const activeProblems = computed(() =>
-      problems.value.filter((p: any) => s.dismissed[p.key] !== p.value))
+      problems.value.filter((p: any) => s.dismissed[p.key] !== p.sig))
 
    /** Cleared, and still true. Counted so the panel can say so rather than showing an
     *  empty list that reads as "nothing is wrong" — those are opposite things. */

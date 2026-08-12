@@ -6,7 +6,11 @@
         <p class="text-sm text-gray-500 mt-1">
           Har bir guruhning jo'nash sanasi va shaharlarda necha <b>kecha</b> turishini yozing.
           Safar uzunligi, qaytish sanasi va joriy shahar shu raqamlardan hisoblanadi — reys jadvalidan emas,
-          shuning uchun bir kunda uchadigan turli paketlar (ANJUM-6, ANJUM-13, TAJ-13) bir-biriga xalaqit bermaydi.
+          shuning uchun bir kunda uchadigan har xil uzunlikdagi safarlar bir-biriga xalaqit bermaydi.
+        </p>
+        <p class="text-xs text-gray-500 mt-1">
+          Odatda: <b>Payshanba</b> — 9 kecha (Madina 4, keyin Makka 5), <b>Shanba</b> — 12 kecha (Makka 9, keyin Madina 3).
+          6 kunlik safar — istisno, kechalari qo'lda yoziladi. Guruh nomi paketni emas, faqat nomni bildiradi.
         </p>
         <p class="text-xs text-gray-400 mt-1">
           Faqat Turon tizimida ro'yxatdan o'tgan (safarga biriktirilgan) guruhlar ko'rsatiladi — botga tasodifan
@@ -33,6 +37,11 @@
             <div class="flex items-center gap-3 mb-4">
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
+                <!-- The name above is the TELEGRAM chat's; this is the name the trip is
+                     registered under in Turon. They are two separate fields that nobody
+                     syncs, and the office reads the name to decide the nights to enter —
+                     so when they disagree about the package, both must be visible here. -->
+                <p v-if="g.trip_name" class="text-[11px] text-gray-400 truncate">Turon: {{ g.trip_name }}</p>
                 <p class="text-[11px] text-gray-400">{{ g.id }}</p>
               </div>
               <span v-if="!hasLocation(g)" class="text-[11px] text-rose-600 shrink-0">Kechalar kiritilmagan — bot shaharni bilmaydi</span>
@@ -53,6 +62,9 @@
                   <option value="makka_madina">{{ routeLabel(g, 'makka_madina') }}</option>
                   <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
                 </select>
+                <p v-if="routeLooksWrong(g)" class="text-[11px] text-amber-600 mt-1">
+                  {{ routeWarning(g) }}
+                </p>
               </div>
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">Ellikboshi</label>
@@ -136,6 +148,7 @@ type Order = 'madina_makka' | 'makka_madina'
 interface Grp {
   id: number
   title: string | null
+  trip_name: string
   trip_start_date: string
   order: Order
   jidda_nights: number | string | null
@@ -186,11 +199,16 @@ function computeRanges(g: Grp) {
   const jd = numOrNull(g.jidda_nights)
   const md = numOrNull(g.madina_nights)
   const mk = numOrNull(g.makka_nights)
-  // 0 rather than null for Jidda: the API leaves a NULL field untouched, so a zeroed
-  // range is the only way to CLEAR a Jidda leg that was set before.
+  // 0, never null, for EVERY leg: the API leaves a NULL field untouched, so a zeroed
+  // range is the only way to CLEAR a leg that was set before. The card tells the admin
+  // to write 0 for a city the group does not stay in — with a null default that 0 did
+  // nothing and the OLD range survived underneath, overlapping the new ones. The bot
+  // reads the first range that covers a day (Jidda, then Makka, then Madina), so a
+  // stale Makka range silently won a day the group spends in Madina, and the Madina
+  // crew was never tagged.
   const out: Record<string, number | null> = {
-    madina_start_day: null, madina_end_day: null,
-    makka_start_day: null, makka_end_day: null,
+    madina_start_day: 0, madina_end_day: 0,
+    makka_start_day: 0, makka_end_day: 0,
     jidda_start_day: 0, jidda_end_day: 0,
   }
   let cur = 1
@@ -230,6 +248,46 @@ function parseStart(iso: string): Date | null {
 function fmt(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`
+}
+
+// Which city a group starts in is decided by the PLANE, and the season runs two
+// rotations (Reyslar): the Shanba one flies Toshkent -> Jidda and home from Madina, so
+// those groups start Makka-side; the Payshanba one flies Toshkent -> Madina and home
+// from Jidda, so they start in Madina and take the Haramain train across. getDay():
+// Sunday=0, so Payshanba=4 and Shanba=6. Any other weekday is not a rotation we fly —
+// we make no claim about it rather than guess.
+const ROUTE_BY_WEEKDAY: Record<number, Order> = {
+  4: 'madina_makka',  // Payshanba — lands in Madina
+  6: 'makka_madina',  // Shanba    — lands in Jidda
+}
+
+function routeForWeekday(iso: string): Order | null {
+  const d = parseStart(iso)
+  return d ? (ROUTE_BY_WEEKDAY[d.getDay()] ?? null) : null
+}
+
+/** The route to assume for a group whose stored map cannot say — it is blank, or only
+ *  one leg is filled in. A blank Shanba card defaulting to Madina-first wrote Madina
+ *  over the days the group is actually in Makka, and the city is what picks the crew to
+ *  tag. A stored map with both legs always wins over this. */
+function defaultOrder(iso: string): Order {
+  return routeForWeekday(iso) ?? 'madina_makka'
+}
+
+/** The card contradicts its own plane: a Shanba group going Madina-first, or a
+ *  Payshanba one going Makka-first. One of the two — the route or the departure date —
+ *  is wrong, and the office is the only one who knows which, so this is flagged and not
+ *  corrected. Left alone it is invisible: the day map still looks filled in, and the bot
+ *  quietly tags the other city's crew. */
+function routeLooksWrong(g: Grp): boolean {
+  const route = routeForWeekday(g.trip_start_date)
+  return route !== null && g.order !== route
+}
+
+function routeWarning(g: Grp): string {
+  return routeForWeekday(g.trip_start_date) === 'makka_madina'
+    ? "Shanba reysi Jiddaga qo'nadi — avval Makka bo'lishi kerak. Marshrut yoki sanani tekshiring."
+    : "Payshanba reysi Madinaga qo'nadi — avval Madina bo'lishi kerak. Marshrut yoki sanani tekshiring."
 }
 
 /** Departure weekday, spelled out — a date typed into the wrong week is otherwise
@@ -320,22 +378,42 @@ async function load() {
     const [aiRes, tripsRes] = await Promise.allSettled(calls)
 
     let registered: Set<string> | null = null
+    // The trip's own name, per chat — shown on the card next to the Telegram one. Only
+    // an admin session can read /api/trips, so this is absent for qa/mingboshi and the
+    // line simply does not render.
+    const tripName = new Map<string, string>()
     if (tripsRes && tripsRes.status === 'fulfilled') {
       registered = new Set<string>(
         tripsRes.value.data
           .filter((t: any) => t.group_chat_id)
           .map((t: any) => String(t.group_chat_id)),
       )
+      for (const t of tripsRes.value.data) {
+        if (t.group_chat_id && t.name) tripName.set(String(t.group_chat_id), t.name)
+      }
     }
 
     const aiGroups: any[] = aiRes.status === 'fulfilled' ? aiRes.value.data : []
     const visible = registered ? aiGroups.filter(g => registered!.has(String(g.id))) : aiGroups
     groups.value = visible.map((g: any): Grp => {
       const ms = g.madina_start_day, ks = g.makka_start_day
-      const order: Order = (ms != null && ks != null && Number(ks) < Number(ms)) ? 'makka_madina' : 'madina_makka'
+      // The stored map decides the route whenever it can. It only cannot for a group
+      // whose map is blank or half-filled — and there the default has to be the route
+      // the company actually flies today (Jidda -> Makka -> Madina, all three
+      // packages). Defaulting the other way laid Madina on the days the group spends
+      // in Makka the first time the admin filled the nights in and saved, which tags
+      // the wrong city's crew for the whole first leg.
+      // Both legs must really exist for the map to settle the question: a missing leg
+      // reads as 0, and 0 < anything would call a Makka-only group Madina-first. When
+      // the map cannot say, the departure weekday does — see defaultOrder().
+      const msN = Number(ms), ksN = Number(ks)
+      const order: Order = (msN > 0 && ksN > 0)
+        ? (msN < ksN ? 'madina_makka' : 'makka_madina')
+        : defaultOrder(g.trip_start_date || '')
       return {
         id: g.id,
         title: g.title,
+        trip_name: tripName.get(String(g.id)) || '',
         trip_start_date: g.trip_start_date || '',
         order,
         jidda_nights: nightsFromRange(g.jidda_start_day, g.jidda_end_day),
