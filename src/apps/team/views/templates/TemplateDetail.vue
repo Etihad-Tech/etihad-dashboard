@@ -27,141 +27,15 @@
         <p v-if="importMsg" class="text-sm text-emerald-600">{{ importMsg }}</p>
       </div>
 
-      <!-- Roadmap -->
+      <!-- The roadmap and the city day map lived here too, and a template seeds a trip:
+           whatever was set here quietly became a second answer to "which city on day N".
+           ai/Guruhlar owns that now, per group. -->
       <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 45ms">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-900">Roadmap reja</h3>
-          <button
-            v-if="!editingRoadmap"
-            @click="editingRoadmap = true"
-            class="text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors"
-          >
-            {{ store.roadmap ? 'Tahrirlash' : 'Qo\'shish' }}
-          </button>
-        </div>
-        <div v-if="editingRoadmap">
-          <textarea
-            v-model="roadmapText"
-            rows="10"
-            class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
-            placeholder="Roadmap rejasini yozing..."
-          ></textarea>
-          <div class="flex justify-end gap-2 mt-2">
-            <button
-              @click="cancelRoadmapEdit"
-              class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-colors"
-            >
-              Bekor
-            </button>
-            <button
-              @click="saveRoadmap"
-              :disabled="savingRoadmap"
-              class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
-            >
-              {{ savingRoadmap ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
-        </div>
-        <div v-else-if="store.roadmap">
-          <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-2xl p-4 max-h-64 overflow-y-auto">{{ store.roadmap.content }}</pre>
-        </div>
-        <div v-else>
-          <p class="text-sm text-gray-400">Roadmap qo'shilmagan</p>
-        </div>
-      </div>
-
-      <!-- Location Days -->
-      <div class="bg-white rounded-3xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 50ms">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-gray-900">Мадина/Мекка кунлари</h3>
-          <button
-            v-if="!editingLocationDays"
-            @click="editingLocationDays = true"
-            class="text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors"
-          >
-            Tahrirlash
-          </button>
-        </div>
-
-        <div v-if="editingLocationDays" class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-xs font-medium text-gray-600 mb-2 block">Мадина бошланиш кун</label>
-              <input
-                v-model.number="locationDaysForm.madina_start"
-                type="number"
-                min="1"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                placeholder="1"
-              />
-            </div>
-            <div>
-              <label class="text-xs font-medium text-gray-600 mb-2 block">Мадина тугаш кун</label>
-              <input
-                v-model.number="locationDaysForm.madina_end"
-                type="number"
-                min="1"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                placeholder="5"
-              />
-            </div>
-            <div>
-              <label class="text-xs font-medium text-gray-600 mb-2 block">Мекка бошланиш кун</label>
-              <input
-                v-model.number="locationDaysForm.makka_start"
-                type="number"
-                min="1"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                placeholder="6"
-              />
-            </div>
-            <div>
-              <label class="text-xs font-medium text-gray-600 mb-2 block">Мекка тугаш кун</label>
-              <input
-                v-model.number="locationDaysForm.makka_end"
-                type="number"
-                min="1"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                placeholder="10"
-              />
-            </div>
-          </div>
-          <div class="flex justify-end gap-2">
-            <button
-              @click="cancelLocationDaysEdit"
-              class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-colors"
-            >
-              Bekor
-            </button>
-            <button
-              @click="saveLocationDays"
-              :disabled="savingLocationDays"
-              class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
-            >
-              {{ savingLocationDays ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
-        </div>
-        <div v-else>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Мадина start</p>
-              <p class="text-sm font-semibold text-gray-900">{{ store.current?.madina_start_day || '—' }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Мадина end</p>
-              <p class="text-sm font-semibold text-gray-900">{{ store.current?.madina_end_day || '—' }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Мекка start</p>
-              <p class="text-sm font-semibold text-gray-900">{{ store.current?.makka_start_day || '—' }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Мекка end</p>
-              <p class="text-sm font-semibold text-gray-900">{{ store.current?.makka_end_day || '—' }}</p>
-            </div>
-          </div>
-        </div>
+        <h3 class="text-sm font-semibold text-gray-900 mb-1">Мадина/Мекка кунлари</h3>
+        <p class="text-sm text-gray-500">
+          Shahar kunlari va reja endi faqat <b>AI dashboard &rsaquo; Guruhlar</b> bo'limida —
+          har bir guruh uchun alohida — belgilanadi.
+        </p>
       </div>
 
       <!-- Posts list -->
@@ -234,17 +108,6 @@ const deletePostId = ref<number | null>(null)
 const importTripId = ref('')
 const importing = ref(false)
 const importMsg = ref('')
-const editingRoadmap = ref(false)
-const roadmapText = ref('')
-const savingRoadmap = ref(false)
-const editingLocationDays = ref(false)
-const savingLocationDays = ref(false)
-const locationDaysForm = ref({
-  madina_start: 1,
-  madina_end: 4,
-  makka_start: 5,
-  makka_end: 9,
-})
 
 async function loadData() {
   loading.value = true
@@ -252,20 +115,8 @@ async function loadData() {
     await Promise.all([
       store.fetchTemplate(templateId),
       store.fetchPosts(templateId),
-      store.fetchRoadmap(templateId),
       tripsStore.fetchTrips(),
     ])
-    roadmapText.value = store.roadmap?.content || ''
-
-    const template = store.current
-    if (template) {
-      locationDaysForm.value = {
-        madina_start: template.madina_start_day || 1,
-        madina_end: template.madina_end_day || 4,
-        makka_start: template.makka_start_day || 5,
-        makka_end: template.makka_end_day || 9,
-      }
-    }
   } finally {
     loading.value = false
   }
@@ -287,51 +138,6 @@ async function importToTrip() {
     setTimeout(() => (importMsg.value = ''), 3000)
   } finally {
     importing.value = false
-  }
-}
-
-function cancelRoadmapEdit() {
-  editingRoadmap.value = false
-  roadmapText.value = store.roadmap?.content || ''
-}
-
-async function saveRoadmap() {
-  if (!roadmapText.value.trim()) return
-  savingRoadmap.value = true
-  try {
-    await store.saveRoadmap(templateId, roadmapText.value.trim())
-    editingRoadmap.value = false
-  } finally {
-    savingRoadmap.value = false
-  }
-}
-
-function cancelLocationDaysEdit() {
-  editingLocationDays.value = false
-  const template = store.current
-  if (template) {
-    locationDaysForm.value = {
-      madina_start: template.madina_start_day || 1,
-      madina_end: template.madina_end_day || 4,
-      makka_start: template.makka_start_day || 5,
-      makka_end: template.makka_end_day || 9,
-    }
-  }
-}
-
-async function saveLocationDays() {
-  savingLocationDays.value = true
-  try {
-    await store.updateLocationDays(
-      templateId,
-      locationDaysForm.value.madina_start,
-      locationDaysForm.value.madina_end,
-      locationDaysForm.value.makka_start,
-      locationDaysForm.value.makka_end
-    )
-    editingLocationDays.value = false
-  } finally {
-    savingLocationDays.value = false
   }
 }
 

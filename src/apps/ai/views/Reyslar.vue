@@ -21,9 +21,10 @@
           guruhga <b>avtomatik xabar yuboradi</b>.
         </p>
         <p class="text-amber-700 mt-2">
-          Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil paketlar
-          birga uchadi (ANJUM-6, ANJUM-13, TAJ-13), shuning uchun <b>safar necha kecha davom etishi bu yerda emas,
-          «Guruhlar» bo'limida</b> — har bir guruhning Jidda / Makka / Madina kechalarida — belgilanadi.
+          Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil safarlar
+          birga uchishi mumkin (masalan, 6 kunlik safar 13 kunlik bilan bir xil Shanba reysida), shuning uchun
+          <b>safar necha kecha davom etishi bu yerda emas, «Guruhlar» bo'limida</b> — har bir guruhning
+          Jidda / Makka / Madina kechalarida — belgilanadi.
         </p>
       </div>
 
@@ -80,7 +81,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <h3 class="text-base font-semibold text-gray-900 truncate">{{ s.name }}</h3>
-              <p class="text-xs text-gray-400">Har {{ weekdayLabel(s.departure_weekday) }} kuni · {{ s.nights }} kecha</p>
+              <p class="text-xs text-gray-400">Har {{ weekdayLabel(s.departure_weekday) }} kuni · {{ s.nights }} kecha (zaxira)</p>
             </div>
             <button @click="deleteDay(s)" :disabled="deletingId === s.id" title="O'chirish" class="shrink-0 w-8 h-8 rounded-xl text-gray-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors">
               <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
@@ -608,8 +609,11 @@ async function save(s: Flight) {
     if (idx !== -1) schedules.value[idx] = data
     savedId.value = s.id
     setTimeout(() => { if (savedId.value === s.id) savedId.value = null }, 2500)
-  } catch {
-    /* ignore */
+  } catch (e: any) {
+    // A swallowed failure here is the worst kind: the row keeps showing the times the
+    // admin just typed, so the screen looks saved while the bot goes on quoting the old
+    // ones to every group on this plane. Say so, and say it did NOT save.
+    toast.error(e?.response?.data?.detail || "Saqlanmadi — reys vaqtlari o'zgarmadi. Qayta urinib ko'ring.")
   } finally {
     savingId.value = null
   }
