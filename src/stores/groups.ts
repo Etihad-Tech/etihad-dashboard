@@ -97,7 +97,11 @@ export const useGroupsStore = defineStore('groups', () => {
     try {
       const { data } = await aiApi.get('/groups')
       const g = (data as any[]).find(x => String(x.id) === String(chatId))
-      return !!g && (g.madina_start_day != null || g.makka_start_day != null)
+      // A POSITIVE start day is a map. 0 is how ai/Guruhlar clears a leg, and a card
+      // saved with no nights at all zeroes every leg — that is "no map", so the trip's
+      // own map may still seed it. Reading 0 as "already set" would leave such a group
+      // with no city, and a group with no city tags no crew.
+      return !!g && (Number(g.madina_start_day) > 0 || Number(g.makka_start_day) > 0)
     } catch {
       // Could not read it -> assume it IS set and do not push. Failing this way
       // preserves a manual override; failing the other way silently destroys one.

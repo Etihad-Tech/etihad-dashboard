@@ -53,6 +53,9 @@
                   <option value="makka_madina">{{ routeLabel(g, 'makka_madina') }}</option>
                   <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
                 </select>
+                <p v-if="routeLooksWrong(g)" class="text-[11px] text-amber-600 mt-1">
+                  Shanba reysi Makka'dan boshlanadi — marshrutni tekshiring va saqlang.
+                </p>
               </div>
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">Ellikboshi</label>
@@ -186,11 +189,16 @@ function computeRanges(g: Grp) {
   const jd = numOrNull(g.jidda_nights)
   const md = numOrNull(g.madina_nights)
   const mk = numOrNull(g.makka_nights)
-  // 0 rather than null for Jidda: the API leaves a NULL field untouched, so a zeroed
-  // range is the only way to CLEAR a Jidda leg that was set before.
+  // 0, never null, for EVERY leg: the API leaves a NULL field untouched, so a zeroed
+  // range is the only way to CLEAR a leg that was set before. The card tells the admin
+  // to write 0 for a city the group does not stay in — with a null default that 0 did
+  // nothing and the OLD range survived underneath, overlapping the new ones. The bot
+  // reads the first range that covers a day (Jidda, then Makka, then Madina), so a
+  // stale Makka range silently won a day the group spends in Madina, and the Madina
+  // crew was never tagged.
   const out: Record<string, number | null> = {
-    madina_start_day: null, madina_end_day: null,
-    makka_start_day: null, makka_end_day: null,
+    madina_start_day: 0, madina_end_day: 0,
+    makka_start_day: 0, makka_end_day: 0,
     jidda_start_day: 0, jidda_end_day: 0,
   }
   let cur = 1
@@ -230,6 +238,29 @@ function parseStart(iso: string): Date | null {
 function fmt(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`
+}
+
+// The Shanba plane flies Toshkent -> Jidda and home from Madina, so every package on
+// it runs Makka first; the Payshanba one is the other way round. This is the SAME
+// route table the bot's flight wordings use.
+const SATURDAY = 6
+
+/** The route to assume for a group whose stored map cannot say — it is blank, or only
+ *  one leg is filled in. The departure weekday decides, because the plane does: a blank
+ *  Shanba card defaulting to Madina-first wrote Madina over the days the group is
+ *  actually in Makka, and the city is what picks the crew to tag. A stored map with
+ *  both legs always wins over this. */
+function defaultOrder(iso: string): Order {
+  const d = parseStart(iso)
+  return d && d.getDay() === SATURDAY ? 'makka_madina' : 'madina_makka'
+}
+
+/** A Shanba group set to Madina-first: every package on that plane goes to Makka first,
+ *  so this is nearly always a card that was saved before the default was fixed — and it
+ *  tags the wrong city's crew for the whole first leg. Flagged rather than corrected:
+ *  the office owns the itinerary, and a package could change. */
+function routeLooksWrong(g: Grp): boolean {
+  return g.order === 'madina_makka' && defaultOrder(g.trip_start_date) === 'makka_madina'
 }
 
 /** Departure weekday, spelled out — a date typed into the wrong week is otherwise
@@ -332,7 +363,19 @@ async function load() {
     const visible = registered ? aiGroups.filter(g => registered!.has(String(g.id))) : aiGroups
     groups.value = visible.map((g: any): Grp => {
       const ms = g.madina_start_day, ks = g.makka_start_day
-      const order: Order = (ms != null && ks != null && Number(ks) < Number(ms)) ? 'makka_madina' : 'madina_makka'
+      // The stored map decides the route whenever it can. It only cannot for a group
+      // whose map is blank or half-filled — and there the default has to be the route
+      // the company actually flies today (Jidda -> Makka -> Madina, all three
+      // packages). Defaulting the other way laid Madina on the days the group spends
+      // in Makka the first time the admin filled the nights in and saved, which tags
+      // the wrong city's crew for the whole first leg.
+      // Both legs must really exist for the map to settle the question: a missing leg
+      // reads as 0, and 0 < anything would call a Makka-only group Madina-first. When
+      // the map cannot say, the departure weekday does — see defaultOrder().
+      const msN = Number(ms), ksN = Number(ks)
+      const order: Order = (msN > 0 && ksN > 0)
+        ? (msN < ksN ? 'madina_makka' : 'makka_madina')
+        : defaultOrder(g.trip_start_date || '')
       return {
         id: g.id,
         title: g.title,
