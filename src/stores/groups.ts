@@ -91,51 +91,29 @@ export const useGroupsStore = defineStore('groups', () => {
     }
   }
 
-  /** Does the AI bot already hold a day map for this group? Read fresh rather than from
-   *  `items`, which does not carry the day fields and may be minutes stale. */
-  async function aiHasDayMap(chatId: string): Promise<boolean> {
-    try {
-      const { data } = await aiApi.get('/groups')
-      const g = (data as any[]).find(x => String(x.id) === String(chatId))
-      // A POSITIVE start day is a map. 0 is how ai/Guruhlar clears a leg, and a card
-      // saved with no nights at all zeroes every leg — that is "no map", so the trip's
-      // own map may still seed it. Reading 0 as "already set" would leave such a group
-      // with no city, and a group with no city tags no crew.
-      return !!g && (Number(g.madina_start_day) > 0 || Number(g.makka_start_day) > 0)
-    } catch {
-      // Could not read it -> assume it IS set and do not push. Failing this way
-      // preserves a manual override; failing the other way silently destroys one.
-      return true
-    }
-  }
-
   async function sendNowPosts(tripId: string, chatId: string) {
     sending.value = chatId
     try {
       const { data } = await teamApi.post(`/api/trips/${tripId}/send-now-posts`)
       const { data: trip } = await teamApi.get(`/api/trips/${tripId}`)
-      if (trip.madina_start_day || trip.makka_start_day) {
-        // SEED ONLY, NEVER OVERWRITE. This pushes the TURON trip's day map into the AI
-        // bot, and Turon's template default is a 10-day map (Madina 1-5 / Makka 6-10)
-        // that is wrong for a 9-day Payshanba trip. So the office corrects Madina to 4
-        // in ai/Guruhlar — and every later press of this button used to push Turon's 5
-        // straight back over it. There is no guard on is_activated, so the button can be
-        // pressed any number of times, which is exactly what the owner saw: "after
-        // several times it becomes again 5 days" (2026-08-05).
-        //
-        // The trip DATE is still pushed every time: that comes from the Turon trip
-        // itself, which is its rightful owner, and it is not something the AI dashboard
-        // offers as an override on this screen.
-        const hasDayMap = await aiHasDayMap(chatId)
-        await aiApi.put(`/groups/${chatId}/location/public`, {
-          ...(hasDayMap ? {} : {
-            madina_start_day: trip.madina_start_day,
-            madina_end_day: trip.madina_end_day,
-            makka_start_day: trip.makka_start_day,
-            makka_end_day: trip.makka_end_day,
-          }),
-          trip_start_date: trip.start_date,
-        })
+      // The DATE only. Turon owns the departure date; ai/Guruhlar owns the trip's
+      // SHAPE, and this button must not write any part of it.
+      //
+      // It used to push the Turon trip's day map too. Turon has no Jidda leg and its
+      // template default is a 10-day Madina-first map (Madina 1-5 / Makka 6-10) that is
+      // wrong for every package on the Shanba plane — and planting it does more than
+      // put wrong days in: it also sets the Marshrut that every later edit in Guruhlar
+      // inherits, so the office corrects the night COUNTS and the route stays backwards.
+      // That is what the audit trail for -1004342086945 shows: a correct Makka-first map
+      // saved at 2026-07-31 17:56:57, Turon's Madina-first template over it 44s later,
+      // and the 08-10 edits still Madina-first. #56 stopped it OVERWRITING a map; a
+      // group with none still got one, which is how it starts.
+      //
+      // A group with no map is visible and safe: Guruhlar flags it in red ("Kechalar
+      // kiritilmagan — bot shaharni bilmaydi"), and the bot with no city tags no crew
+      // rather than the wrong city's crew.
+      if (trip.start_date) {
+        await aiApi.put(`/groups/${chatId}/location/public`, { trip_start_date: trip.start_date })
       }
 
       const idx = items.value.findIndex(g => g.chat_id === chatId)
