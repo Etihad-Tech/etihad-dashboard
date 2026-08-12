@@ -33,6 +33,11 @@
             <div class="flex items-center gap-3 mb-4">
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
+                <!-- The name above is the TELEGRAM chat's; this is the name the trip is
+                     registered under in Turon. They are two separate fields that nobody
+                     syncs, and the office reads the name to decide the nights to enter —
+                     so when they disagree about the package, both must be visible here. -->
+                <p v-if="g.trip_name" class="text-[11px] text-gray-400 truncate">Turon: {{ g.trip_name }}</p>
                 <p class="text-[11px] text-gray-400">{{ g.id }}</p>
               </div>
               <span v-if="!hasLocation(g)" class="text-[11px] text-rose-600 shrink-0">Kechalar kiritilmagan — bot shaharni bilmaydi</span>
@@ -139,6 +144,7 @@ type Order = 'madina_makka' | 'makka_madina'
 interface Grp {
   id: number
   title: string | null
+  trip_name: string
   trip_start_date: string
   order: Order
   jidda_nights: number | string | null
@@ -368,12 +374,19 @@ async function load() {
     const [aiRes, tripsRes] = await Promise.allSettled(calls)
 
     let registered: Set<string> | null = null
+    // The trip's own name, per chat — shown on the card next to the Telegram one. Only
+    // an admin session can read /api/trips, so this is absent for qa/mingboshi and the
+    // line simply does not render.
+    const tripName = new Map<string, string>()
     if (tripsRes && tripsRes.status === 'fulfilled') {
       registered = new Set<string>(
         tripsRes.value.data
           .filter((t: any) => t.group_chat_id)
           .map((t: any) => String(t.group_chat_id)),
       )
+      for (const t of tripsRes.value.data) {
+        if (t.group_chat_id && t.name) tripName.set(String(t.group_chat_id), t.name)
+      }
     }
 
     const aiGroups: any[] = aiRes.status === 'fulfilled' ? aiRes.value.data : []
@@ -396,6 +409,7 @@ async function load() {
       return {
         id: g.id,
         title: g.title,
+        trip_name: tripName.get(String(g.id)) || '',
         trip_start_date: g.trip_start_date || '',
         order,
         jidda_nights: nightsFromRange(g.jidda_start_day, g.jidda_end_day),
