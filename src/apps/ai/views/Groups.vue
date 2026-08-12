@@ -6,7 +6,11 @@
         <p class="text-sm text-gray-500 mt-1">
           Har bir guruhning jo'nash sanasi va shaharlarda necha <b>kecha</b> turishini yozing.
           Safar uzunligi, qaytish sanasi va joriy shahar shu raqamlardan hisoblanadi — reys jadvalidan emas,
-          shuning uchun bir kunda uchadigan turli paketlar (ANJUM-6, ANJUM-13, TAJ-13) bir-biriga xalaqit bermaydi.
+          shuning uchun bir kunda uchadigan har xil uzunlikdagi safarlar bir-biriga xalaqit bermaydi.
+        </p>
+        <p class="text-xs text-gray-500 mt-1">
+          Odatda: <b>Payshanba</b> — 9 kecha (Madina 4, keyin Makka 5), <b>Shanba</b> — 12 kecha (Makka 9, keyin Madina 3).
+          6 kunlik safar — istisno, kechalari qo'lda yoziladi. Guruh nomi paketni emas, faqat nomni bildiradi.
         </p>
         <p class="text-xs text-gray-400 mt-1">
           Faqat Turon tizimida ro'yxatdan o'tgan (safarga biriktirilgan) guruhlar ko'rsatiladi — botga tasodifan

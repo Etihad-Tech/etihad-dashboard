@@ -21,9 +21,10 @@
           guruhga <b>avtomatik xabar yuboradi</b>.
         </p>
         <p class="text-amber-700 mt-2">
-          Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil paketlar
-          birga uchadi (ANJUM-6, ANJUM-13, TAJ-13), shuning uchun <b>safar necha kecha davom etishi bu yerda emas,
-          «Guruhlar» bo'limida</b> — har bir guruhning Jidda / Makka / Madina kechalarida — belgilanadi.
+          Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil safarlar
+          birga uchishi mumkin (masalan, 6 kunlik safar 13 kunlik bilan bir xil Shanba reysida), shuning uchun
+          <b>safar necha kecha davom etishi bu yerda emas, «Guruhlar» bo'limida</b> — har bir guruhning
+          Jidda / Makka / Madina kechalarida — belgilanadi.
         </p>
       </div>
 
