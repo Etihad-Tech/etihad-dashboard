@@ -13,12 +13,7 @@
          <div class="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100 shrink-0">
             <h3 class="n-h">Diqqat talab qiladi</h3>
             <span v-if="activeProblems.length" class="chip tabular-nums">{{ activeProblems.length }}</span>
-            <button v-if="activeProblems.length" @click="s.dismissProblems(activeProblems)"
-               class="ml-auto text-[14px] font-semibold text-[color:var(--n-muted)] active:text-[color:var(--n-ink)]">
-               Tozalash
-            </button>
-            <button class="n-topbtn shrink-0" :class="activeProblems.length ? '' : 'ml-auto'"
-               @click="emit('close')">
+            <button class="n-topbtn shrink-0 ml-auto" @click="emit('close')">
                <font-awesome-icon icon="xmark" class="w-4 h-4" />
                <span class="sr-only">Yopish</span>
             </button>
@@ -164,6 +159,21 @@
                   </button>
                </div>
             </div>
+
+            <!-- The clear, as a real button. It spent its life as grey text in the
+                 header — the one action this sheet exists to offer, styled like a
+                 caption. It sits at the BOTTOM and outside the scroller now: on a phone
+                 the thumb is already there, and a list long enough to scroll is exactly
+                 when a header control is off screen at the moment it is wanted. -->
+            <div v-if="activeProblems.length"
+               class="shrink-0 border-t border-gray-100 px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
+               <button class="btn-primary w-full" @click="clearAll">
+                  Tozalash{{ activeProblems.length > 1 ? ` (${activeProblems.length})` : '' }}
+               </button>
+               <p class="mt-2 text-center text-[12.5px] text-[color:var(--n-muted)]">
+                  Tozalangani qaytmaydi — faqat yangisi kelsa chiqadi.
+               </p>
+            </div>
          </div>
       </div>
    </div>
@@ -182,6 +192,14 @@ const { problems, activeProblems, clearedCount, reopenedNeeds } = useNazoratView
 /** One notice open at a time — the sheet is a phone-height panel and two open lists
  *  would push the second one's heading off the screen that raised it. */
 const open = ref<string | null>(null)
+
+/** Clear everything on screen. The sheet deliberately STAYS open on the cleared state
+ *  rather than closing: that state is what says how many went away and offers Qaytarish,
+ *  and a sheet that vanishes on the same tap takes the undo with it. */
+function clearAll() {
+   open.value = null
+   s.dismissProblems(activeProblems.value)
+}
 function toggle(key: string) {
    open.value = open.value === key ? null : key
    // The angry messages ride along with the report; only the reopened list needs the
