@@ -309,10 +309,20 @@ function routeLabel(g: Grp, order: Order): string {
   const seq: City[] = order === 'makka_madina'
     ? ['jidda', 'makka', 'madina']
     : ['jidda', 'madina', 'makka']
-  // Name the route the group actually flies — a Jidda leg it does not have should not
-  // appear in the label the admin picks from.
-  const nights = { jidda: numOrNull(g.jidda_nights), madina: numOrNull(g.madina_nights), makka: numOrNull(g.makka_nights) }
-  return seq.filter(c => c === 'jidda' ? nights.jidda : true).map(c => CITY_META[c].label).join(' → ')
+  // Jidda belongs in the label when the group's PLANE lands there — which is a fact about
+  // the Shanba rotation, not about whether anyone has typed a night into the Jidda box.
+  //
+  // It used to depend on the nights, and that split the list in two: a group entered the
+  // old way (the arrival night folded into «Makka 1-9») read «Makka → Madina», while the
+  // same trip entered as «Jidda 1 · Makka 8» read «Jidda → Makka → Madina». Same
+  // itinerary, same plane, two different routes on screen — and the Jidda leg ROW is on
+  // every card either way, so the label was the only thing disagreeing.
+  //
+  // Payshanba is not affected and must not be: that plane lands in MADINA and only
+  // touches Jidda on the way home, so there is no Jidda stay to name.
+  const showJidda = routeForWeekday(g.trip_start_date) === 'makka_madina'
+    || !!numOrNull(g.jidda_nights)
+  return seq.filter(c => c !== 'jidda' || showJidda).map(c => CITY_META[c].label).join(' → ')
 }
 
 /** One descriptor per leg, in travel order — the row model for the card. */
