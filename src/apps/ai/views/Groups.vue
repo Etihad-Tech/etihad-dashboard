@@ -37,11 +37,6 @@
             <div class="flex items-center gap-3 mb-4">
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
-                <!-- The name above is the TELEGRAM chat's; this is the name the trip is
-                     registered under in Turon. They are two separate fields that nobody
-                     syncs, and the office reads the name to decide the nights to enter —
-                     so when they disagree about the package, both must be visible here. -->
-                <p v-if="g.trip_name" class="text-[11px] text-gray-400 truncate">Turon: {{ g.trip_name }}</p>
                 <p class="text-[11px] text-gray-400">{{ g.id }}</p>
               </div>
               <span v-if="!hasLocation(g)" class="text-[11px] text-rose-600 shrink-0">Kechalar kiritilmagan — bot shaharni bilmaydi</span>
@@ -148,7 +143,6 @@ type Order = 'madina_makka' | 'makka_madina'
 interface Grp {
   id: number
   title: string | null
-  trip_name: string
   trip_start_date: string
   order: Order
   jidda_nights: number | string | null
@@ -315,10 +309,20 @@ function routeLabel(g: Grp, order: Order): string {
   const seq: City[] = order === 'makka_madina'
     ? ['jidda', 'makka', 'madina']
     : ['jidda', 'madina', 'makka']
-  // Name the route the group actually flies — a Jidda leg it does not have should not
-  // appear in the label the admin picks from.
-  const nights = { jidda: numOrNull(g.jidda_nights), madina: numOrNull(g.madina_nights), makka: numOrNull(g.makka_nights) }
-  return seq.filter(c => c === 'jidda' ? nights.jidda : true).map(c => CITY_META[c].label).join(' → ')
+  // Jidda belongs in the label when the group's PLANE lands there — which is a fact about
+  // the Shanba rotation, not about whether anyone has typed a night into the Jidda box.
+  //
+  // It used to depend on the nights, and that split the list in two: a group entered the
+  // old way (the arrival night folded into «Makka 1-9») read «Makka → Madina», while the
+  // same trip entered as «Jidda 1 · Makka 8» read «Jidda → Makka → Madina». Same
+  // itinerary, same plane, two different routes on screen — and the Jidda leg ROW is on
+  // every card either way, so the label was the only thing disagreeing.
+  //
+  // Payshanba is not affected and must not be: that plane lands in MADINA and only
+  // touches Jidda on the way home, so there is no Jidda stay to name.
+  const showJidda = routeForWeekday(g.trip_start_date) === 'makka_madina'
+    || !!numOrNull(g.jidda_nights)
+  return seq.filter(c => c !== 'jidda' || showJidda).map(c => CITY_META[c].label).join(' → ')
 }
 
 /** One descriptor per leg, in travel order — the row model for the card. */
@@ -412,8 +416,13 @@ async function load() {
         : defaultOrder(g.trip_start_date || '')
       return {
         id: g.id,
-        title: g.title,
-        trip_name: tripName.get(String(g.id)) || '',
+        // The name the trip is REGISTERED under in Turon, not the Telegram chat's.
+        // They are two separate fields and nothing syncs them, so a group renamed in one
+        // kept showing its old name here — and the office reads the name on this card to
+        // decide what to enter. One name, and it is the registered one. The chat's title
+        // is the fallback for a group no trip claims (and for the qa/mingboshi logins,
+        // which cannot read /api/trips at all).
+        title: tripName.get(String(g.id)) || g.title,
         trip_start_date: g.trip_start_date || '',
         order,
         jidda_nights: nightsFromRange(g.jidda_start_day, g.jidda_end_day),
