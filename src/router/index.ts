@@ -108,6 +108,7 @@ const router = createRouter({
         { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
         { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'suhbat', name: 'AiNazoratSuhbat', component: () => import('../apps/ai/views/nazorat/Suhbat.vue') },
+        { path: 'shaxsiy', name: 'AiNazoratShaxsiy', component: () => import('../apps/ai/views/nazorat/Shaxsiy.vue') },
         { path: 'xodim/:id', name: 'AiNazoratXodim', component: () => import('../apps/ai/views/nazorat/Xodim.vue') },
       ],
     },

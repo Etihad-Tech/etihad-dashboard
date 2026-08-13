@@ -255,6 +255,11 @@ export const useNazoratStore = defineStore('nazorat', () => {
       // The slice changed, so anything already pulled describes the old one.
       requestsLoaded.value = false
       requests.value = []
+      // The private feed is scoped by the same slice and goes stale with it. Missing
+      // this would leave Shaxsiy murojat showing the previous period's requests under
+      // the new period's heading — wrong in the way nobody notices.
+      personalLoaded.value = false
+      personal.value = []
       try {
          const q = sliceQuery.value
          const [rep, wrk, agg, sr, st, sc, grp] = await Promise.all([
@@ -323,6 +328,33 @@ export const useNazoratStore = defineStore('nazorat', () => {
    function loadMoreRequests() {
       reqLimit.value = Math.min(MAX_REQ_LIMIT, reqLimit.value + REQ_PAGE)
       return loadRequests(true)
+   }
+
+   /** «Shaxsiy murojat» — the requests a pilgrim opened in the Mini App.
+    *
+    *  ITS OWN READ, not a filter over `requests`, and that is the point. Private
+    *  requests are a small minority of the traffic, so filtering the journal's window
+    *  (the last `reqLimit` of EVERYTHING) would routinely show none while older ones
+    *  existed — a truncation that reads as "nobody wrote to us". Asking the server for
+    *  `source=miniapp` fills the window with the thing being looked at.
+    */
+   const personal = ref<any[]>([])
+   const personalLoading = ref(false)
+   const personalLoaded = ref(false)
+
+   async function loadPersonal(force = false) {
+      if (personalLoaded.value && !force) return
+      personalLoading.value = true
+      try {
+         const { data } = await api.get(
+            `/control/requests?${sliceQuery.value}&source=miniapp&limit=${reqLimit.value}`)
+         personal.value = data
+         personalLoaded.value = true
+      } catch {
+         loadError.value = true
+      } finally {
+         personalLoading.value = false
+      }
    }
 
    /** The leader roster — every ellikboshi and how many groups they hold. No period.
@@ -486,6 +518,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupPeriod,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,
+      personal, personalLoading, personalLoaded, loadPersonal,
       form, sliceQuery, dismissed,
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
       dismissProblems, restoreProblems, dismissReopen, save,

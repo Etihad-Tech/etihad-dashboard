@@ -53,12 +53,11 @@
                </div>
 
                <div class="flex items-center gap-2.5 shrink-0">
-                  <!-- The way into the chat on a DESKTOP. The tab bar below is phone-only,
-                       and Suhbat is the one screen that is not also rendered inline in the
-                       desktop one-scroll — so without this button it could only be reached
-                       by typing the URL. Hidden on a phone, where the tab already leads
-                       there and a second entry would just be clutter. -->
-                  <router-link v-if="canChat && isDesktop" to="/ai/nazorat/suhbat"
+                  <!-- The way into the chat, on EVERY viewport (owner, 2026-08-12).
+                       It used to be desktop-only, because the phone reached Suhbat
+                       through a tab; the tab bar now carries Shaxsiy murojat in that
+                       slot instead, so this is the only entrance on a phone too. -->
+                  <router-link v-if="canChat" to="/ai/nazorat/suhbat"
                      class="n-topbtn" title="Suhbat">
                      <span class="relative inline-flex">
                         <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
@@ -77,11 +76,10 @@
                      </span>
                      <span class="sr-only">Diqqat talab qiladi</span>
                   </button>
-                  <button @click="refresh" class="n-topbtn" title="Yangilash">
-                     <font-awesome-icon icon="rotate-right" class="w-[17px] h-[17px]"
-                        :class="s.loading ? 'animate-spin' : ''" />
-                     <span class="sr-only">Yangilash</span>
-                  </button>
+                  <!-- The Yangilash button was REMOVED (owner, 2026-08-12) and the chat
+                       took its place. The panel already refetches on every period and
+                       scope change, and pull-to-refresh reloads it on a phone, so the
+                       button spent its time doing what had just happened anyway. -->
                   <!-- A controller has no sidebar on a phone (it would hold one link), so
                        the way out lives here. -->
                   <button v-if="isNazoratchi" @click="logout" class="n-topbtn lg:hidden">
@@ -177,6 +175,14 @@
                   <h3 class="n-group-h mb-3">Jurnal</h3>
                   <Jurnal />
                </section>
+               <!-- Part of the one-scroll rather than its own desktop screen, because
+                    the tab bar that leads to it is phone-only — without this a desktop
+                    reader could reach it by typing the URL and nothing else. It sits
+                    last: it is the smallest list and the newest question. -->
+               <section id="nazorat-shaxsiy" class="scroll-mt-4">
+                  <h3 class="n-group-h mb-3">Shaxsiy murojaatlar</h3>
+                  <Shaxsiy />
+               </section>
             </div>
          </div>
 
@@ -214,6 +220,7 @@ import AppLayout from '../components/AppLayout.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
 import Jurnal from './nazorat/Jurnal.vue'
+import Shaxsiy from './nazorat/Shaxsiy.vue'
 import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
 import { CHAT_ROLES, useNazoratStore } from '../stores/nazorat'
@@ -242,12 +249,12 @@ const TABS = [
    ...(auth.role === 'nazoratchi_staff'
       ? []
       : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
-   // Only the three controller logins have a conversation to open. `admin` reaches the
-   // endpoints (require_role always allows admin) but is not one of them, so the API
-   // answers an empty inbox — and a tab that can only ever be empty is worse than no tab.
-   ...(canChat.value
-      ? [{ key: 'suhbat', to: '/ai/nazorat/suhbat', label: 'Suhbat', icon: 'comments' }]
-      : []),
+   // Requests the pilgrim opened in the Mini App rather than in their group. Its own
+   // tab and not a filter on Jurnal, because it answers a different question: the
+   // journal is "what happened in the groups", this is "who wrote to us directly".
+   { key: 'shaxsiy', to: '/ai/nazorat/shaxsiy', label: 'Shaxsiy', icon: 'user-pen' },
+   // Suhbat MOVED to the top bar (owner, 2026-08-12) and is deliberately not here:
+   // carrying it in both places would spend a tab slot on a second door to one room.
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
@@ -266,7 +273,11 @@ const chatPeerLabel = computed(() =>
  *  above somebody's messages tells the reader nothing they need. */
 const topTitle = computed(() =>
    isDetail.value ? personWord.value
-      : isChatThread.value ? chatPeerLabel.value : 'Nazorat')
+      : isChatThread.value ? chatPeerLabel.value
+         // Titled for itself on a phone: it is the one tab whose name is not obvious
+         // from the rows, since a private request looks like any other murojaat.
+         : route.path === '/ai/nazorat/shaxsiy' ? 'Shaxsiy murojaat'
+            : 'Nazorat')
 
 const scopeSuffix = computed(() =>
    isStaffScope.value ? 'Xodimlar' : isLeaderScope.value ? 'Ellikboshilar' : '')
@@ -323,15 +334,6 @@ onUnmounted(() => {
    mq.removeEventListener('change', onMq)
    io?.disconnect()
 })
-
-async function refresh() {
-   await s.load()
-   // Whichever screen is open re-pulls what it needs; the drill-down is invalidated by
-   // load(), so this only costs a request on the screens that actually read it.
-   if (isDetail.value || route.path === '/ai/nazorat/jurnal' || isDesktop.value) {
-      await s.loadRequests()
-   }
-}
 
 function logout() {
    auth.logout()

@@ -760,24 +760,41 @@ export function useNazoratView() {
             + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
 
-   /** The feed: newest first, one card per murojaat. */
-   const feed = computed(() =>
-      [...s.requests]
-         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-         .map((r) => ({
-            id: r.id,
-            text: r.text,
-            created_at: r.created_at,
-            group_label: r.group_title || `Guruh ${r.chat_id}`,
-            city: r.location,
-            room_no: r.room_no,
-            pilgrim_username: r.pilgrim_username,
-            message_link: r.message_link,
-            is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
-            outcome: needOutcome(r),
-            recipients: r.recipients || [],
-         })),
-   )
+   /**
+    * One card per murojaat, newest first.
+    *
+    * Exported as a mapper too, because «Shaxsiy murojat» reads the SAME shape from a
+    * different list (`s.personal`, fetched with `source=miniapp`). Two copies of this
+    * mapping would drift, and the thing that would drift is how an outcome is decided —
+    * the one part of the panel that must mean the same on every screen.
+    */
+   const toFeedRow = (r: any) => ({
+      id: r.id,
+      text: r.text,
+      created_at: r.created_at,
+      group_label: r.group_title || `Guruh ${r.chat_id}`,
+      city: r.location,
+      room_no: r.room_no,
+      pilgrim_username: r.pilgrim_username,
+      message_link: r.message_link,
+      // 'group' | 'miniapp' (migration 037). Worth carrying into the journal, where
+      // both kinds appear: a private request is the one row whose `message_link` is
+      // legitimately null, because there is no group message to open.
+      source: r.source || 'group',
+      is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
+      outcome: needOutcome(r),
+      recipients: r.recipients || [],
+   })
+
+   const byNewest = (rows: any[]) =>
+      [...rows].sort(
+         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
+
+   const feed = computed(() => byNewest(s.requests).map(toFeedRow))
+
+   /** The same rows for the private feed, which is a different fetch, not a filter. */
+   const personalFeed = computed(() => byNewest(s.personal).map(toFeedRow))
 
    /** The other way into the journal: BY PERSON, which is how the panel was read before
     *  the feed existed — you look for Ali, you tap Ali, you get Ali's log. The count is
@@ -907,6 +924,6 @@ export function useNazoratView() {
       bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseChart,
       reopenedNeeds,
       ratingBoards, ratingBoard,
-      feed, journalPeople, entriesFor,
+      feed, personalFeed, journalPeople, entriesFor,
    }
 }
