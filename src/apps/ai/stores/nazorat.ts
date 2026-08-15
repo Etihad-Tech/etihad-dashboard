@@ -150,6 +150,17 @@ export interface StaffReady {
    in_pool?: boolean
 }
 
+/** One OPEN card past its §6 acceptance window — the bell's chase list. Health needs
+ *  carry the 10-minute window (the doctor's cards are the «tibbiy shoshilinch» class
+ *  by routing, no detector involved); everything else 15 min by day / 45 by night. */
+export interface SlaOverdueItem {
+   recipient_id: number; request_id: number
+   role: string; username: string | null
+   chat_id: number | null; group_title: string | null
+   need_type: string | null
+   window_minutes: number; overdue_minutes: number
+}
+
 // Drill-down paging. The journal is built from these rows, so a silent cap would make a
 // truncated log look like the worker's whole period.
 export const REQ_PAGE = 200
@@ -172,6 +183,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
    // by owner request (2026-08-07) after a few hours off it: it is the one warning where
    // nothing is failing yet — the cards simply never arrive, silently.
    const staffReadiness = ref<StaffReady[]>([])
+   // The bell's SLA chase list — cards still acceptable, past their §6 window.
+   const slaOverdue = ref<SlaOverdueItem[]>([])
 
    // ── The controllers' 1:1 chat ─────────────────────────────────────────────
    // Kept OUT of load(): it answers to no period and no group/city slice, and re-pulling
@@ -299,7 +312,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       requests.value = []
       try {
          const q = sliceQuery.value
-         const [rep, wrk, agg, sr, st, sc, grp] = await Promise.all([
+         const [rep, wrk, agg, sr, st, sc, grp, sla] = await Promise.all([
             api.get(`/control/report?${q}`),
             api.get(`/control/workers?${q}`),
             // No city: a message records no location, only the need behind one does —
@@ -313,6 +326,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
             // Deliberately NOT sliced: the group list must keep offering the other
             // groups, otherwise picking one would leave you unable to pick a different one.
             api.get(`/control/groups?period=${period.value}`),
+            // No period either: an SLA alarm is about NOW.
+            api.get('/control/sla-overdue'),
          ])
          // Which notices this login has already cleared. Read on every load so a clear
          // made on the phone is already in force when the laptop opens the panel.
@@ -321,6 +336,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          workers.value = wrk.data
          aggressive.value = agg.data || { total: 0, items: [] }
          staffReadiness.value = sr.data
+         slaOverdue.value = sla.data || []
          scope.value = sc.data?.scope || 'all'
          groupOptions.value = grp.data
          form.value = {
@@ -339,6 +355,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          workers.value = []
          aggressive.value = { total: 0, items: [] }
          staffReadiness.value = []
+         slaOverdue.value = []
          groupOptions.value = []
       } finally {
          loading.value = false
@@ -538,7 +555,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
 
    return {
       period, loading, loadError, saving, savedMsg, setStaj,
-      report, workers, groupOptions, aggressive, staffReadiness, scope,
+      report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
       periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupPeriod,

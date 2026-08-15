@@ -419,6 +419,25 @@ export function useNazoratView() {
          color: ALARM_RED,
          hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
       })
+      // §6 as an ALARM, not a punishment (owner, 2026-08-15): cards still unaccepted
+      // past their acceptance window — 10 min for a health need (the doctor's cards
+      // ARE the «tibbiy shoshilinch» class by ROUTING, no detector involved), 15 min
+      // by day, 45 by night, Makka clock. On the bell for the same reason readiness
+      // is: nothing has hardened into «Javobsiz» yet — this is the moment a chase
+      // still helps. Sits right after the angry pilgrim: both are about NOW.
+      if (s.slaOverdue.length) out.push({
+         key: 'sla', value: s.slaOverdue.length, label: 'SLA kutmoqda',
+         // The SET of overdue cards: cleared stays cleared while the same cards wait,
+         // and a different card going overdue raises it again.
+         sig: 'sla:' + fold([...s.slaOverdue].map((c) => String(c.recipient_id)).sort()),
+         color: '#c2410c',
+         hint: "Qabul qilinmagan murojaatlar — belgilangan vaqt o'tdi:",
+         people: s.slaOverdue.map((c) =>
+            (c.username || '—')
+            + (c.need_type === 'health' ? ' · tibbiy (10 daq)' : ` · ${c.window_minutes} daq`)
+            + ` · +${c.overdue_minutes} daq kechikdi`
+            + (c.group_title ? ` · ${c.group_title}` : '')),
+      })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
          sig: 'r:' + Math.max(0, ...reopenedNeeds.value.map((n) => n.id)),
