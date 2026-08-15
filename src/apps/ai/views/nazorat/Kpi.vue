@@ -54,7 +54,7 @@
                   </span>
                   <span class="shrink-0 text-right">
                      <span class="block text-[22px] font-bold tabular-nums leading-none tracking-[-0.04em]">
-                        {{ board.scored ? (r.w.kpi ? r.w.kpi.total : '—') : gradable(r.w) }}
+                        {{ board.scored ? (r.w.kpi ? (r.w.kpi.combined ?? r.w.kpi.total) : '—') : gradable(r.w) }}
                      </span>
                      <span class="block text-[12px] text-[color:var(--n-muted)] mt-1">
                         {{ board.scored ? 'ball' : 'murojaat' }}
@@ -97,6 +97,16 @@
                      <span class="font-semibold text-right">
                         {{ r.w.kpi.vaqt_measured ? r.w.kpi.vaqt_ball + '/20' : '—' }}
                      </span>
+                     <!-- v2(2) §5 — the survey half, when the month has one with enough
+                          coverage: the headline number above is the COMBINED score. -->
+                     <template v-if="r.w.kpi.survey_ball !== null && r.w.kpi.survey_ball !== undefined">
+                        <span>Operatsion ball</span>
+                        <span></span>
+                        <span class="font-semibold text-right">{{ r.w.kpi.total }}</span>
+                        <span>Ziyoratchi bahosi</span>
+                        <span class="text-[color:var(--n-muted)]">× 0,5</span>
+                        <span class="font-semibold text-right">{{ r.w.kpi.survey_ball }}</span>
+                     </template>
                   </div>
                   <div v-else class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
                      <span>Bajarildi</span><span class="font-semibold text-right">{{ r.w.completed }}</span>

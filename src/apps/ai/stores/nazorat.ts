@@ -37,6 +37,12 @@ export interface WorkerKpi {
    bajarilish_ball: number; javobsiz_ball: number; takroriy_ball: number
    vaqt_ball: number; vaqt_measured: boolean
    total: number; bonus: number; min_sample: boolean
+   // v2(2) §5 — the month's Ziyoratchi bahosi (null: no survey / coverage under
+   // §6.3's bar) and the COMBINED Sifat reytingi = op × 0.5 + survey × 0.5. With no
+   // survey, combined == total — the document's own operational-only fallback. The
+   // mukofot in `bonus` already rides the combined number.
+   survey_ball?: number | null
+   combined?: number
 }
 
 export interface Worker {
