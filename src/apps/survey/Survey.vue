@@ -49,8 +49,12 @@
                      <select v-model="pickedGroup" class="sn-inline" :disabled="isSaved"
                         @change="assignGroup">
                         <option :value="null">— tanlang —</option>
+                        <!-- The full trip range in the label: two groups can share a
+                             name, but never a name AND its dates — the specialist
+                             picks the TRIP, not just the title. -->
                         <option v-for="g in groups" :key="g.chat_id" :value="g.chat_id">
-                           {{ g.title }}{{ g.trip_end_date ? ` · qaytgan ${g.trip_end_date}` : '' }}
+                           {{ g.title }}{{ g.trip_start_date
+                              ? ` · ${g.trip_start_date} — ${g.trip_end_date || '?'}` : '' }}
                         </option>
                      </select>
                   </span>
