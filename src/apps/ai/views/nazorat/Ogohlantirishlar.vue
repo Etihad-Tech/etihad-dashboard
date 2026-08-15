@@ -131,10 +131,6 @@
                         <div v-else class="divide-y divide-gray-200">
                            <div v-for="n in reopenedNeeds" :key="n.id" class="px-5 py-4">
                               <p class="text-[15px] leading-snug">
-                                 <!-- Tagged like every other request row: these are the
-                                      journal's own needs, opened from the bell. -->
-                                 <span class="badge mr-1 align-middle" :class="n.tag.cls"
-                                    :title="n.tag.hint">{{ n.tag.label }}</span>
                                  <span v-if="n.text">{{ n.text }}</span>
                                  <span v-else class="text-[color:var(--n-faint)]">Matnsiz</span>
                               </p>
