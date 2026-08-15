@@ -60,41 +60,6 @@ export function cityLabel(c: string | null): string {
    return c ? (CITY_LABELS[c] || c) : ''
 }
 
-/** Which door a murojaat came through — `requests.source`, migration 037 — as a TAG on
- *  the row itself.
- *
- *  It was a screen of its own for two days and is not one any more (owner, 2026-08-15).
- *  «Shaxsiy murojaat» had a tab, its own fetch and its own empty state, and that shape
- *  made a claim about the data that was never true: a cabinet request reaches the same
- *  crew, is graded by the same outcome rule, and has always counted in the same ratings
- *  and statistics as a group one — nothing in the panel's aggregates has ever filtered
- *  on source. A separate screen read as a separate accounting. So the fact moves onto
- *  the request, where it belongs: every request is tagged, everywhere requests are
- *  listed, and the journal holds both kinds the way it always held everything.
- *
- *  ACHROMATIC, both of them. Colour on this panel is data — green, amber and blue mean
- *  an OUTCOME and red is the alarm — so a tag that carried where a request came from in
- *  colour would put a fourth vocabulary on the same row as the grade. «Guruh» takes the
- *  quiet fill the job badges use; «Shaxsiy» is outlined, so the rare kind is the one
- *  that catches the eye without ever reading as a verdict on anybody. */
-export const SOURCE_TAGS: Record<string, { key: string; label: string; cls: string; hint: string }> = {
-   group: {
-      key: 'group', label: 'Guruh', cls: 'badge-amber',
-      hint: "Ziyoratchi o'z guruhida yozgan",
-   },
-   miniapp: {
-      key: 'miniapp', label: 'Shaxsiy', cls: 'badge-outline',
-      hint: "Ziyoratchi o'z kabinetidan yozgan — guruhda hech kim ko'rmagan",
-   },
-}
-
-/** The tag for one row. Anything unknown falls back to «Guruh» rather than rendering
- *  nothing: every pre-2026-08-12 row is 'group' by migration 037's backfill, and a row
- *  with no tag at all would read as a third kind that does not exist. */
-export function sourceTag(source: string | null | undefined) {
-   return SOURCE_TAGS[source || 'group'] || SOURCE_TAGS.group
-}
-
 // Xatolik taxonomy labels — codes mirror server IT_ERROR_KINDS (bot/services/control.py).
 const KIND_LABELS: Record<string, string> = {
    wp: "Noto'g'ri shaxs",
@@ -430,10 +395,6 @@ export function useNazoratView() {
             group_label: r.group_title || `Guruh ${r.chat_id}`,
             city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
             message_link: r.message_link,
-            // Tagged here too. The bell opens the SAME needs the journal lists, and a
-            // «Bajarilmagan» that nobody in the group ever saw is read differently from
-            // one forty people watched go unanswered.
-            tag: sourceTag(r.source),
             taker: needOutcome(r).detail,
          })),
    )
@@ -875,33 +836,24 @@ export function useNazoratView() {
          detail: `${who} · ${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
 
-   /** One card per murojaat, newest first. */
-   const toFeedRow = (r: any) => ({
-      id: r.id,
-      text: r.text,
-      created_at: r.created_at,
-      group_label: r.group_title || `Guruh ${r.chat_id}`,
-      city: r.location,
-      room_no: r.room_no,
-      pilgrim_username: r.pilgrim_username,
-      message_link: r.message_link,
-      // 'group' | 'miniapp' (migration 037) — the row's own tag. Both kinds live in
-      // this one feed, and a private request is the row whose `message_link` is
-      // legitimately null: there is no group message to open, because there was none.
-      // The key is kept beside the rendered tag because the chip filters on it.
-      source: r.source || 'group',
-      tag: sourceTag(r.source),
-      is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
-      outcome: needOutcome(r),
-      recipients: r.recipients || [],
-   })
-
-   const byNewest = (rows: any[]) =>
-      [...rows].sort(
-         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      )
-
-   const feed = computed(() => byNewest(s.requests).map(toFeedRow))
+   /** The feed: newest first, one card per murojaat. */
+   const feed = computed(() =>
+      [...s.requests]
+         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+         .map((r) => ({
+            id: r.id,
+            text: r.text,
+            created_at: r.created_at,
+            group_label: r.group_title || `Guruh ${r.chat_id}`,
+            city: r.location,
+            room_no: r.room_no,
+            pilgrim_username: r.pilgrim_username,
+            message_link: r.message_link,
+            is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
+            outcome: needOutcome(r),
+            recipients: r.recipients || [],
+         })),
+   )
 
    /** The other way into the journal: BY PERSON, which is how the panel was read before
     *  the feed existed — you look for Ali, you tap Ali, you get Ali's log. The count is
@@ -1005,9 +957,6 @@ export function useNazoratView() {
          const e = {
             id: r.id, text: r.text, parent_request_id: r.parent_request_id,
             reopen_dismissed: r.reopen_dismissed, message_link: r.message_link,
-            // A person's own log tags its rows too: the same worker answers both kinds,
-            // and the one nobody in the group witnessed is worth telling apart.
-            tag: sourceTag(r.source),
             group_label: r.group_title || `Guruh ${r.chat_id}`,
             city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
             created_at: r.created_at, delivered: rec.delivered, it_verdict: rec.it_verdict,
