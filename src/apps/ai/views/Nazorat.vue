@@ -195,13 +195,6 @@
                :class="route.path === t.to ? 'is-active' : ''">
                <span class="relative inline-flex">
                   <font-awesome-icon :icon="t.icon" class="w-[22px] h-[22px]" />
-                  <!-- Unread messages, on the tab that holds them. Same badge the bell
-                       wears: this panel already has one vocabulary for "there is
-                       something here", and a second one would read as a different kind
-                       of thing. -->
-                  <span v-if="t.key === 'suhbat' && s.chatUnread" class="n-bell-badge is-chat">
-                     {{ s.chatUnread }}
-                  </span>
                </span>
                <span class="truncate max-w-full">{{ t.label }}</span>
             </router-link>
@@ -249,12 +242,9 @@ const TABS = [
    ...(auth.role === 'nazoratchi_staff'
       ? []
       : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
-   // Only the three controller logins have a conversation to open. `admin` reaches the
-   // endpoints (require_role always allows admin) but is not one of them, so the API
-   // answers an empty inbox — and a tab that can only ever be empty is worse than no tab.
-   ...(canChat.value
-      ? [{ key: 'suhbat', to: '/ai/nazorat/suhbat', label: 'Suhbat', icon: 'comments' }]
-      : []),
+   // NO Suhbat tab (owner, 2026-08-15): the chat's one entry is the top-bar button,
+   // which shows on the phone too since it took the refresh slot. A sixth tab was
+   // also what truncated «Reyting» and «Guruhlar» into «Reyti…» / «Guru…».
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
