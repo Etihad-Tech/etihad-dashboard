@@ -55,8 +55,9 @@
                <div class="flex items-center gap-2.5 shrink-0">
                   <!-- The way into the chat, on EVERY viewport (owner, 2026-08-12).
                        It used to be desktop-only, because the phone reached Suhbat
-                       through a tab; the tab bar now carries Shaxsiy murojat in that
-                       slot instead, so this is the only entrance on a phone too. -->
+                       through a tab. It stays here now that «Shaxsiy» has left the tab
+                       bar (2026-08-15): a conversation is not one of the panel's
+                       reports, and one door to it on every viewport beats two. -->
                   <router-link v-if="canChat" to="/ai/nazorat/suhbat"
                      class="n-topbtn" title="Suhbat">
                      <span class="relative inline-flex">
@@ -170,18 +171,15 @@
                </section>
                <!-- Named so an outcome row on the overview can scroll to it: on a
                     desktop these are one page, so filtering the Jurnal from up there
-                    changes nothing the reader can see unless the page moves. -->
+                    changes nothing the reader can see unless the page moves.
+
+                    Both kinds of murojaat are in here — what was written in a group and
+                    what a pilgrim opened in their cabinet — each tagged on its own row.
+                    The «Shaxsiy murojaatlar» section that used to follow this one is
+                    gone (owner, 2026-08-15); see SOURCE_TAGS in shared.ts. -->
                <section id="nazorat-jurnal" class="scroll-mt-4">
                   <h3 class="n-group-h mb-3">Jurnal</h3>
                   <Jurnal />
-               </section>
-               <!-- Part of the one-scroll rather than its own desktop screen, because
-                    the tab bar that leads to it is phone-only — without this a desktop
-                    reader could reach it by typing the URL and nothing else. It sits
-                    last: it is the smallest list and the newest question. -->
-               <section id="nazorat-shaxsiy" class="scroll-mt-4">
-                  <h3 class="n-group-h mb-3">Shaxsiy murojaatlar</h3>
-                  <Shaxsiy />
                </section>
             </div>
          </div>
@@ -220,7 +218,6 @@ import AppLayout from '../components/AppLayout.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
 import Jurnal from './nazorat/Jurnal.vue'
-import Shaxsiy from './nazorat/Shaxsiy.vue'
 import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
 import { CHAT_ROLES, useNazoratStore } from '../stores/nazorat'
@@ -249,12 +246,12 @@ const TABS = [
    ...(auth.role === 'nazoratchi_staff'
       ? []
       : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
-   // Requests the pilgrim opened in the Mini App rather than in their group. Its own
-   // tab and not a filter on Jurnal, because it answers a different question: the
-   // journal is "what happened in the groups", this is "who wrote to us directly".
-   { key: 'shaxsiy', to: '/ai/nazorat/shaxsiy', label: 'Shaxsiy', icon: 'user-pen' },
-   // Suhbat MOVED to the top bar (owner, 2026-08-12) and is deliberately not here:
-   // carrying it in both places would spend a tab slot on a second door to one room.
+   // «Shaxsiy» was a fifth tab for two days and is not one any more (owner, 2026-08-15).
+   // A request opened in the Mini App is not a different question from one written in a
+   // group — same crew, same grading, same ratings — so it is a TAG on the journal's
+   // rows and a chip that narrows them, not a screen. See SOURCE_TAGS in shared.ts.
+   // Suhbat stays in the top bar (owner, 2026-08-12), where it is reachable from every
+   // screen rather than only from the tab bar's own.
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
@@ -274,10 +271,7 @@ const chatPeerLabel = computed(() =>
 const topTitle = computed(() =>
    isDetail.value ? personWord.value
       : isChatThread.value ? chatPeerLabel.value
-         // Titled for itself on a phone: it is the one tab whose name is not obvious
-         // from the rows, since a private request looks like any other murojaat.
-         : route.path === '/ai/nazorat/shaxsiy' ? 'Shaxsiy murojaat'
-            : 'Nazorat')
+         : 'Nazorat')
 
 const scopeSuffix = computed(() =>
    isStaffScope.value ? 'Xodimlar' : isLeaderScope.value ? 'Ellikboshilar' : '')

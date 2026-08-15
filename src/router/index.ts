@@ -108,7 +108,11 @@ const router = createRouter({
         { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
         { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'suhbat', name: 'AiNazoratSuhbat', component: () => import('../apps/ai/views/nazorat/Suhbat.vue') },
-        { path: 'shaxsiy', name: 'AiNazoratShaxsiy', component: () => import('../apps/ai/views/nazorat/Shaxsiy.vue') },
+        // «Shaxsiy murojaat» is no longer a screen (owner, 2026-08-15): a cabinet
+        // request lives in the journal with the rest, tagged. Kept as a redirect rather
+        // than deleted so the address anyone already has lands on the same rows, now
+        // filtered, instead of on an empty content area.
+        { path: 'shaxsiy', redirect: { path: '/ai/nazorat/jurnal', query: { holat: 'shaxsiy' } } },
         { path: 'xodim/:id', name: 'AiNazoratXodim', component: () => import('../apps/ai/views/nazorat/Xodim.vue') },
       ],
     },
