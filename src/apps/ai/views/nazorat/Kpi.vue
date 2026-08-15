@@ -21,6 +21,11 @@
          Bu davr uchun ma'lumot yo'q
       </div>
 
+      <!-- ONE number per collapsed row. The screen now answers three questions (ball,
+           staj, oylik), and a phone row that tries to say all three at once answers
+           none — so the row states the ball and one quiet pay line, and everything
+           else lives behind the tap. Single-open accordion: comparing two people is
+           what the collapsed list is for. -->
       <section v-else class="card p-5 n-enter">
          <div class="flex items-baseline gap-2.5">
             <h3 class="n-h">{{ board.scored ? 'Sifat reytingi' : 'Ko‘rsatkichlar' }}</h3>
@@ -30,84 +35,177 @@
          </div>
 
          <div class="mt-3 space-y-0.5">
-            <button v-for="r in board.rows" :key="r.w.telegram_id" type="button"
-               class="row-tap w-full flex items-center gap-3 py-3 -mx-2 px-2 rounded-[1.125rem]"
-               @click="open(r.w.telegram_id)">
-               <span class="min-w-0 flex-1 text-left">
-                  <span class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                     <span class="text-[15px] font-semibold tracking-[-0.015em]">{{ r.name }}</span>
-                     <span v-if="r.job" class="badge shrink-0"
-                        :class="board.key === 'ellikboshi' ? 'badge-indigo' : 'badge-amber'">
-                        {{ r.job }}
+            <div v-for="r in board.rows" :key="r.w.telegram_id">
+               <button type="button"
+                  class="row-tap w-full flex items-center gap-3 py-3 -mx-2 px-2 rounded-[1.125rem]"
+                  @click="toggle(r.w.telegram_id)">
+                  <span class="min-w-0 flex-1 text-left">
+                     <span class="flex items-center gap-1.5 min-w-0">
+                        <span class="text-[15px] font-semibold tracking-[-0.015em] truncate">
+                           {{ r.name }}
+                        </span>
+                        <font-awesome-icon v-if="r.best" icon="star"
+                           class="w-3.5 h-3.5 shrink-0 text-[color:var(--n-accent,#4a3aa7)]"
+                           title="Oyning ellikboshisi" />
                      </span>
-                     <span v-if="r.best" class="badge badge-indigo shrink-0">
-                        <font-awesome-icon icon="star" class="w-3 h-3" />
-                        Oyning ellikboshisi
+                     <span class="block mt-0.5 text-[12.5px] text-[color:var(--n-faint)] tabular-nums truncate">
+                        {{ subline(r) }}
                      </span>
                   </span>
-                  <!-- The four components in the reglament's own order, so a person can
-                       be checked against the document line by line. «—» is a vaqt the
-                       period simply produced no daytime evidence of (never a zero that
-                       looks measured), and the <10 note is §5.5 out loud. -->
-                  <span v-if="board.scored" class="block mt-1 text-[12.5px] text-[color:var(--n-faint)] tabular-nums">
-                     <template v-if="r.w.kpi">
-                        Bajarilish {{ r.w.kpi.bajarilish_ball }}/40
-                        · Javobsiz {{ r.w.kpi.javobsiz_ball }}/25
-                        · Takroriy {{ r.w.kpi.takroriy_ball }}/15
-                        · Vaqt {{ r.w.kpi.vaqt_measured ? r.w.kpi.vaqt_ball + '/20' : '—' }}
-                        <template v-if="r.w.kpi.min_sample">
-                           · {{ r.w.kpi.base }} ta murojaat — qo'lda baholanadi
-                        </template>
-                     </template>
-                     <template v-else>Baholanadigan murojaat yo'q</template>
-                  </span>
-                  <span v-else class="block mt-1 text-[12.5px] text-[color:var(--n-faint)] tabular-nums">
-                     Bajarildi {{ r.w.completed }}
-                     · Bajarilmagan {{ r.w.reopened }}
-                     · Javobsiz {{ r.w.never_accepted }}
-                     <template v-if="r.w.avg_response_seconds !== null">
-                        · {{ dur(r.w.avg_response_seconds) }}
-                     </template>
-                  </span>
-               </span>
-               <span class="shrink-0 text-right">
-                  <template v-if="board.scored">
+                  <span class="shrink-0 text-right">
                      <span class="block text-[22px] font-bold tabular-nums leading-none tracking-[-0.04em]">
-                        {{ r.w.kpi ? r.w.kpi.total : '—' }}
+                        {{ board.scored ? (r.w.kpi ? r.w.kpi.total : '—') : gradable(r.w) }}
                      </span>
                      <span class="block text-[12px] text-[color:var(--n-muted)] mt-1">
-                        {{ r.w.kpi && r.w.kpi.bonus && !r.w.kpi.min_sample
-                           ? mln(r.w.kpi.bonus) : 'ball' }}
+                        {{ board.scored ? 'ball' : 'murojaat' }}
                      </span>
-                  </template>
-                  <template v-else>
-                     <span class="block text-[22px] font-bold tabular-nums leading-none tracking-[-0.04em]">
-                        {{ r.w.completed + r.w.reopened + r.w.never_accepted }}
+                  </span>
+                  <font-awesome-icon icon="chevron-right"
+                     class="w-3 h-3 text-[color:var(--n-faint)] shrink-0 transition-transform duration-200"
+                     :class="openId === r.w.telegram_id ? 'rotate-90' : ''" />
+               </button>
+
+               <div v-if="openId === r.w.telegram_id"
+                  class="mx-1 mb-2 px-4 py-3 rounded-[1rem] bg-[color:var(--n-soft,rgba(0,0,0,0.04))] space-y-3">
+                  <span v-if="r.best" class="badge badge-indigo">
+                     <font-awesome-icon icon="star" class="w-3 h-3" />
+                     Oyning ellikboshisi
+                  </span>
+
+                  <!-- The four components in the reglament's own order, one per line,
+                       so a person can be checked against the document. «—» is a vaqt
+                       the period produced no daytime evidence of. -->
+                  <div v-if="board.scored && r.w.kpi"
+                     class="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
+                     <span>Bajarilish</span>
+                     <span class="text-[color:var(--n-muted)]">{{ r.w.kpi.bajarilish_pct }}%</span>
+                     <span class="font-semibold text-right">{{ r.w.kpi.bajarilish_ball }}/40</span>
+                     <span>Javobsiz</span>
+                     <span class="text-[color:var(--n-muted)]">{{ r.w.kpi.javobsiz_pct }}%</span>
+                     <span class="font-semibold text-right">{{ r.w.kpi.javobsiz_ball }}/25</span>
+                     <span>Takroriy</span>
+                     <span class="text-[color:var(--n-muted)]">{{ r.w.kpi.takroriy_pct }}%</span>
+                     <span class="font-semibold text-right">{{ r.w.kpi.takroriy_ball }}/15</span>
+                     <span>Javob vaqti</span>
+                     <span class="text-[color:var(--n-muted)]">
+                        {{ r.w.kpi.vaqt_measured ? dur(r.w.day_avg_response_seconds) : '—' }}
                      </span>
-                     <span class="block text-[12px] text-[color:var(--n-muted)] mt-1">murojaat</span>
-                  </template>
-               </span>
-               <font-awesome-icon icon="chevron-right"
-                  class="w-3 h-3 text-[color:var(--n-faint)] shrink-0" />
-            </button>
+                     <span class="font-semibold text-right">
+                        {{ r.w.kpi.vaqt_measured ? r.w.kpi.vaqt_ball + '/20' : '—' }}
+                     </span>
+                  </div>
+                  <div v-else class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
+                     <span>Bajarildi</span><span class="font-semibold text-right">{{ r.w.completed }}</span>
+                     <span>Bajarilmagan</span><span class="font-semibold text-right">{{ r.w.reopened }}</span>
+                     <span>Javobsiz</span><span class="font-semibold text-right">{{ r.w.never_accepted }}</span>
+                     <template v-if="r.w.avg_response_seconds !== null">
+                        <span>Javob vaqti</span>
+                        <span class="font-semibold text-right">{{ dur(r.w.avg_response_seconds) }}</span>
+                     </template>
+                  </div>
+
+                  <p v-if="board.scored && r.w.kpi && r.w.kpi.min_sample"
+                     class="text-[12.5px] text-[color:var(--n-muted)]">
+                     {{ r.w.kpi.base }} ta murojaat — reglament bo'yicha qo'lda baholanadi (§5.5)
+                  </p>
+
+                  <!-- §1: staj -> unvon + fiks, §2: ball -> mukofot. Only a REAL
+                       ellikboshi has a pool row to hold staj — the doctor sits on this
+                       board by display rule alone and is not paid by this table. The
+                       staj write is the admin's; everyone else reads. -->
+                  <div v-if="r.w.role === 'ellikboshi'"
+                     class="pt-2 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5 text-[13.5px]">
+                     <div class="flex items-center gap-2">
+                        <span class="text-[color:var(--n-muted)]">Ish staji</span>
+                        <template v-if="isAdmin">
+                           <input type="number" min="0" max="60" step="0.5"
+                              class="w-16 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums"
+                              :value="r.w.staj_years ?? ''" placeholder="—"
+                              @click.stop @change="saveStaj(r.w, $event)" />
+                           <span class="text-[color:var(--n-muted)]">yil</span>
+                        </template>
+                        <span v-else class="font-semibold tabular-nums">
+                           {{ r.w.staj_years !== null ? r.w.staj_years + ' yil' : '—' }}
+                        </span>
+                        <span v-if="r.w.fiks_info" class="badge badge-indigo ml-auto">
+                           {{ r.w.fiks_info.unvon }}
+                        </span>
+                     </div>
+                     <p class="tabular-nums">
+                        <template v-if="r.w.fiks_info">
+                           Oylik: {{ mln(r.w.fiks_info.fiks) }} fiks<template
+                              v-if="bonus(r.w)"> + {{ mln(bonus(r.w)) }} mukofot</template>
+                           = <b>{{ mln(r.w.fiks_info.fiks + bonus(r.w)) }} so'm</b>
+                        </template>
+                        <template v-else>
+                           <span class="text-[color:var(--n-muted)]">Staj kiritilmagan — fiks aniqlanmaydi</span>
+                        </template>
+                     </p>
+                  </div>
+
+                  <button type="button" class="text-[13px] font-semibold text-[color:var(--n-accent,#4a3aa7)]"
+                     @click="open(r.w.telegram_id)">
+                     Xodim sahifasi
+                     <font-awesome-icon icon="chevron-right" class="w-2.5 h-2.5" />
+                  </button>
+               </div>
+            </div>
          </div>
       </section>
    </div>
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useNazoratStore } from '../../stores/nazorat'
+import { useAuthStore } from '../../../../stores/auth'
+import { useToast } from '../../../../composables/useToast'
+import { useNazoratStore, type Worker } from '../../stores/nazorat'
 import { dur, kpiTab, useNazoratView } from './shared'
 
 const router = useRouter()
+const auth = useAuthStore()
+const toast = useToast()
 const s = useNazoratStore()
 const { kpiBoards: boards, kpiBoard: board } = useNazoratView()
 
-/** The §2 bonus, said the way the office says it: «5 mln» / «7 mln». Suppressed while
- *  the min-sample flag is up — a sum next to a score the reglament says must be scored
- *  by hand would read as a promise. */
-const mln = (v: number) => `${Math.round(v / 1_000_000)} mln so'm`
+/** Staj decides pay, so writing it is the admin's alone — mirrors the API's rule
+ *  rather than trusting the client: everyone else gets plain text. */
+const isAdmin = computed(() => auth.role === 'admin')
+
+const openId = ref<number | null>(null)
+const toggle = (id: number) => { openId.value = openId.value === id ? null : id }
+
+const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
+
+/** §2 mukofot — suppressed while the §5.5 min-sample flag is up: a sum next to a
+ *  score the reglament says must be scored by hand would read as a promise. */
+const bonus = (w: Worker) =>
+   w.kpi && !w.kpi.min_sample ? w.kpi.bonus : 0
+
+const mln = (v: number) => `${v / 1_000_000} mln`
+
+/** The one quiet line under the name: pay for a leader, the job for everyone else. */
+function subline(r: { w: Worker; job: string }): string {
+   if (r.w.role === 'ellikboshi') {
+      if (!r.w.fiks_info) return 'Staj kiritilmagan'
+      const b = bonus(r.w)
+      return `${r.w.fiks_info.unvon} · oylik ${mln(r.w.fiks_info.fiks + b)} so'm`
+   }
+   return r.job
+}
+
+async function saveStaj(w: Worker, ev: Event) {
+   const raw = (ev.target as HTMLInputElement).value.trim()
+   const years = raw === '' ? null : Number(raw)
+   if (years !== null && (Number.isNaN(years) || years < 0 || years > 60)) {
+      toast.error("Staj 0–60 yil oralig'ida bo'lsin")
+      return
+   }
+   if (!(await s.setStaj(w, years))) {
+      toast.error("Saqlanmadi — ellikboshi ro'yxatda topilmadi")
+   }
+}
 
 /** A row is a way in to the person behind it — same rule as the Reyting. */
 function open(id: number) {

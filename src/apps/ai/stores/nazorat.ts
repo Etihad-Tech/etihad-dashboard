@@ -48,6 +48,11 @@ export interface Worker {
    // The §5.4 cut of the same average — needs raised 06:00–00:00 Makka time only.
    day_avg_response_seconds: number | null
    kpi: WorkerKpi | null
+   // §1 — years of service (a real ellikboshi only; null for crew, the doctor, or
+   // simply not entered yet) and the unvon+fiks the server derives from it. Pay
+   // arithmetic lives on the server, same rule as `kpi`.
+   staj_years: number | null
+   fiks_info: { unvon: string; fiks: number } | null
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
@@ -496,8 +501,22 @@ export const useNazoratStore = defineStore('nazorat', () => {
       } catch { /* the badge is not worth an error toast */ }
    }
 
+   /** §1 staj write — the API allows only the admin. Patches the row in place so the
+    *  derived unvon/fiks update without a refetch; the ball is untouched by staj. */
+   async function setStaj(w: Worker, staj_years: number | null): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/ellikboshi-staj',
+            { username: w.username, staj_years })
+         w.staj_years = data.staj_years
+         w.fiks_info = data.fiks_info
+         return true
+      } catch {
+         return false
+      }
+   }
+
    return {
-      period, loading, loadError, saving, savedMsg,
+      period, loading, loadError, saving, savedMsg, setStaj,
       report, workers, groupOptions, aggressive, staffReadiness, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
