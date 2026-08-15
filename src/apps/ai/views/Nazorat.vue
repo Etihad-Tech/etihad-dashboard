@@ -53,19 +53,6 @@
                </div>
 
                <div class="flex items-center gap-2.5 shrink-0">
-                  <!-- The way into the chat on a DESKTOP. The tab bar below is phone-only,
-                       and Suhbat is the one screen that is not also rendered inline in the
-                       desktop one-scroll — so without this button it could only be reached
-                       by typing the URL. Hidden on a phone, where the tab already leads
-                       there and a second entry would just be clutter. -->
-                  <router-link v-if="canChat && isDesktop" to="/ai/nazorat/suhbat"
-                     class="n-topbtn" title="Suhbat">
-                     <span class="relative inline-flex">
-                        <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
-                        <span v-if="s.chatUnread" class="n-bell-badge is-chat">{{ s.chatUnread }}</span>
-                     </span>
-                     <span class="sr-only">Suhbat</span>
-                  </router-link>
                   <!-- The exceptions live here now instead of on top of the main screen.
                        The badge is the whole point: the panel is worth opening only when
                        it has something in it. -->
@@ -77,7 +64,20 @@
                      </span>
                      <span class="sr-only">Diqqat talab qiladi</span>
                   </button>
-                  <button @click="refresh" class="n-topbtn" title="Yangilash">
+                  <!-- Suhbat in the refresh slot (owner, 2026-08-15): the chat is the
+                       button a controller actually reaches for, on the phone as well as
+                       the desktop, and the panel already reloads itself on every period
+                       and slice change. The refresh button survives only for logins with
+                       no conversation to open (admin), so nobody is left with neither. -->
+                  <router-link v-if="canChat" to="/ai/nazorat/suhbat"
+                     class="n-topbtn" title="Suhbat">
+                     <span class="relative inline-flex">
+                        <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
+                        <span v-if="s.chatUnread" class="n-bell-badge is-chat">{{ s.chatUnread }}</span>
+                     </span>
+                     <span class="sr-only">Suhbat</span>
+                  </router-link>
+                  <button v-else @click="refresh" class="n-topbtn" title="Yangilash">
                      <font-awesome-icon icon="rotate-right" class="w-[17px] h-[17px]"
                         :class="s.loading ? 'animate-spin' : ''" />
                      <span class="sr-only">Yangilash</span>
