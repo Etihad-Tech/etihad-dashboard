@@ -384,14 +384,6 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return loadRequests(true)
    }
 
-   /* The second read that used to sit here — `loadPersonal`, the journal's window
-    * refetched with `source=miniapp` for a «Shaxsiy murojaat» screen — is GONE (owner,
-    * 2026-08-15). A cabinet request is not a separate population: it is DM'd to the same
-    * crew, graded by the same rule and counted in the same ratings, so it belongs in the
-    * one journal with a tag on it. The server-side `source=` filter is still there and
-    * still tested; nothing in the panel asks for it, because the journal now carries
-    * both kinds and the «Shaxsiy» chip narrows what is already loaded. */
-
    /** The leader roster — every ellikboshi and how many groups they hold. No period.
     *  A nazoratchi_staff token is refused by the API (their scope is the crew), which is
     *  told apart from a real failure so the screen can say which happened. */
