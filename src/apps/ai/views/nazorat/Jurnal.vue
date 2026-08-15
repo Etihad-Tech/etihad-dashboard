@@ -79,6 +79,15 @@
             </span>
             <div class="min-w-0 flex-1">
                <p class="text-[15.5px] leading-snug clamp2">
+                  <!-- WHICH DOOR it came through, on every row. «Guruh» is what the
+                       journal always held; «Shaxsiy» is a request the pilgrim opened in
+                       their own cabinet, which nobody in the group saw them ask — which
+                       is why a worker who answers it in the chat has just published one
+                       pilgrim's private complaint to forty people. Same list either
+                       way: it reached the same crew and it is graded the same. -->
+                  <span class="badge mr-1 align-middle" :class="r.tag.cls" :title="r.tag.hint">
+                     {{ r.tag.label }}
+                  </span>
                   <span v-if="r.is_repeat" class="badge badge-amber mr-1 align-middle">Takroriy</span>
                   <span v-if="r.text">{{ r.text }}</span>
                   <span v-else class="text-[color:var(--n-faint)]">Matnsiz</span>
@@ -176,10 +185,19 @@ const filters = computed(() => {
       { key: 'all', label: 'Hammasi', count: feed.value.length },
       { key: 'never_accepted', label: 'Javobsiz', count: n('never_accepted') },
       { key: 'reopened', label: 'Bajarilmagan', count: n('reopened') },
-      // The one chip that is NOT an outcome: «Takroriy» cuts across the grades, because
-      // a repeat is a property of the complaint and not a verdict on the worker (see
-      // BUCKETS). A takroriy need is graded Bajarildi and still answers this chip.
+      // The two chips that are NOT outcomes. Both cut across the grades, because they
+      // are properties of the COMPLAINT rather than verdicts on a worker (see BUCKETS):
+      // a takroriy need is graded Bajarildi and still answers «Takroriy», and a cabinet
+      // request is graded exactly like a group one and still answers «Shaxsiy».
       { key: 'repeat', label: 'Takroriy', count: feed.value.filter((r) => r.is_repeat).length },
+      // The only chip «Shaxsiy murojaat» left behind, and all it needs to be. It is a
+      // filter over the window already loaded, not a second fetch: the truncation note
+      // under the list says how much of the period that window is, and it says it for
+      // this chip exactly as it does for every other one.
+      {
+         key: 'shaxsiy', label: 'Shaxsiy',
+         count: feed.value.filter((r) => r.source === 'miniapp').length,
+      },
       { key: 'completed', label: 'Bajarildi', count: n('completed') },
       { key: 'flagged', label: 'Xatolik', count: n('flagged') },
       // Empty outcomes are dropped, EXCEPT the one currently selected: arriving from an
@@ -192,7 +210,8 @@ const filters = computed(() => {
 const rows = computed(() =>
    filter.value === 'all' ? feed.value
       : filter.value === 'repeat' ? feed.value.filter((r) => r.is_repeat)
-         : feed.value.filter((r) => r.outcome.key === filter.value))
+         : filter.value === 'shaxsiy' ? feed.value.filter((r) => r.source === 'miniapp')
+            : feed.value.filter((r) => r.outcome.key === filter.value))
 
 // This screen is the reason the drill-down exists, so it is the one that pays for it.
 onMounted(() => s.loadRequests())
