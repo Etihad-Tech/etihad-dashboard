@@ -322,6 +322,10 @@ export const PIE_REST = '#9ca3af'
 // numbers changed".
 export const ratingTab = ref<'ellikboshi' | 'staff'>('ellikboshi')
 
+// Same persistence rule as ratingTab — the KPI screen is unmounted while the reader is
+// elsewhere, and coming back to a silently reset board reads as "the numbers changed".
+export const kpiTab = ref<'ellikboshi' | 'staff'>('ellikboshi')
+
 /** Percentages -> stroke dasharray/offset for one ring, so the panel's rings are all
  *  drawn by the same arithmetic. A dash is a length along the circumference, which is
  *  exactly what a share of a whole is — no arc-sweep maths to get wrong at 0% and 100%.
@@ -453,6 +457,25 @@ export function useNazoratView() {
          sig: 'a:' + Math.max(0, ...s.aggressive.items.map((i) => i.id)),
          color: ALARM_RED,
          hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
+      })
+      // §6 as an ALARM, not a punishment (owner, 2026-08-15): cards still unaccepted
+      // past their acceptance window — 10 min for a health need (the doctor's cards
+      // ARE the «tibbiy shoshilinch» class by ROUTING, no detector involved), 15 min
+      // by day, 45 by night, Makka clock. On the bell for the same reason readiness
+      // is: nothing has hardened into «Javobsiz» yet — this is the moment a chase
+      // still helps. Sits right after the angry pilgrim: both are about NOW.
+      if (s.slaOverdue.length) out.push({
+         key: 'sla', value: s.slaOverdue.length, label: 'SLA kutmoqda',
+         // The SET of overdue cards: cleared stays cleared while the same cards wait,
+         // and a different card going overdue raises it again.
+         sig: 'sla:' + fold([...s.slaOverdue].map((c) => String(c.recipient_id)).sort()),
+         color: '#c2410c',
+         hint: "Qabul qilinmagan murojaatlar — belgilangan vaqt o'tdi:",
+         people: s.slaOverdue.map((c) =>
+            (c.username || '—')
+            + (c.need_type === 'health' ? ' · tibbiy (10 daq)' : ` · ${c.window_minutes} daq`)
+            + ` · +${c.overdue_minutes} daq kechikdi`
+            + (c.group_title ? ` · ${c.group_title}` : '')),
       })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
@@ -734,6 +757,46 @@ export function useNazoratView() {
    const ratingBoard = computed(() =>
       ratingBoards.value.find((b) => b.key === ratingTab.value) || ratingBoards.value[0] || null)
 
+   // ── KPI: the reglament's score, one board per population ─────────────────
+
+   /** Same two populations as the Reyting boards, same doctor rule (isLeaderLevel) —
+    *  but only the leader-level board carries a BALL: the KPI reglament (v2.0, §4.3)
+    *  covers the ellikboshilar, and the crew's motivation document does not exist yet,
+    *  so their board shows the raw numbers and no score. The score itself arrives
+    *  COMPUTED from the server (w.kpi) — pay maths lives in one place; this only
+    *  decides order, who sits on which board, and who wears the §7 star. */
+   const kpiBoards = computed(() => {
+      const mk = (people: Worker[], scored: boolean) => {
+         // «Oyning ellikboshisi» arrives DECIDED from the server (w.best) — the star
+         // and its 1 mln sovrin must come from the same decision, and the sovrin is
+         // composed into w.salary there. This only sorts.
+         const rows = people.map((w) => ({
+            w, name: personLabel(w), job: jobLabel(w), best: !!w.best,
+         }))
+         if (!scored) return rows
+         rows.sort((a, b) => {
+            const at = a.w.kpi ? a.w.kpi.total : -1
+            const bt = b.w.kpi ? b.w.kpi.total : -1
+            if (at !== bt) return bt - at
+            const ad = a.w.day_avg_response_seconds ?? Infinity
+            return ad - (b.w.day_avg_response_seconds ?? Infinity)
+         })
+         return rows
+      }
+      // The API already sends roster members only (owner, 2026-08-15: a deleted
+      // worker's row is useless info) — no second filter here, one authority.
+      const leaders = filteredWorkers.value.filter((w) => isLeaderLevel(w))
+      const crew = filteredWorkers.value.filter((w) => !isLeaderLevel(w))
+      return [
+         { key: 'ellikboshi', title: leaderGroupTitle(leaders), scored: true,
+           rows: mk(leaders, true) },
+         { key: 'staff', title: 'Ishchi guruh', scored: false, rows: mk(crew, false) },
+      ].filter((b) => b.rows.length)
+   })
+
+   const kpiBoard = computed(() =>
+      kpiBoards.value.find((b) => b.key === kpiTab.value) || kpiBoards.value[0] || null)
+
    // ── The drill-down ───────────────────────────────────────────────────────
 
    /** One MUROJAAT reduced to what happened to it — not one row per recipient.
@@ -757,7 +820,11 @@ export function useNazoratView() {
       const taker = recs.filter((rec) => rec.accepted_at)
          .sort((a, b) => new Date(a.accepted_at).getTime() - new Date(b.accepted_at).getTime())[0]
       const flagger = recs.find((rec) => rec.flagged_at && !rec.accepted_at)
-      const reached = recs.filter((rec) => rec.delivered)
+      // "Reached" includes a FAULT failure (§4.2 footnote — blocked bot / stale
+      // account): the worker chose not to be reachable, so the need grades as
+      // ignored, not as undelivered. MUST stay identical to _need_outcome's gate.
+      const reached = recs.filter((rec) => rec.delivered
+         || rec.delivery_error === 'blocked' || rec.delivery_error === 'unreachable')
 
       if (!reached.length) {
          return { key: 'undelivered', label: 'Yetib bormadi', color: '#9ca3af',
@@ -790,13 +857,22 @@ export function useNazoratView() {
             detail: `${nameOf(flagger)} belgiladi`
                + (flagger.it_verdict ? ` · IT: ${flagger.it_verdict}` : " · IT hali ko'rmagan") }
       }
-      // Delivered to somebody, taken by nobody.
+      // Delivered to somebody, taken by nobody — and that somebody is NAMED (owner,
+      // 2026-08-15): a Javobsiz row that says only "3 kishiga bordi" makes the reader
+      // open the drill-down to learn who is answerable. A leader card names the
+      // leader; a crew fan-out names the CITY's crew — one team, one name, because
+      // listing five crew members would bury the one fact that matters (which city's
+      // team went silent). Roles never mix on one need (see _in_scope).
       const oldest = reached.reduce((a, b) =>
          new Date(a.dm_sent_at || 0) < new Date(b.dm_sent_at || 0) ? a : b)
+      const ellRecs = reached.filter((rec: any) => rec.role === 'ellikboshi')
+      const who = ellRecs.length
+         ? ellRecs.map(nameOf).join(', ')
+         : (r.location ? `${cityLabel(r.location)} ishchi guruhi` : 'Ishchi guruh')
+            + (reached.length > 1 ? ` (${reached.length})` : '')
       return { key: 'never_accepted', label: 'Javobsiz', color: BUCKET.never_accepted.color,
          icon: 'clock',
-         detail: `${reached.length} ta ${personWordLower.value}ga bordi · `
-            + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
+         detail: `${who} · ${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
 
    /** One card per murojaat, newest first. */
@@ -958,6 +1034,7 @@ export function useNazoratView() {
       bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseChart,
       reopenedNeeds,
       ratingBoards, ratingBoard,
+      kpiBoards, kpiBoard,
       feed, journalPeople, entriesFor,
    }
 }
