@@ -189,9 +189,11 @@ const toast = useToast()
 const s = useNazoratStore()
 const { kpiBoards: boards, kpiBoard: board } = useNazoratView()
 
-/** Staj decides pay, so writing it is the admin's alone — mirrors the API's rule
- *  rather than trusting the client: everyone else gets plain text. */
-const isAdmin = computed(() => auth.role === 'admin')
+/** Who may WRITE staj: admin and the combined nazoratchi (owner, 2026-08-15) —
+ *  mirrors the API's rule rather than trusting the client. The two scoped controller
+ *  logins get plain text: an account confined to one population should not be
+ *  setting pay inputs for it. */
+const isAdmin = computed(() => auth.role === 'admin' || auth.role === 'nazoratchi')
 
 /** Accordion key: the username when there is one — quiet pool members all carry
  *  telegram_id 0 (the pool knows usernames, not ids), so the id alone would open
