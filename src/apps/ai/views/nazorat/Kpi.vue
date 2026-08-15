@@ -145,7 +145,7 @@
                         <template v-if="r.w.salary.jarima">
                            <span class="text-[color:var(--n-muted)]">
                               Jarima · {{ r.w.salary.sla_breaches }} ta SLA buzilish
-                              <span class="text-[11.5px]">(loyiha summa)</span>
+                              <span class="text-[11.5px]">(tasdiqlanmagan jarima)</span>
                            </span>
                            <span class="text-right">−{{ soum(r.w.salary.jarima) }}</span>
                         </template>
