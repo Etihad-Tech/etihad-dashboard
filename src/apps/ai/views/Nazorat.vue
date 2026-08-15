@@ -53,12 +53,12 @@
                </div>
 
                <div class="flex items-center gap-2.5 shrink-0">
-                  <!-- The way into the chat on a DESKTOP. The tab bar below is phone-only,
-                       and Suhbat is the one screen that is not also rendered inline in the
-                       desktop one-scroll — so without this button it could only be reached
-                       by typing the URL. Hidden on a phone, where the tab already leads
-                       there and a second entry would just be clutter. -->
-                  <router-link v-if="canChat && isDesktop" to="/ai/nazorat/suhbat"
+                  <!-- The way into the chat, on EVERY viewport (owner, 2026-08-12).
+                       It used to be desktop-only, because the phone reached Suhbat
+                       through a tab. It stays here now that «Shaxsiy» has left the tab
+                       bar (2026-08-15): a conversation is not one of the panel's
+                       reports, and one door to it on every viewport beats two. -->
+                  <router-link v-if="canChat" to="/ai/nazorat/suhbat"
                      class="n-topbtn" title="Suhbat">
                      <span class="relative inline-flex">
                         <font-awesome-icon icon="comments" class="w-[17px] h-[17px]" />
@@ -77,11 +77,10 @@
                      </span>
                      <span class="sr-only">Diqqat talab qiladi</span>
                   </button>
-                  <button @click="refresh" class="n-topbtn" title="Yangilash">
-                     <font-awesome-icon icon="rotate-right" class="w-[17px] h-[17px]"
-                        :class="s.loading ? 'animate-spin' : ''" />
-                     <span class="sr-only">Yangilash</span>
-                  </button>
+                  <!-- The Yangilash button was REMOVED (owner, 2026-08-12) and the chat
+                       took its place. The panel already refetches on every period and
+                       scope change, and pull-to-refresh reloads it on a phone, so the
+                       button spent its time doing what had just happened anyway. -->
                   <!-- A controller has no sidebar on a phone (it would hold one link), so
                        the way out lives here. -->
                   <button v-if="isNazoratchi" @click="logout" class="n-topbtn lg:hidden">
@@ -166,13 +165,22 @@
                   <h3 class="n-group-h mb-3">Reyting</h3>
                   <Reyting />
                </section>
+               <section>
+                  <h3 class="n-group-h mb-3">KPI</h3>
+                  <Kpi />
+               </section>
                <section v-if="auth.role !== 'nazoratchi_staff'">
                   <h3 class="n-group-h mb-3">Guruhlar taqsimoti</h3>
                   <Guruhlar />
                </section>
                <!-- Named so an outcome row on the overview can scroll to it: on a
                     desktop these are one page, so filtering the Jurnal from up there
-                    changes nothing the reader can see unless the page moves. -->
+                    changes nothing the reader can see unless the page moves.
+
+                    Both kinds of murojaat are in here — what was written in a group and
+                    what a pilgrim opened in their cabinet — each tagged on its own row.
+                    The «Shaxsiy murojaatlar» section that used to follow this one is
+                    gone (owner, 2026-08-15); see SOURCE_TAGS in shared.ts. -->
                <section id="nazorat-jurnal" class="scroll-mt-4">
                   <h3 class="n-group-h mb-3">Jurnal</h3>
                   <Jurnal />
@@ -213,6 +221,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
+import Kpi from './nazorat/Kpi.vue'
 import Jurnal from './nazorat/Jurnal.vue'
 import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
@@ -236,18 +245,19 @@ const canChat = computed(() => CHAT_ROLES.includes(auth.role || ''))
 const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
    { key: 'reyting', to: '/ai/nazorat/reyting', label: 'Reyting', icon: 'ranking-star' },
+   { key: 'kpi', to: '/ai/nazorat/kpi', label: 'KPI', icon: 'star' },
    { key: 'jurnal', to: '/ai/nazorat/jurnal', label: 'Jurnal', icon: 'list-ul' },
    // Hidden from the crew's controller: the API refuses them this read, and offering a
    // tab that can only answer 403 is worse than not offering it.
    ...(auth.role === 'nazoratchi_staff'
       ? []
       : [{ key: 'guruhlar', to: '/ai/nazorat/guruhlar', label: 'Guruhlar', icon: 'users' }]),
-   // Only the three controller logins have a conversation to open. `admin` reaches the
-   // endpoints (require_role always allows admin) but is not one of them, so the API
-   // answers an empty inbox — and a tab that can only ever be empty is worse than no tab.
-   ...(canChat.value
-      ? [{ key: 'suhbat', to: '/ai/nazorat/suhbat', label: 'Suhbat', icon: 'comments' }]
-      : []),
+   // «Shaxsiy» was a fifth tab for two days and is not one any more (owner, 2026-08-15).
+   // A request opened in the Mini App is not a different question from one written in a
+   // group — same crew, same grading, same ratings — so it is a TAG on the journal's
+   // rows and a chip that narrows them, not a screen. See SOURCE_TAGS in shared.ts.
+   // Suhbat stays in the top bar (owner, 2026-08-12), where it is reachable from every
+   // screen rather than only from the tab bar's own.
 ]
 
 const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazoratchi'))
@@ -266,7 +276,8 @@ const chatPeerLabel = computed(() =>
  *  above somebody's messages tells the reader nothing they need. */
 const topTitle = computed(() =>
    isDetail.value ? personWord.value
-      : isChatThread.value ? chatPeerLabel.value : 'Nazorat')
+      : isChatThread.value ? chatPeerLabel.value
+         : 'Nazorat')
 
 const scopeSuffix = computed(() =>
    isStaffScope.value ? 'Xodimlar' : isLeaderScope.value ? 'Ellikboshilar' : '')
@@ -323,15 +334,6 @@ onUnmounted(() => {
    mq.removeEventListener('change', onMq)
    io?.disconnect()
 })
-
-async function refresh() {
-   await s.load()
-   // Whichever screen is open re-pulls what it needs; the drill-down is invalidated by
-   // load(), so this only costs a request on the screens that actually read it.
-   if (isDetail.value || route.path === '/ai/nazorat/jurnal' || isDesktop.value) {
-      await s.loadRequests()
-   }
-}
 
 function logout() {
    auth.logout()

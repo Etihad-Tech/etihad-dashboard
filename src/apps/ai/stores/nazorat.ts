@@ -24,12 +24,54 @@ export interface Report {
    error_kinds: Record<string, number>
 }
 
+/** One person's Sifat reytingi — «KPI reglamenti» v2.0 §5, computed on the SERVER
+ *  (bot/services/kpi.py) and only rendered here: the score decides salaries, and the
+ *  payslip and the panel must be reading the same arithmetic. Null when the period
+ *  holds nothing gradable for this person. `vaqt_measured` false = no daytime card was
+ *  accepted, so the §5.4 component is an honest 0 and the screen shows «—», never a
+ *  measured-looking zero. `min_sample` = under 10 gradable cards (§5.5), the reglament
+ *  hands scoring to the Sifat nazorati by hand and the screen must say so. */
+export interface WorkerKpi {
+   base: number
+   bajarilish_pct: number; javobsiz_pct: number; takroriy_pct: number
+   bajarilish_ball: number; javobsiz_ball: number; takroriy_ball: number
+   vaqt_ball: number; vaqt_measured: boolean
+   total: number; bonus: number; min_sample: boolean
+}
+
 export interface Worker {
    telegram_id: number; username: string | null; name: string | null; role: string
    dms: number; undelivered: number; accepted: number; never_accepted: number
    completed: number; re_requests: number; reopened: number; released: number
    flagged: number; flags_confirmed: number; flags_neutral: number
    avg_response_seconds: number | null
+   // The §5.4 cut of the same average — needs raised 06:00–00:00 Makka time only.
+   day_avg_response_seconds: number | null
+   kpi: WorkerKpi | null
+   // §1 — years of service (a real ellikboshi only; null for crew, the doctor, or
+   // simply not entered yet) and the unvon+fiks the server derives from it. Pay
+   // arithmetic lives on the server, same rule as `kpi`.
+   staj_years: number | null
+   fiks_info: { unvon: string; fiks: number } | null
+   // §8 row 3 — accepted 2× slower than the §6 window. Pure timestamps on cards the
+   // worker PERSONALLY accepted, so a detector mistake can never become money.
+   sla_breaches: number
+   // §4.2 footnote — undelivered by the worker's OWN hand (blocked bot / stale
+   // account). Already counted inside never_accepted; kept separately because §8
+   // row 4 fines the act itself.
+   blocked_cards: number
+   // §7 — «Oyning ellikboshisi», decided on the SERVER (month, ≥20 cards, real
+   // ellikboshilar only) so the star and its sovrin come from one decision.
+   best?: boolean
+   // §1 + §2 + §7 − §8 composed on the SERVER, one authority for pay. Null without
+   // a staj. The sovrin sits OUTSIDE the 30% deduction cap.
+   salary: { fiks: number; mukofot: number; sovrin: number
+             jarima: number; jarima_capped: boolean
+             sla_breaches: number; bot_block: boolean; total: number } | null
+   // Always true in practice: the API sends dashboard-roster members only (active
+   // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for
+   // transparency. Deleted workers' names survive only inside Jurnal timelines.
+   in_roster: boolean
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
@@ -108,6 +150,17 @@ export interface StaffReady {
    in_pool?: boolean
 }
 
+/** One OPEN card past its §6 acceptance window — the bell's chase list. Health needs
+ *  carry the 10-minute window (the doctor's cards are the «tibbiy shoshilinch» class
+ *  by routing, no detector involved); everything else 15 min by day / 45 by night. */
+export interface SlaOverdueItem {
+   recipient_id: number; request_id: number
+   role: string; username: string | null
+   chat_id: number | null; group_title: string | null
+   need_type: string | null
+   window_minutes: number; overdue_minutes: number
+}
+
 // Drill-down paging. The journal is built from these rows, so a silent cap would make a
 // truncated log look like the worker's whole period.
 export const REQ_PAGE = 200
@@ -130,6 +183,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
    // by owner request (2026-08-07) after a few hours off it: it is the one warning where
    // nothing is failing yet — the cards simply never arrive, silently.
    const staffReadiness = ref<StaffReady[]>([])
+   // The bell's SLA chase list — cards still acceptable, past their §6 window.
+   const slaOverdue = ref<SlaOverdueItem[]>([])
 
    // ── The controllers' 1:1 chat ─────────────────────────────────────────────
    // Kept OUT of load(): it answers to no period and no group/city slice, and re-pulling
@@ -257,7 +312,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       requests.value = []
       try {
          const q = sliceQuery.value
-         const [rep, wrk, agg, sr, st, sc, grp] = await Promise.all([
+         const [rep, wrk, agg, sr, st, sc, grp, sla] = await Promise.all([
             api.get(`/control/report?${q}`),
             api.get(`/control/workers?${q}`),
             // No city: a message records no location, only the need behind one does —
@@ -271,6 +326,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
             // Deliberately NOT sliced: the group list must keep offering the other
             // groups, otherwise picking one would leave you unable to pick a different one.
             api.get(`/control/groups?period=${period.value}`),
+            // No period either: an SLA alarm is about NOW.
+            api.get('/control/sla-overdue'),
          ])
          // Which notices this login has already cleared. Read on every load so a clear
          // made on the phone is already in force when the laptop opens the panel.
@@ -279,6 +336,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          workers.value = wrk.data
          aggressive.value = agg.data || { total: 0, items: [] }
          staffReadiness.value = sr.data
+         slaOverdue.value = sla.data || []
          scope.value = sc.data?.scope || 'all'
          groupOptions.value = grp.data
          form.value = {
@@ -297,6 +355,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
          workers.value = []
          aggressive.value = { total: 0, items: [] }
          staffReadiness.value = []
+         slaOverdue.value = []
          groupOptions.value = []
       } finally {
          loading.value = false
@@ -324,6 +383,14 @@ export const useNazoratStore = defineStore('nazorat', () => {
       reqLimit.value = Math.min(MAX_REQ_LIMIT, reqLimit.value + REQ_PAGE)
       return loadRequests(true)
    }
+
+   /* The second read that used to sit here — `loadPersonal`, the journal's window
+    * refetched with `source=miniapp` for a «Shaxsiy murojaat» screen — is GONE (owner,
+    * 2026-08-15). A cabinet request is not a separate population: it is DM'd to the same
+    * crew, graded by the same rule and counted in the same ratings, so it belongs in the
+    * one journal with a tag on it. The server-side `source=` filter is still there and
+    * still tested; nothing in the panel asks for it, because the journal now carries
+    * both kinds and the «Shaxsiy» chip narrows what is already loaded. */
 
    /** The leader roster — every ellikboshi and how many groups they hold. No period.
     *  A nazoratchi_staff token is refused by the API (their scope is the crew), which is
@@ -478,9 +545,25 @@ export const useNazoratStore = defineStore('nazorat', () => {
       } catch { /* the badge is not worth an error toast */ }
    }
 
+   /** §1 staj write — the API allows only the admin. Patches the row for instant
+    *  feedback, then reloads the slice: the composed salary (fiks + mukofot − jarima)
+    *  lives on the server, and recomputing it here would be a second pay authority. */
+   async function setStaj(w: Worker, staj_years: number | null): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/ellikboshi-staj',
+            { username: w.username, staj_years })
+         w.staj_years = data.staj_years
+         w.fiks_info = data.fiks_info
+         await load()
+         return true
+      } catch {
+         return false
+      }
+   }
+
    return {
-      period, loading, loadError, saving, savedMsg,
-      report, workers, groupOptions, aggressive, staffReadiness, scope,
+      period, loading, loadError, saving, savedMsg, setStaj,
+      report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
       periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupPeriod,

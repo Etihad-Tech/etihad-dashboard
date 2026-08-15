@@ -60,6 +60,41 @@ export function cityLabel(c: string | null): string {
    return c ? (CITY_LABELS[c] || c) : ''
 }
 
+/** Which door a murojaat came through — `requests.source`, migration 037 — as a TAG on
+ *  the row itself.
+ *
+ *  It was a screen of its own for two days and is not one any more (owner, 2026-08-15).
+ *  «Shaxsiy murojaat» had a tab, its own fetch and its own empty state, and that shape
+ *  made a claim about the data that was never true: a cabinet request reaches the same
+ *  crew, is graded by the same outcome rule, and has always counted in the same ratings
+ *  and statistics as a group one — nothing in the panel's aggregates has ever filtered
+ *  on source. A separate screen read as a separate accounting. So the fact moves onto
+ *  the request, where it belongs: every request is tagged, everywhere requests are
+ *  listed, and the journal holds both kinds the way it always held everything.
+ *
+ *  ACHROMATIC, both of them. Colour on this panel is data — green, amber and blue mean
+ *  an OUTCOME and red is the alarm — so a tag that carried where a request came from in
+ *  colour would put a fourth vocabulary on the same row as the grade. «Guruh» takes the
+ *  quiet fill the job badges use; «Shaxsiy» is outlined, so the rare kind is the one
+ *  that catches the eye without ever reading as a verdict on anybody. */
+export const SOURCE_TAGS: Record<string, { key: string; label: string; cls: string; hint: string }> = {
+   group: {
+      key: 'group', label: 'Guruh', cls: 'badge-amber',
+      hint: "Ziyoratchi o'z guruhida yozgan",
+   },
+   miniapp: {
+      key: 'miniapp', label: 'Shaxsiy', cls: 'badge-outline',
+      hint: "Ziyoratchi o'z kabinetidan yozgan — guruhda hech kim ko'rmagan",
+   },
+}
+
+/** The tag for one row. Anything unknown falls back to «Guruh» rather than rendering
+ *  nothing: every pre-2026-08-12 row is 'group' by migration 037's backfill, and a row
+ *  with no tag at all would read as a third kind that does not exist. */
+export function sourceTag(source: string | null | undefined) {
+   return SOURCE_TAGS[source || 'group'] || SOURCE_TAGS.group
+}
+
 // Xatolik taxonomy labels — codes mirror server IT_ERROR_KINDS (bot/services/control.py).
 const KIND_LABELS: Record<string, string> = {
    wp: "Noto'g'ri shaxs",
@@ -287,6 +322,10 @@ export const PIE_REST = '#9ca3af'
 // numbers changed".
 export const ratingTab = ref<'ellikboshi' | 'staff'>('ellikboshi')
 
+// Same persistence rule as ratingTab — the KPI screen is unmounted while the reader is
+// elsewhere, and coming back to a silently reset board reads as "the numbers changed".
+export const kpiTab = ref<'ellikboshi' | 'staff'>('ellikboshi')
+
 /** Percentages -> stroke dasharray/offset for one ring, so the panel's rings are all
  *  drawn by the same arithmetic. A dash is a length along the circumference, which is
  *  exactly what a share of a whole is — no arc-sweep maths to get wrong at 0% and 100%.
@@ -391,6 +430,10 @@ export function useNazoratView() {
             group_label: r.group_title || `Guruh ${r.chat_id}`,
             city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
             message_link: r.message_link,
+            // Tagged here too. The bell opens the SAME needs the journal lists, and a
+            // «Bajarilmagan» that nobody in the group ever saw is read differently from
+            // one forty people watched go unanswered.
+            tag: sourceTag(r.source),
             taker: needOutcome(r).detail,
          })),
    )
@@ -414,6 +457,25 @@ export function useNazoratView() {
          sig: 'a:' + Math.max(0, ...s.aggressive.items.map((i) => i.id)),
          color: ALARM_RED,
          hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
+      })
+      // §6 as an ALARM, not a punishment (owner, 2026-08-15): cards still unaccepted
+      // past their acceptance window — 10 min for a health need (the doctor's cards
+      // ARE the «tibbiy shoshilinch» class by ROUTING, no detector involved), 15 min
+      // by day, 45 by night, Makka clock. On the bell for the same reason readiness
+      // is: nothing has hardened into «Javobsiz» yet — this is the moment a chase
+      // still helps. Sits right after the angry pilgrim: both are about NOW.
+      if (s.slaOverdue.length) out.push({
+         key: 'sla', value: s.slaOverdue.length, label: 'SLA kutmoqda',
+         // The SET of overdue cards: cleared stays cleared while the same cards wait,
+         // and a different card going overdue raises it again.
+         sig: 'sla:' + fold([...s.slaOverdue].map((c) => String(c.recipient_id)).sort()),
+         color: '#c2410c',
+         hint: "Qabul qilinmagan murojaatlar — belgilangan vaqt o'tdi:",
+         people: s.slaOverdue.map((c) =>
+            (c.username || '—')
+            + (c.need_type === 'health' ? ' · tibbiy (10 daq)' : ` · ${c.window_minutes} daq`)
+            + ` · +${c.overdue_minutes} daq kechikdi`
+            + (c.group_title ? ` · ${c.group_title}` : '')),
       })
       if (r.reopened) out.push({
          key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
@@ -695,6 +757,46 @@ export function useNazoratView() {
    const ratingBoard = computed(() =>
       ratingBoards.value.find((b) => b.key === ratingTab.value) || ratingBoards.value[0] || null)
 
+   // ── KPI: the reglament's score, one board per population ─────────────────
+
+   /** Same two populations as the Reyting boards, same doctor rule (isLeaderLevel) —
+    *  but only the leader-level board carries a BALL: the KPI reglament (v2.0, §4.3)
+    *  covers the ellikboshilar, and the crew's motivation document does not exist yet,
+    *  so their board shows the raw numbers and no score. The score itself arrives
+    *  COMPUTED from the server (w.kpi) — pay maths lives in one place; this only
+    *  decides order, who sits on which board, and who wears the §7 star. */
+   const kpiBoards = computed(() => {
+      const mk = (people: Worker[], scored: boolean) => {
+         // «Oyning ellikboshisi» arrives DECIDED from the server (w.best) — the star
+         // and its 1 mln sovrin must come from the same decision, and the sovrin is
+         // composed into w.salary there. This only sorts.
+         const rows = people.map((w) => ({
+            w, name: personLabel(w), job: jobLabel(w), best: !!w.best,
+         }))
+         if (!scored) return rows
+         rows.sort((a, b) => {
+            const at = a.w.kpi ? a.w.kpi.total : -1
+            const bt = b.w.kpi ? b.w.kpi.total : -1
+            if (at !== bt) return bt - at
+            const ad = a.w.day_avg_response_seconds ?? Infinity
+            return ad - (b.w.day_avg_response_seconds ?? Infinity)
+         })
+         return rows
+      }
+      // The API already sends roster members only (owner, 2026-08-15: a deleted
+      // worker's row is useless info) — no second filter here, one authority.
+      const leaders = filteredWorkers.value.filter((w) => isLeaderLevel(w))
+      const crew = filteredWorkers.value.filter((w) => !isLeaderLevel(w))
+      return [
+         { key: 'ellikboshi', title: leaderGroupTitle(leaders), scored: true,
+           rows: mk(leaders, true) },
+         { key: 'staff', title: 'Ishchi guruh', scored: false, rows: mk(crew, false) },
+      ].filter((b) => b.rows.length)
+   })
+
+   const kpiBoard = computed(() =>
+      kpiBoards.value.find((b) => b.key === kpiTab.value) || kpiBoards.value[0] || null)
+
    // ── The drill-down ───────────────────────────────────────────────────────
 
    /** One MUROJAAT reduced to what happened to it — not one row per recipient.
@@ -718,7 +820,11 @@ export function useNazoratView() {
       const taker = recs.filter((rec) => rec.accepted_at)
          .sort((a, b) => new Date(a.accepted_at).getTime() - new Date(b.accepted_at).getTime())[0]
       const flagger = recs.find((rec) => rec.flagged_at && !rec.accepted_at)
-      const reached = recs.filter((rec) => rec.delivered)
+      // "Reached" includes a FAULT failure (§4.2 footnote — blocked bot / stale
+      // account): the worker chose not to be reachable, so the need grades as
+      // ignored, not as undelivered. MUST stay identical to _need_outcome's gate.
+      const reached = recs.filter((rec) => rec.delivered
+         || rec.delivery_error === 'blocked' || rec.delivery_error === 'unreachable')
 
       if (!reached.length) {
          return { key: 'undelivered', label: 'Yetib bormadi', color: '#9ca3af',
@@ -751,33 +857,51 @@ export function useNazoratView() {
             detail: `${nameOf(flagger)} belgiladi`
                + (flagger.it_verdict ? ` · IT: ${flagger.it_verdict}` : " · IT hali ko'rmagan") }
       }
-      // Delivered to somebody, taken by nobody.
+      // Delivered to somebody, taken by nobody — and that somebody is NAMED (owner,
+      // 2026-08-15): a Javobsiz row that says only "3 kishiga bordi" makes the reader
+      // open the drill-down to learn who is answerable. A leader card names the
+      // leader; a crew fan-out names the CITY's crew — one team, one name, because
+      // listing five crew members would bury the one fact that matters (which city's
+      // team went silent). Roles never mix on one need (see _in_scope).
       const oldest = reached.reduce((a, b) =>
          new Date(a.dm_sent_at || 0) < new Date(b.dm_sent_at || 0) ? a : b)
+      const ellRecs = reached.filter((rec: any) => rec.role === 'ellikboshi')
+      const who = ellRecs.length
+         ? ellRecs.map(nameOf).join(', ')
+         : (r.location ? `${cityLabel(r.location)} ishchi guruhi` : 'Ishchi guruh')
+            + (reached.length > 1 ? ` (${reached.length})` : '')
       return { key: 'never_accepted', label: 'Javobsiz', color: BUCKET.never_accepted.color,
          icon: 'clock',
-         detail: `${reached.length} ta ${personWordLower.value}ga bordi · `
-            + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
+         detail: `${who} · ${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
 
-   /** The feed: newest first, one card per murojaat. */
-   const feed = computed(() =>
-      [...s.requests]
-         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-         .map((r) => ({
-            id: r.id,
-            text: r.text,
-            created_at: r.created_at,
-            group_label: r.group_title || `Guruh ${r.chat_id}`,
-            city: r.location,
-            room_no: r.room_no,
-            pilgrim_username: r.pilgrim_username,
-            message_link: r.message_link,
-            is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
-            outcome: needOutcome(r),
-            recipients: r.recipients || [],
-         })),
-   )
+   /** One card per murojaat, newest first. */
+   const toFeedRow = (r: any) => ({
+      id: r.id,
+      text: r.text,
+      created_at: r.created_at,
+      group_label: r.group_title || `Guruh ${r.chat_id}`,
+      city: r.location,
+      room_no: r.room_no,
+      pilgrim_username: r.pilgrim_username,
+      message_link: r.message_link,
+      // 'group' | 'miniapp' (migration 037) — the row's own tag. Both kinds live in
+      // this one feed, and a private request is the row whose `message_link` is
+      // legitimately null: there is no group message to open, because there was none.
+      // The key is kept beside the rendered tag because the chip filters on it.
+      source: r.source || 'group',
+      tag: sourceTag(r.source),
+      is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
+      outcome: needOutcome(r),
+      recipients: r.recipients || [],
+   })
+
+   const byNewest = (rows: any[]) =>
+      [...rows].sort(
+         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
+
+   const feed = computed(() => byNewest(s.requests).map(toFeedRow))
 
    /** The other way into the journal: BY PERSON, which is how the panel was read before
     *  the feed existed — you look for Ali, you tap Ali, you get Ali's log. The count is
@@ -881,6 +1005,9 @@ export function useNazoratView() {
          const e = {
             id: r.id, text: r.text, parent_request_id: r.parent_request_id,
             reopen_dismissed: r.reopen_dismissed, message_link: r.message_link,
+            // A person's own log tags its rows too: the same worker answers both kinds,
+            // and the one nobody in the group witnessed is worth telling apart.
+            tag: sourceTag(r.source),
             group_label: r.group_title || `Guruh ${r.chat_id}`,
             city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
             created_at: r.created_at, delivered: rec.delivered, it_verdict: rec.it_verdict,
@@ -907,6 +1034,7 @@ export function useNazoratView() {
       bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseChart,
       reopenedNeeds,
       ratingBoards, ratingBoard,
+      kpiBoards, kpiBoard,
       feed, journalPeople, entriesFor,
    }
 }

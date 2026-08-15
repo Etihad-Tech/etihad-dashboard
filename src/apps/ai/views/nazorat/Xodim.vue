@@ -92,6 +92,13 @@
             <div v-for="(e, i) in entries" :key="i" class="px-5 py-4 border-l-[3px]"
                :style="{ borderLeftColor: e.sum.rail }">
                <p class="text-[15.5px] leading-snug">
+                  <!-- The same tag the journal puts on this request, because it is the
+                       same request. Worth having on a person's own log too: it is the
+                       one thing on the row that says whether answering in the group
+                       chat would have been answering in public. -->
+                  <span class="badge mr-1 align-middle" :class="e.tag.cls" :title="e.tag.hint">
+                     {{ e.tag.label }}
+                  </span>
                   <span v-if="e.parent_request_id && !e.reopen_dismissed"
                      class="badge badge-amber mr-1 align-middle">Takroriy so'rov</span>
                   <span v-if="e.text">{{ e.text }}</span>
