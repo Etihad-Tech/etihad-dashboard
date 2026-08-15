@@ -735,8 +735,13 @@ export function useNazoratView() {
          }
          return rows
       }
-      const leaders = filteredWorkers.value.filter((w) => isLeaderLevel(w))
-      const crew = filteredWorkers.value.filter((w) => !isLeaderLevel(w))
+      // Roster members only (owner, 2026-08-15): this is the PAY view, and somebody
+      // deleted from the dashboard lists no longer has a salary to show — their
+      // period's evidence stays on Reyting and in the Jurnal, which answer a
+      // different question.
+      const people = filteredWorkers.value.filter((w) => w.in_roster)
+      const leaders = people.filter((w) => isLeaderLevel(w))
+      const crew = people.filter((w) => !isLeaderLevel(w))
       return [
          { key: 'ellikboshi', title: leaderGroupTitle(leaders), scored: true,
            rows: mk(leaders, true) },

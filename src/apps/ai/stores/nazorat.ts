@@ -53,6 +53,10 @@ export interface Worker {
    // arithmetic lives on the server, same rule as `kpi`.
    staj_years: number | null
    fiks_info: { unvon: string; fiks: number } | null
+   // Still on the dashboard-entered lists (active ellikboshilar pool / staff table).
+   // The KPI boards show roster members only — a pay view has no row for somebody who
+   // no longer works here — while Reyting/Jurnal keep the full period's evidence.
+   in_roster: boolean
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
