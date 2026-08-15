@@ -35,10 +35,10 @@
          </div>
 
          <div class="mt-3 space-y-0.5">
-            <div v-for="r in board.rows" :key="r.w.telegram_id">
+            <div v-for="r in board.rows" :key="keyOf(r.w)">
                <button type="button"
                   class="row-tap w-full flex items-center gap-3 py-3 -mx-2 px-2 rounded-[1.125rem]"
-                  @click="toggle(r.w.telegram_id)">
+                  @click="toggle(keyOf(r.w))">
                   <span class="min-w-0 flex-1 text-left">
                      <span class="flex items-center gap-1.5 min-w-0">
                         <span class="text-[15px] font-semibold tracking-[-0.015em] truncate">
@@ -62,10 +62,10 @@
                   </span>
                   <font-awesome-icon icon="chevron-right"
                      class="w-3 h-3 text-[color:var(--n-faint)] shrink-0 transition-transform duration-200"
-                     :class="openId === r.w.telegram_id ? 'rotate-90' : ''" />
+                     :class="openKey === keyOf(r.w) ? 'rotate-90' : ''" />
                </button>
 
-               <div v-if="openId === r.w.telegram_id"
+               <div v-if="openKey === keyOf(r.w)"
                   class="mx-1 mb-2 px-4 py-3 rounded-[1rem] bg-[color:var(--n-soft,rgba(0,0,0,0.04))] space-y-3">
                   <span v-if="r.best" class="badge badge-indigo">
                      <font-awesome-icon icon="star" class="w-3 h-3" />
@@ -162,7 +162,8 @@
                      </p>
                   </div>
 
-                  <button type="button" class="text-[13px] font-semibold text-[color:var(--n-accent,#4a3aa7)]"
+                  <button v-if="r.w.telegram_id" type="button"
+                     class="text-[13px] font-semibold text-[color:var(--n-accent,#4a3aa7)]"
                      @click="open(r.w.telegram_id)">
                      Xodim sahifasi
                      <font-awesome-icon icon="chevron-right" class="w-2.5 h-2.5" />
@@ -192,8 +193,12 @@ const { kpiBoards: boards, kpiBoard: board } = useNazoratView()
  *  rather than trusting the client: everyone else gets plain text. */
 const isAdmin = computed(() => auth.role === 'admin')
 
-const openId = ref<number | null>(null)
-const toggle = (id: number) => { openId.value = openId.value === id ? null : id }
+/** Accordion key: the username when there is one — quiet pool members all carry
+ *  telegram_id 0 (the pool knows usernames, not ids), so the id alone would open
+ *  every quiet row at once. */
+const keyOf = (w: Worker) => w.username || String(w.telegram_id)
+const openKey = ref<string | null>(null)
+const toggle = (k: string) => { openKey.value = openKey.value === k ? null : k }
 
 const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
 
