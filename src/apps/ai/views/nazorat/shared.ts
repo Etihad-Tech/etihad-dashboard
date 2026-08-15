@@ -818,13 +818,22 @@ export function useNazoratView() {
             detail: `${nameOf(flagger)} belgiladi`
                + (flagger.it_verdict ? ` · IT: ${flagger.it_verdict}` : " · IT hali ko'rmagan") }
       }
-      // Delivered to somebody, taken by nobody.
+      // Delivered to somebody, taken by nobody — and that somebody is NAMED (owner,
+      // 2026-08-15): a Javobsiz row that says only "3 kishiga bordi" makes the reader
+      // open the drill-down to learn who is answerable. A leader card names the
+      // leader; a crew fan-out names the CITY's crew — one team, one name, because
+      // listing five crew members would bury the one fact that matters (which city's
+      // team went silent). Roles never mix on one need (see _in_scope).
       const oldest = reached.reduce((a, b) =>
          new Date(a.dm_sent_at || 0) < new Date(b.dm_sent_at || 0) ? a : b)
+      const ellRecs = reached.filter((rec: any) => rec.role === 'ellikboshi')
+      const who = ellRecs.length
+         ? ellRecs.map(nameOf).join(', ')
+         : (r.location ? `${cityLabel(r.location)} ishchi guruhi` : 'Ishchi guruh')
+            + (reached.length > 1 ? ` (${reached.length})` : '')
       return { key: 'never_accepted', label: 'Javobsiz', color: BUCKET.never_accepted.color,
          icon: 'clock',
-         detail: `${reached.length} ta ${personWordLower.value}ga bordi · `
-            + `${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
+         detail: `${who} · ${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
 
    /** The feed: newest first, one card per murojaat. */
