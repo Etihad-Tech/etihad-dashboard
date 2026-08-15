@@ -166,6 +166,10 @@
                   <h3 class="n-group-h mb-3">Reyting</h3>
                   <Reyting />
                </section>
+               <section>
+                  <h3 class="n-group-h mb-3">KPI</h3>
+                  <Kpi />
+               </section>
                <section v-if="auth.role !== 'nazoratchi_staff'">
                   <h3 class="n-group-h mb-3">Guruhlar taqsimoti</h3>
                   <Guruhlar />
@@ -213,6 +217,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
+import Kpi from './nazorat/Kpi.vue'
 import Jurnal from './nazorat/Jurnal.vue'
 import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
@@ -236,6 +241,7 @@ const canChat = computed(() => CHAT_ROLES.includes(auth.role || ''))
 const TABS = [
    { key: 'holat', to: '/ai/nazorat', label: 'Holat', icon: 'gauge-high' },
    { key: 'reyting', to: '/ai/nazorat/reyting', label: 'Reyting', icon: 'ranking-star' },
+   { key: 'kpi', to: '/ai/nazorat/kpi', label: 'KPI', icon: 'star' },
    { key: 'jurnal', to: '/ai/nazorat/jurnal', label: 'Jurnal', icon: 'list-ul' },
    // Hidden from the crew's controller: the API refuses them this read, and offering a
    // tab that can only answer 403 is worse than not offering it.

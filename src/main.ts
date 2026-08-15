@@ -57,6 +57,7 @@ import {
    faTriangleExclamation,
    faChevronRight,
    faMagnifyingGlass,
+   faStar,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -69,6 +70,7 @@ library.add(
    faClockRotateLeft, faCircleCheck, faCircleExclamation, faCircleInfo,
    faGaugeHigh, faRankingStar, faListUl, faRotateRight, faBell, faCheck,
    faClock, faTriangleExclamation, faChevronRight, faMagnifyingGlass,
+   faStar,
 )
 
 const app = createApp(App)

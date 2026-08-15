@@ -24,12 +24,30 @@ export interface Report {
    error_kinds: Record<string, number>
 }
 
+/** One person's Sifat reytingi — «KPI reglamenti» v2.0 §5, computed on the SERVER
+ *  (bot/services/kpi.py) and only rendered here: the score decides salaries, and the
+ *  payslip and the panel must be reading the same arithmetic. Null when the period
+ *  holds nothing gradable for this person. `vaqt_measured` false = no daytime card was
+ *  accepted, so the §5.4 component is an honest 0 and the screen shows «—», never a
+ *  measured-looking zero. `min_sample` = under 10 gradable cards (§5.5), the reglament
+ *  hands scoring to the Sifat nazorati by hand and the screen must say so. */
+export interface WorkerKpi {
+   base: number
+   bajarilish_pct: number; javobsiz_pct: number; takroriy_pct: number
+   bajarilish_ball: number; javobsiz_ball: number; takroriy_ball: number
+   vaqt_ball: number; vaqt_measured: boolean
+   total: number; bonus: number; min_sample: boolean
+}
+
 export interface Worker {
    telegram_id: number; username: string | null; name: string | null; role: string
    dms: number; undelivered: number; accepted: number; never_accepted: number
    completed: number; re_requests: number; reopened: number; released: number
    flagged: number; flags_confirmed: number; flags_neutral: number
    avg_response_seconds: number | null
+   // The §5.4 cut of the same average — needs raised 06:00–00:00 Makka time only.
+   day_avg_response_seconds: number | null
+   kpi: WorkerKpi | null
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
