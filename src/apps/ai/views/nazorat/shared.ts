@@ -701,9 +701,6 @@ export function useNazoratView() {
 
    // ── KPI: the reglament's score, one board per population ─────────────────
 
-   /** §7 — «Oyning ellikboshisi» has an entry bar of this many gradable murojaat. */
-   const KPI_MONTH_MIN = 20
-
    /** Same two populations as the Reyting boards, same doctor rule (isLeaderLevel) —
     *  but only the leader-level board carries a BALL: the KPI reglament (v2.0, §4.3)
     *  covers the ellikboshilar, and the crew's motivation document does not exist yet,
@@ -712,8 +709,11 @@ export function useNazoratView() {
     *  decides order, who sits on which board, and who wears the §7 star. */
    const kpiBoards = computed(() => {
       const mk = (people: Worker[], scored: boolean) => {
+         // «Oyning ellikboshisi» arrives DECIDED from the server (w.best) — the star
+         // and its 1 mln sovrin must come from the same decision, and the sovrin is
+         // composed into w.salary there. This only sorts.
          const rows = people.map((w) => ({
-            w, name: personLabel(w), job: jobLabel(w), best: false,
+            w, name: personLabel(w), job: jobLabel(w), best: !!w.best,
          }))
          if (!scored) return rows
          rows.sort((a, b) => {
@@ -723,16 +723,6 @@ export function useNazoratView() {
             const ad = a.w.day_avg_response_seconds ?? Infinity
             return ad - (b.w.day_avg_response_seconds ?? Infinity)
          })
-         // «Oyning ellikboshisi» is a MONTHLY title (§7) awarded AMONG those with at
-         // least 20 gradable murojaat: shorter periods never crown anyone, and someone
-         // under the bar neither wins nor blocks the person who is over it. The sort
-         // above already breaks equal totals by the faster daytime answer — the
-         // document's own tie-break — so the first eligible row IS the winner.
-         if (s.period === 'month') {
-            const winner = rows.find((r) =>
-               r.w.kpi && !r.w.kpi.min_sample && r.w.kpi.base >= KPI_MONTH_MIN)
-            if (winner) winner.best = true
-         }
          return rows
       }
       // The API already sends roster members only (owner, 2026-08-15: a deleted
@@ -772,7 +762,11 @@ export function useNazoratView() {
       const taker = recs.filter((rec) => rec.accepted_at)
          .sort((a, b) => new Date(a.accepted_at).getTime() - new Date(b.accepted_at).getTime())[0]
       const flagger = recs.find((rec) => rec.flagged_at && !rec.accepted_at)
-      const reached = recs.filter((rec) => rec.delivered)
+      // "Reached" includes a FAULT failure (§4.2 footnote — blocked bot / stale
+      // account): the worker chose not to be reachable, so the need grades as
+      // ignored, not as undelivered. MUST stay identical to _need_outcome's gate.
+      const reached = recs.filter((rec) => rec.delivered
+         || rec.delivery_error === 'blocked' || rec.delivery_error === 'unreachable')
 
       if (!reached.length) {
          return { key: 'undelivered', label: 'Yetib bormadi', color: '#9ca3af',

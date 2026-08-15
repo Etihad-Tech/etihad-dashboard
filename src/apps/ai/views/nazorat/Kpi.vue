@@ -142,9 +142,13 @@
                            <span class="text-[color:var(--n-muted)]">Mukofot</span>
                            <span class="text-right">+{{ soum(r.w.salary.mukofot) }}</span>
                         </template>
+                        <template v-if="r.w.salary.sovrin">
+                           <span class="text-[color:var(--n-muted)]">Sovrin · Oyning ellikboshisi</span>
+                           <span class="text-right">+{{ soum(r.w.salary.sovrin) }}</span>
+                        </template>
                         <template v-if="r.w.salary.jarima">
                            <span class="text-[color:var(--n-muted)]">
-                              Jarima · {{ r.w.salary.sla_breaches }} ta SLA buzilish
+                              Jarima · {{ jarimaWhy(r.w.salary) }}
                               <span class="text-[11.5px]">(tasdiqlanmagan jarima)</span>
                            </span>
                            <span class="text-right">−{{ soum(r.w.salary.jarima) }}</span>
@@ -206,6 +210,14 @@ const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
 
 /** «16 900 000» — thin-space thousands, the way a payslip writes it. */
 const soum = (v: number) => v.toLocaleString('ru-RU')
+
+/** What the jarima line is FOR — the §8 rows that actually fired. */
+function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
+   const parts: string[] = []
+   if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta SLA buzilish`)
+   if (sal.bot_block) parts.push('bot bloklangan')
+   return parts.join(' + ')
+}
 
 /** The one quiet line under the name: pay for a leader, the job for everyone else.
  *  The total comes composed from the server (§1 + §2 − §8) — no pay maths here. */

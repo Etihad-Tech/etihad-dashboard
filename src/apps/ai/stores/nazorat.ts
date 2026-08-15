@@ -53,13 +53,21 @@ export interface Worker {
    // arithmetic lives on the server, same rule as `kpi`.
    staj_years: number | null
    fiks_info: { unvon: string; fiks: number } | null
-   // §8 row 3 — accepted 2× slower than the §6 window. The only automated fine, and
-   // deliberately so: pure timestamps on cards the worker PERSONALLY accepted, so a
-   // detector mistake can never become money (owner, 2026-08-15).
+   // §8 row 3 — accepted 2× slower than the §6 window. Pure timestamps on cards the
+   // worker PERSONALLY accepted, so a detector mistake can never become money.
    sla_breaches: number
-   // §1 + §2 − §8 composed on the SERVER, one authority for pay. Null without a staj.
-   salary: { fiks: number; mukofot: number; jarima: number; jarima_capped: boolean
-             sla_breaches: number; total: number } | null
+   // §4.2 footnote — undelivered by the worker's OWN hand (blocked bot / stale
+   // account). Already counted inside never_accepted; kept separately because §8
+   // row 4 fines the act itself.
+   blocked_cards: number
+   // §7 — «Oyning ellikboshisi», decided on the SERVER (month, ≥20 cards, real
+   // ellikboshilar only) so the star and its sovrin come from one decision.
+   best?: boolean
+   // §1 + §2 + §7 − §8 composed on the SERVER, one authority for pay. Null without
+   // a staj. The sovrin sits OUTSIDE the 30% deduction cap.
+   salary: { fiks: number; mukofot: number; sovrin: number
+             jarima: number; jarima_capped: boolean
+             sla_breaches: number; bot_block: boolean; total: number } | null
    // Always true in practice: the API sends dashboard-roster members only (active
    // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for
    // transparency. Deleted workers' names survive only inside Jurnal timelines.
