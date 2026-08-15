@@ -53,6 +53,13 @@ export interface Worker {
    // arithmetic lives on the server, same rule as `kpi`.
    staj_years: number | null
    fiks_info: { unvon: string; fiks: number } | null
+   // §8 row 3 — accepted 2× slower than the §6 window. The only automated fine, and
+   // deliberately so: pure timestamps on cards the worker PERSONALLY accepted, so a
+   // detector mistake can never become money (owner, 2026-08-15).
+   sla_breaches: number
+   // §1 + §2 − §8 composed on the SERVER, one authority for pay. Null without a staj.
+   salary: { fiks: number; mukofot: number; jarima: number; jarima_capped: boolean
+             sla_breaches: number; total: number } | null
    // Always true in practice: the API sends dashboard-roster members only (active
    // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for
    // transparency. Deleted workers' names survive only inside Jurnal timelines.
@@ -505,14 +512,16 @@ export const useNazoratStore = defineStore('nazorat', () => {
       } catch { /* the badge is not worth an error toast */ }
    }
 
-   /** §1 staj write — the API allows only the admin. Patches the row in place so the
-    *  derived unvon/fiks update without a refetch; the ball is untouched by staj. */
+   /** §1 staj write — the API allows only the admin. Patches the row for instant
+    *  feedback, then reloads the slice: the composed salary (fiks + mukofot − jarima)
+    *  lives on the server, and recomputing it here would be a second pay authority. */
    async function setStaj(w: Worker, staj_years: number | null): Promise<boolean> {
       try {
          const { data } = await api.put('/control/ellikboshi-staj',
             { username: w.username, staj_years })
          w.staj_years = data.staj_years
          w.fiks_info = data.fiks_info
+         await load()
          return true
       } catch {
          return false

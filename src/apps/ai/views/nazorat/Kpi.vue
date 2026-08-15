@@ -131,15 +131,34 @@
                            {{ r.w.fiks_info.unvon }}
                         </span>
                      </div>
-                     <p class="tabular-nums">
-                        <template v-if="r.w.fiks_info">
-                           Oylik: {{ mln(r.w.fiks_info.fiks) }} fiks<template
-                              v-if="bonus(r.w)"> + {{ mln(bonus(r.w)) }} mukofot</template>
-                           = <b>{{ mln(r.w.fiks_info.fiks + bonus(r.w)) }} so'm</b>
+                     <!-- §1 + §2 − §8, straight from the server's composition. The
+                          jarima line carries its own health warnings: draft sums
+                          (CEO), and the 30% cap when it bit. -->
+                     <div v-if="r.w.salary"
+                        class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
+                        <span class="text-[color:var(--n-muted)]">Fiks</span>
+                        <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
+                        <template v-if="r.w.salary.mukofot">
+                           <span class="text-[color:var(--n-muted)]">Mukofot</span>
+                           <span class="text-right">+{{ soum(r.w.salary.mukofot) }}</span>
                         </template>
-                        <template v-else>
-                           <span class="text-[color:var(--n-muted)]">Staj kiritilmagan — fiks aniqlanmaydi</span>
+                        <template v-if="r.w.salary.jarima">
+                           <span class="text-[color:var(--n-muted)]">
+                              Jarima · {{ r.w.salary.sla_breaches }} ta SLA buzilish
+                              <span class="text-[11.5px]">(loyiha summa)</span>
+                           </span>
+                           <span class="text-right">−{{ soum(r.w.salary.jarima) }}</span>
                         </template>
+                        <template v-if="r.w.salary.jarima_capped">
+                           <span class="col-span-2 text-[12px] text-[color:var(--n-muted)]">
+                              30% chegara qo'llandi (§8)
+                           </span>
+                        </template>
+                        <span class="font-semibold">Oylik</span>
+                        <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
+                     </div>
+                     <p v-else class="text-[color:var(--n-muted)]">
+                        Staj kiritilmagan — fiks aniqlanmaydi
                      </p>
                   </div>
 
@@ -178,19 +197,15 @@ const toggle = (id: number) => { openId.value = openId.value === id ? null : id 
 
 const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
 
-/** §2 mukofot — suppressed while the §5.5 min-sample flag is up: a sum next to a
- *  score the reglament says must be scored by hand would read as a promise. */
-const bonus = (w: Worker) =>
-   w.kpi && !w.kpi.min_sample ? w.kpi.bonus : 0
+/** «16 900 000» — thin-space thousands, the way a payslip writes it. */
+const soum = (v: number) => v.toLocaleString('ru-RU')
 
-const mln = (v: number) => `${v / 1_000_000} mln`
-
-/** The one quiet line under the name: pay for a leader, the job for everyone else. */
+/** The one quiet line under the name: pay for a leader, the job for everyone else.
+ *  The total comes composed from the server (§1 + §2 − §8) — no pay maths here. */
 function subline(r: { w: Worker; job: string }): string {
    if (r.w.role === 'ellikboshi') {
-      if (!r.w.fiks_info) return 'Staj kiritilmagan'
-      const b = bonus(r.w)
-      return `${r.w.fiks_info.unvon} · oylik ${mln(r.w.fiks_info.fiks + b)} so'm`
+      if (!r.w.salary || !r.w.fiks_info) return 'Staj kiritilmagan'
+      return `${r.w.fiks_info.unvon} · oylik ${soum(r.w.salary.total)} so'm`
    }
    return r.job
 }
