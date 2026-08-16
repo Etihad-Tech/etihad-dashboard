@@ -67,7 +67,8 @@ export interface Worker {
    // a staj. The sovrin sits OUTSIDE the 30% deduction cap.
    salary: { fiks: number; mukofot: number; sovrin: number
              jarima: number; jarima_capped: boolean
-             sla_breaches: number; bot_block: boolean; total: number } | null
+             sla_breaches: number; bot_block: boolean; day_javobsiz: number
+             total: number } | null
    // Always true in practice: the API sends dashboard-roster members only (active
    // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for
    // transparency. Deleted workers' names survive only inside Jurnal timelines.
