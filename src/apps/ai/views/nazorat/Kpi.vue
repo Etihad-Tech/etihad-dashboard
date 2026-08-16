@@ -73,7 +73,7 @@
                        35 next to an unstarred 80 reads as a bug (owner, 2026-08-15). -->
                   <span v-if="r.best" class="badge badge-indigo">
                      <font-awesome-icon icon="star" class="w-3 h-3" />
-                     Oyning ellikboshisi — 20+ murojaatlilar ichida eng yuqori ball
+                     Oyning ellikboshisi — 20+ murojaat va kamida 90 ball
                   </span>
 
                   <!-- The four components in the reglament's own order, one per line,
@@ -218,6 +218,7 @@ const soum = (v: number) => v.toLocaleString('ru-RU')
 /** What the jarima line is FOR — the §8 rows that actually fired. */
 function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    const parts: string[] = []
+   if (sal.day_javobsiz) parts.push(`${sal.day_javobsiz} ta kunduzgi javobsiz`)
    if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta SLA buzilish`)
    if (sal.bot_block) parts.push('bot bloklangan')
    return parts.join(' + ')
