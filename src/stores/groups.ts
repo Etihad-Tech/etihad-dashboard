@@ -11,7 +11,12 @@ export interface GroupInfo {
   trip_name: string | null
   is_activated: boolean
   hotel_tier: string | null  // '' = avtomatik (nomdan aniqlanadi) | 'comfort' | 'premium'
-  ellikboshi_username: string | null  // group leader @username; DM'd on every staff mention
+  ellikboshi_username: string | null  // LEGACY single leader; fallback when no city is set
+  // Per-CITY leaders (owner, 2026-08-16): a group may be led by one person in Makka and
+  // another in Madina, so who is DM'd depends on where the group is standing today. Set
+  // on the Ellikboshilar screen; shown here read-only.
+  ellikboshi_makka: string | null
+  ellikboshi_madina: string | null
   trip_start_date: string | null  // 'YYYY-MM-DD' departure date; drives the exact flight answer
   hotel_makka: string | null  // this group's Makka hotel (per-hotel facility answers)
   hotel_madina: string | null  // this group's Madina hotel
@@ -46,6 +51,8 @@ export const useGroupsStore = defineStore('groups', () => {
       const aiGroupIds = new Set<string>()
       const tierById = new Map<string, string>()
       const leaderById = new Map<string, string>()
+      const makkaLeadById = new Map<string, string>()
+      const madinaLeadById = new Map<string, string>()
       const dateById = new Map<string, string>()
       const makkaById = new Map<string, string>()
       const madinaById = new Map<string, string>()
@@ -55,6 +62,8 @@ export const useGroupsStore = defineStore('groups', () => {
           aiGroupIds.add(String(g.id))
           tierById.set(String(g.id), g.hotel_tier || '')
           leaderById.set(String(g.id), g.ellikboshi_username || '')
+          makkaLeadById.set(String(g.id), g.ellikboshi_makka || '')
+          madinaLeadById.set(String(g.id), g.ellikboshi_madina || '')
           dateById.set(String(g.id), g.trip_start_date || '')
           makkaById.set(String(g.id), g.hotel_makka || '')
           madinaById.set(String(g.id), g.hotel_madina || '')
@@ -77,6 +86,8 @@ export const useGroupsStore = defineStore('groups', () => {
             is_activated: !!trip.is_activated,
             hotel_tier: tierById.get(chatId) ?? '',
             ellikboshi_username: leaderById.get(chatId) ?? '',
+            ellikboshi_makka: makkaLeadById.get(chatId) ?? '',
+            ellikboshi_madina: madinaLeadById.get(chatId) ?? '',
             trip_start_date: dateById.get(chatId) ?? '',
             hotel_makka: makkaById.get(chatId) ?? '',
             hotel_madina: madinaById.get(chatId) ?? '',
@@ -133,10 +144,20 @@ export const useGroupsStore = defineStore('groups', () => {
 
   async function setEllikboshi(chatId: string, username: string) {
     // The group leader DM'd whenever the bot mentions a staff member here
-    // ('' clears it -> no leader DM).
-    await aiApi.put(`/groups/${chatId}/location/public`, { ellikboshi_username: username })
+    // ('' clears it -> no leader DM). Writes BOTH cities: this setter has no city to
+    // work with, so "the leader of this group" can only mean the whole trip. A split
+    // is made on the Ellikboshilar screen, which sends the city fields explicitly.
+    await aiApi.put(`/groups/${chatId}/location/public`, {
+      ellikboshi_username: username,
+      ellikboshi_makka: username,
+      ellikboshi_madina: username,
+    })
     const idx = items.value.findIndex(g => g.chat_id === chatId)
-    if (idx !== -1) items.value[idx].ellikboshi_username = username
+    if (idx !== -1) {
+      items.value[idx].ellikboshi_username = username
+      items.value[idx].ellikboshi_makka = username
+      items.value[idx].ellikboshi_madina = username
+    }
   }
 
   async function setTripStartDate(chatId: string, date: string) {

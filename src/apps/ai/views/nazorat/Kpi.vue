@@ -123,6 +123,16 @@
                      {{ r.w.kpi.base }} ta murojaat — reglament bo'yicha qo'lda baholanadi (§5.5)
                   </p>
 
+                  <!-- WHERE the month's work happened. Shown only when the person worked
+                       in more than one city, and deliberately BESIDE the ball rather than
+                       inside it: the §5 score is percentage-based, so weighting it would
+                       make a Makka mistake cost more than a Madina one — a management
+                       decision, not a rounding. The number is the workload input the new
+                       reglament will read; the ball above is untouched by it. -->
+                  <p v-if="cityLoad(r.w)" class="text-[12.5px] text-[color:var(--n-muted)]">
+                     {{ cityLoad(r.w) }}
+                  </p>
+
                   <!-- §1: staj -> unvon + fiks, §2: ball -> mukofot. Only a REAL
                        ellikboshi has a pool row to hold staj — the doctor sits on this
                        board by display rule alone and is not paid by this table. The
@@ -232,6 +242,25 @@ function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta SLA buzilish`)
    if (sal.bot_block) parts.push('bot bloklangan')
    return parts.join(' + ')
+}
+
+const CITY_NAMES: Record<string, string> = {
+   makka: 'Makka', madina: 'Madina', jidda: 'Jidda',
+}
+
+/** «Makka 12 · Madina 8 — 10.4 ish birligi»: where the month's murojaat actually came
+ *  from, and its city-weighted total (Makka 0.6 / Madina 0.4, owner 2026-08-16).
+ *
+ *  Empty for anybody who worked in one city only — for them the split says nothing the
+ *  murojaat count above has not already said, and the weighted figure is that count
+ *  times a constant. It appears exactly when it carries information. */
+function cityLoad(w: Worker): string {
+   const entries = Object.entries(w.city_cards || {}).filter(([, n]) => n > 0)
+   if (entries.length < 2) return ''
+   const parts = entries
+      .sort((a, b) => b[1] - a[1])
+      .map(([c, n]) => `${CITY_NAMES[c] || c} ${n}`)
+   return `${parts.join(' · ')} — ${Number(w.weighted_load.toFixed(2))} ish birligi`
 }
 
 /** The one quiet line under the name: pay for a leader, the job for everyone else.

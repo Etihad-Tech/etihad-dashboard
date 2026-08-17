@@ -64,6 +64,16 @@
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">Ellikboshi</label>
                 <input v-model="g.ellikboshi_username" type="text" placeholder="@username" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <!-- This box sets ONE leader for the whole trip. A group split between
+                     cities says so rather than pretending the box describes it: leaving
+                     it silent would let somebody flatten a split by saving an unrelated
+                     field on this card. (Saving it UNCHANGED never does — the server
+                     only propagates a value that actually changed.) -->
+                <p v-if="isSplit(g)" class="text-[11px] text-amber-600 mt-1 leading-snug">
+                  Shaharlar bo'yicha ajratilgan: Makka {{ g.ellikboshi_makka || '—' }},
+                  Madina {{ g.ellikboshi_madina || '—' }}. Bu yerga yozilsa, ikkalasi ham
+                  o'zgaradi — «Ellikboshilar» bo'limidan tahrirlang.
+                </p>
               </div>
             </div>
 
@@ -150,6 +160,11 @@ interface Grp {
   makka_nights: number | string | null
   hotel_tier: string
   ellikboshi_username: string
+  // Read-only here: the split is made on the Ellikboshilar screen. Carried so this card
+  // can SAY a group is split instead of showing one of its two leaders as if it were the
+  // only one.
+  ellikboshi_makka: string
+  ellikboshi_madina: string
   hotel_makka: string
   hotel_madina: string
   hotel_jidda: string
@@ -162,6 +177,14 @@ const savingId = ref<number | null>(null)
 const savedId = ref<number | null>(null)
 const errorId = ref<number | null>(null)
 const errorMsg = ref('')
+
+/** Two different people across the two cities. The legacy column is the fallback for a
+ *  city that was never filled — the same rule the server resolves by. */
+function isSplit(g: Grp): boolean {
+  const mk = (g.ellikboshi_makka || g.ellikboshi_username || '').trim().toLowerCase()
+  const md = (g.ellikboshi_madina || g.ellikboshi_username || '').trim().toLowerCase()
+  return mk !== md
+}
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -430,6 +453,8 @@ async function load() {
         makka_nights: nightsFromRange(g.makka_start_day, g.makka_end_day),
         hotel_tier: g.hotel_tier || '',
         ellikboshi_username: g.ellikboshi_username || '',
+        ellikboshi_makka: g.ellikboshi_makka || '',
+        ellikboshi_madina: g.ellikboshi_madina || '',
         hotel_makka: g.hotel_makka || '',
         hotel_madina: g.hotel_madina || '',
         hotel_jidda: g.hotel_jidda || '',
