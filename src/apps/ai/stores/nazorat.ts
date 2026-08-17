@@ -76,6 +76,12 @@ export interface Worker {
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
+   // The same cards split by city, and their CITY-WEIGHTED total (Makka 0.6 /
+   // Madina 0.4 — owner, 2026-08-16: more work is done in Makka). A workload
+   // figure shown BESIDE the ball, never inside it: the §5 score is percentage-
+   // based, and weighting a percentage would make one city's mistakes cost more
+   // than another's — a management decision, not a rounding.
+   city_cards: Record<string, number>; weighted_load: number
    // Their JOB from the staff table (ishchi_guruh / doctor / airport), NOT the
    // control-system role. A doctor only ever receives health needs.
    staff_role: string | null
@@ -88,11 +94,17 @@ export interface Worker {
 // period cannot live in a list that does.
 export interface LeaderGroups {
    username: string; name: string | null
-   // false = still holds groups but has been removed from the Ellikboshilar pool. Listed
-   // anyway, or the totals stop reconciling with the Guruhlar page.
+   // Always true: the API sends pool members only (owner, 2026-08-15). A group still
+   // pinned to a deleted leader is not thereby hidden — the readiness bell names it.
    in_pool: boolean
+   // A leader holds a group-LEG, not a group (owner, 2026-08-16): one group can be led
+   // by different people in Makka and Madina, so it appears under both. `group_count`
+   // counts legs; `weighted_units` weights them (Makka 0.6 / Madina 0.4), so a group is
+   // exactly 1.0 however it is split and a leader holding both legs is unchanged.
    group_count: number
-   groups: { telegram_id: number; title: string | null }[]
+   weighted_units: number
+   groups: { telegram_id: number; title: string | null
+             cities: string[]; weight: number }[]
 }
 
 /** One ellikboshi's WORKLOAD in an arbitrary window — how many of their groups were on
@@ -103,7 +115,13 @@ export interface LeaderPeriodCount {
    username: string; name: string | null
    in_pool: boolean
    group_count: number
+   // City-weighted workload for the window, and its counterpart in the compared one.
+   // Two leaders can hold the same NUMBER of legs and not the same amount of work.
+   weighted_units: number
+   previous_count?: number; delta?: number
+   previous_weighted?: number; weighted_delta?: number
    groups: { telegram_id: number; title: string | null
+             cities: string[]; weight: number
              trip_start_date: string; trip_end_date: string }[]
 }
 
