@@ -41,7 +41,16 @@
          <!-- ─────────── FORM ─────────── -->
          <main v-if="current" class="sn-main">
             <div class="sn-panel sn-subject">
-               <h1>{{ current.full_name }}</h1>
+               <!-- The imported name is a starting point, not a fact: the export
+                    carries «Без имени» rows and mistyped names, and the specialist
+                    finds out the truth during the call. A queue that cannot record
+                    what they just learned pushes it onto paper. -->
+               <h1 v-if="editingName === null" class="sn-editable" @click="startEditName()"
+                  title="Ismni tuzatish">
+                  {{ current.full_name }}<span class="sn-pen">✎</span>
+               </h1>
+               <input v-else v-model="editingName" class="sn-h1input" ref="nameInput"
+                  @keyup.enter="commitName" @keyup.esc="editingName = null" @blur="commitName" />
                <div class="sn-facts">
                   <span class="sn-fact"><b>Guruh:</b>
                      <!-- The one pick everything cascades from. Dashboard groups only,
@@ -93,7 +102,14 @@
                   <span v-if="groupInfo && groupInfo.trip_start_date" class="sn-fact">
                      <b>Safar:</b> {{ groupInfo.trip_start_date }} — {{ groupInfo.trip_end_date || '?' }}</span>
                   <span class="sn-fact"><b>Telefon:</b>
-                     <a :href="'tel:+' + current.phone">+{{ current.phone }}</a></span>
+                     <a v-if="editingPhone === null" :href="'tel:+' + current.phone">+{{ current.phone }}</a>
+                     <input v-else v-model="editingPhone" class="sn-inline sn-phoneinput"
+                        @keyup.enter="commitPhone" @keyup.esc="editingPhone = null" @blur="commitPhone" />
+                     <!-- Editable for the same reason as the name, and worth more:
+                          a wrong number is a pilgrim who is never reached at all, and
+                          the export really does carry «+[998919000077». -->
+                     <button v-if="editingPhone === null" type="button" class="sn-linkbtn"
+                        @click="startEditPhone()" title="Raqamni tuzatish">✎</button></span>
                </div>
                <div class="sn-callbar">
                   <button v-for="(l, k) in CALL_LABELS" :key="k" class="sn-btn"
@@ -230,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useAuthStore } from '../../stores/auth'
@@ -309,9 +325,14 @@ const filteredQueue = computed(() => {
 const doneToday = computed(() => queue.value.filter((p) => p.survey_status === 'saved').length)
 const groupInfo = computed(() => groups.value.find((g) => g.chat_id === pickedGroup.value) || null)
 
-// Reset per pilgrim: a filter left on from the previous call is a filter nobody chose.
+// Reset per pilgrim: a filter left on from the previous call is a filter nobody chose,
+// and a half-typed correction must never follow the specialist to the next person.
 const showAllGroups = ref(false)
-watch(() => current.value?.id, () => { showAllGroups.value = false })
+watch(() => current.value?.id, () => {
+   showAllGroups.value = false
+   editingName.value = null
+   editingPhone.value = null
+})
 
 /** The picker's options. Narrowed to the groups that departed on the day Bitrix
  *  recorded — but only while that actually leaves something to pick: a hint matching
@@ -456,6 +477,46 @@ watch([answers, problems, suggestion, choiceReason], () => {
    }, 800)
 }, { deep: true })
 
+// null = not editing. A separate ref per field rather than one "editing" flag: fixing
+// a name and fixing a number are different corrections and must not clear each other.
+const editingName = ref<string | null>(null)
+const editingPhone = ref<string | null>(null)
+const nameInput = ref<HTMLInputElement | null>(null)
+
+function startEditName() {
+   editingName.value = current.value?.full_name ?? ''
+   nextTick(() => nameInput.value?.select())
+}
+function startEditPhone() {
+   editingPhone.value = current.value?.phone ?? ''
+}
+
+/** Save a corrected field, or put it back. Both handlers share one rule: an
+ *  UNCHANGED value is not a write — blur fires whenever focus moves, and a save on
+ *  every blur would send a request each time the specialist tabs past. */
+async function commitField(field: 'full_name' | 'phone', value: string | null,
+                           done: () => void) {
+   const p = current.value
+   if (!p || value === null) return done()
+   const next = value.trim()
+   if (!next || next === (p as any)[field]) return done()
+   try {
+      const { data } = await api.put(`/survey/pilgrims/${p.id}`, { [field]: next })
+      // Trust the SERVER's echo, not what was typed: it canonicalises the phone, so
+      // '94 102 01 00' comes back '998941020100' and the screen must show what was
+      // actually stored — the number that will be dialled.
+      p.full_name = data.full_name
+      p.phone = data.phone
+      done()
+      await loadQueue()
+   } catch (e: any) {
+      // Left in edit mode on purpose: the correction is still on screen to fix.
+      toast.error(e?.response?.data?.detail || 'Saqlanmadi')
+   }
+}
+const commitName = () => commitField('full_name', editingName.value, () => { editingName.value = null })
+const commitPhone = () => commitField('phone', editingPhone.value, () => { editingPhone.value = null })
+
 async function assignGroup() {
    if (!current.value) return
    await api.put(`/survey/pilgrims/${current.value.id}`, { chat_id: pickedGroup.value })
@@ -571,6 +632,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .sn-linkbtn { font: inherit; font-size: 11.5px; background: none; border: 0; padding: 0 0 0 6px;
    color: #6b6455; text-decoration: underline; cursor: pointer; }
 .sn-linkbtn:hover { color: #0f3d2e; }
+/* Editable name/phone. The pencil stays faint until hover — the correction is
+   always available, but the name is what the specialist is here to read, not a
+   control competing for attention on every card. */
+.sn-editable { cursor: text; }
+.sn-pen { font-size: .55em; margin-left: 8px; color: #c3bcab; vertical-align: middle; }
+.sn-editable:hover .sn-pen { color: #0f3d2e; }
+.sn-h1input { font: inherit; font-size: inherit; font-weight: inherit; width: 100%;
+   border: 1px solid #0f3d2e; border-radius: 8px; padding: 2px 8px; background: #fff; }
+.sn-phoneinput { width: 11rem; }
 .sn-callbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .sn-btn { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid #d9d3c4;
    background: #fff; padding: 7px 12px; cursor: pointer; }
