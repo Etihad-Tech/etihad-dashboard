@@ -52,11 +52,32 @@
                         <!-- The full trip range in the label: two groups can share a
                              name, but never a name AND its dates — the specialist
                              picks the TRIP, not just the title. -->
-                        <option v-for="g in groups" :key="g.chat_id" :value="g.chat_id">
+                        <option v-for="g in pickableGroups" :key="g.chat_id" :value="g.chat_id">
                            {{ g.title }}{{ g.trip_start_date
                               ? ` · ${g.trip_start_date} — ${g.trip_end_date || '?'}` : '' }}
                         </option>
                      </select>
+                     <!-- Narrowed to the day Bitrix says they left: three hundred
+                          groups is not a picker, it is a haystack. The hint only
+                          FILTERS — every date on screen still comes from the group
+                          itself — and it can always be switched off, because a wrong
+                          hint must never make the right group unreachable. -->
+                     <button v-if="current.depart_hint && !showAllGroups" type="button"
+                        class="sn-linkbtn" @click="showAllGroups = true">
+                        ({{ dmy(current.depart_hint) }} — {{ pickableGroups.length }} ta;
+                        hammasini ko'rsatish)
+                     </button>
+                     <button v-else-if="current.depart_hint" type="button"
+                        class="sn-linkbtn" @click="showAllGroups = false">
+                        (hammasi — {{ dmy(current.depart_hint) }} kunini ko'rsatish)
+                     </button>
+                  </span>
+                  <!-- The §6 call belongs 1–3 days AFTER the flight home. The August
+                       export carried 59 people who had not left yet, and calling one
+                       of them asks about a trip that has not happened. -->
+                  <span v-if="notReturnedYet" class="sn-fact sn-warn">
+                     <b>Diqqat:</b> bu safar hali tugamagan ({{ groupInfo?.trip_end_date }}) —
+                     so'rovnoma qaytgandan keyin o'tkaziladi.
                   </span>
                   <!-- Both names when the group was led by different people in the two
                        cities: the pilgrim answers about the whole trip, and the
@@ -287,6 +308,33 @@ const filteredQueue = computed(() => {
 })
 const doneToday = computed(() => queue.value.filter((p) => p.survey_status === 'saved').length)
 const groupInfo = computed(() => groups.value.find((g) => g.chat_id === pickedGroup.value) || null)
+
+// Reset per pilgrim: a filter left on from the previous call is a filter nobody chose.
+const showAllGroups = ref(false)
+watch(() => current.value?.id, () => { showAllGroups.value = false })
+
+/** The picker's options. Narrowed to the groups that departed on the day Bitrix
+ *  recorded — but only while that actually leaves something to pick: a hint matching
+ *  no group must not empty the list, or the specialist cannot assign anybody. */
+const pickableGroups = computed(() => {
+   const hint = current.value?.depart_hint
+   if (!hint || showAllGroups.value) return groups.value
+   const sameDay = groups.value.filter((g) => g.trip_start_date === hint)
+   return sameDay.length ? sameDay : groups.value
+})
+
+/** 2026-08-15 -> 15.08.2026, the way the office writes a date. */
+function dmy(iso: string) {
+   const [y, m, d] = (iso || '').split('-')
+   return d ? `${d}.${m}.${y}` : iso
+}
+
+/** The chosen group's trip has not ended yet — §6 puts the call 1–3 days after the
+ *  flight home, so this is a survey about a trip still in progress. */
+const notReturnedYet = computed(() => {
+   const end = groupInfo.value?.trip_end_date
+   return !!end && end > new Date().toISOString().slice(0, 10)
+})
 /** Led by two different people across the cities — the server sends both names. */
 const splitGroup = computed(() => {
    const g = groupInfo.value
@@ -445,12 +493,25 @@ async function importCsv(ev: Event) {
    const sep = text.includes(';') ? ';' : text.includes('\t') ? '\t' : ','
    const rows = text.split(/\r?\n/).map((l) => l.split(sep).map((c) => c.trim().replace(/^"|"$/g, '')))
       .filter((r) => r.length >= 2 && (r[0] || r[1]))
-   // A header row names its columns instead of a person — drop it, say so.
-   if (rows.length && /ism|name|telefon|phone/i.test(rows[0].join(' '))) rows.shift()
+   // A header row names its columns instead of a person — drop it. Cyrillic included:
+   // the real Bitrix export heads its columns «Контакт: Имя» / «Контакт: Рабочий
+   // телефон», which a Latin-only test walks straight past.
+   if (rows.length && /ism|name|telefon|phone|имя|телефон|контакт/i.test(rows[0].join(' '))) rows.shift()
    try {
       const { data } = await api.post('/survey/import', { rows })
-      toast.success(`Import: ${data.added} qo'shildi, ${data.duplicates} takroriy` +
-         (data.bad.length ? `, ${data.bad.length} o'qilmadi` : ''))
+      const parts = [`${data.added} qo'shildi`]
+      if (data.duplicates) parts.push(`${data.duplicates} takroriy`)
+      if (data.unnamed) parts.push(`${data.unnamed} ismsiz qo'ng'iroq`)
+      if (data.bad.length) parts.push(`${data.bad.length} o'qilmadi`)
+      // When most of the file was call-log rows, the file itself was the wrong export
+      // — a green "12 added" on a 119-row upload reads as success and is how a
+      // half-empty call list gets worked through without anybody asking why.
+      if (data.unnamed > data.added) {
+         toast.error(`Import: ${parts.join(', ')}. Bu fayl qo'ng'iroqlar tarixiga `
+            + `o'xshaydi — Bitrixdan aniq bir reys ziyoratchilarini yuklang.`)
+      } else {
+         toast.success(`Import: ${parts.join(', ')}`)
+      }
       await loadQueue()
    } catch (e: any) {
       toast.error(e?.response?.data?.detail || 'Import xatosi')
@@ -502,6 +563,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .sn-facts { display: flex; flex-wrap: wrap; gap: 8px; }
 .sn-fact { font-size: 12.5px; background: #fbfaf7; border: 1px solid #e2ddd0; border-radius: 999px;
    padding: 4px 10px; }
+/* Amber, not red: the trip being unfinished is a "not yet", not a fault — red on this
+   panel is reserved for something actually wrong. */
+.sn-warn { background: #fdf6e3; border-color: #e0c98a; color: #7a5a10; }
+/* The picker's own filter toggle — a link inside a fact chip, not another button
+   competing with the call bar below it. */
+.sn-linkbtn { font: inherit; font-size: 11.5px; background: none; border: 0; padding: 0 0 0 6px;
+   color: #6b6455; text-decoration: underline; cursor: pointer; }
+.sn-linkbtn:hover { color: #0f3d2e; }
 .sn-callbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .sn-btn { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid #d9d3c4;
    background: #fff; padding: 7px 12px; cursor: pointer; }
