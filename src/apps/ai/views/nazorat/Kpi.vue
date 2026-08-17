@@ -67,9 +67,13 @@
 
                <div v-if="openKey === keyOf(r.w)"
                   class="mx-1 mb-2 px-4 py-3 rounded-[1rem] bg-[color:var(--n-soft,rgba(0,0,0,0.04))] space-y-3">
+                  <!-- §7's own entry bar, said out loud: the title is decided AMONG
+                       leaders with 20+ gradable murojaat, so a higher ball on a small
+                       month neither wins nor blocks — without this line the star on a
+                       35 next to an unstarred 80 reads as a bug (owner, 2026-08-15). -->
                   <span v-if="r.best" class="badge badge-indigo">
                      <font-awesome-icon icon="star" class="w-3 h-3" />
-                     Oyning ellikboshisi
+                     Oyning ellikboshisi — 20+ murojaat va kamida 90 ball
                   </span>
 
                   <!-- The four components in the reglament's own order, one per line,
@@ -214,6 +218,7 @@ const soum = (v: number) => v.toLocaleString('ru-RU')
 /** What the jarima line is FOR — the §8 rows that actually fired. */
 function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    const parts: string[] = []
+   if (sal.day_javobsiz) parts.push(`${sal.day_javobsiz} ta kunduzgi javobsiz`)
    if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta SLA buzilish`)
    if (sal.bot_block) parts.push('bot bloklangan')
    return parts.join(' + ')
@@ -223,8 +228,14 @@ function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
  *  The total comes composed from the server (§1 + §2 − §8) — no pay maths here. */
 function subline(r: { w: Worker; job: string }): string {
    if (r.w.role === 'ellikboshi') {
-      if (!r.w.salary || !r.w.fiks_info) return 'Staj kiritilmagan'
-      return `${r.w.fiks_info.unvon} · oylik ${soum(r.w.salary.total)} so'm`
+      // The murojaat count rides along so the §7 star is legible at a glance: an
+      // 80-ball month on 7 cards and a 35 on 30 cards are different animals, and
+      // without the count the starred lower ball reads as a bug.
+      const base = r.w.kpi ? `${r.w.kpi.base} murojaat` : ''
+      if (!r.w.salary || !r.w.fiks_info)
+         return ['Staj kiritilmagan', base].filter(Boolean).join(' · ')
+      return [`${r.w.fiks_info.unvon} · oylik ${soum(r.w.salary.total)} so'm`, base]
+         .filter(Boolean).join(' · ')
    }
    return r.job
 }
