@@ -58,7 +58,17 @@
                         </option>
                      </select>
                   </span>
-                  <span v-if="groupInfo" class="sn-fact"><b>Ellikboshi:</b> {{ groupInfo.ellikboshi_username }}</span>
+                  <!-- Both names when the group was led by different people in the two
+                       cities: the pilgrim answers about the whole trip, and the
+                       specialist has to know who they are actually asking about. The
+                       ball is keyed to the Makka leader (server-side, save_survey), so
+                       that one is marked — a screen that showed two names without
+                       saying which is scored would be worse than showing one. -->
+                  <span v-if="groupInfo && !splitGroup" class="sn-fact"><b>Ellikboshi:</b> {{ groupInfo.ellikboshi_username }}</span>
+                  <span v-else-if="groupInfo" class="sn-fact">
+                     <b>Ellikboshi:</b> {{ groupInfo.ellikboshi_username }} (Makka · ball shunga)
+                     · {{ groupInfo.ellikboshi_madina || '—' }} (Madina)
+                  </span>
                   <span v-if="groupInfo && groupInfo.trip_start_date" class="sn-fact">
                      <b>Safar:</b> {{ groupInfo.trip_start_date }} — {{ groupInfo.trip_end_date || '?' }}</span>
                   <span class="sn-fact"><b>Telefon:</b>
@@ -277,6 +287,13 @@ const filteredQueue = computed(() => {
 })
 const doneToday = computed(() => queue.value.filter((p) => p.survey_status === 'saved').length)
 const groupInfo = computed(() => groups.value.find((g) => g.chat_id === pickedGroup.value) || null)
+/** Led by two different people across the cities — the server sends both names. */
+const splitGroup = computed(() => {
+   const g = groupInfo.value
+   if (!g) return false
+   const md = (g.ellikboshi_madina || '').trim().toLowerCase()
+   return !!md && md !== (g.ellikboshi_username || '').trim().toLowerCase()
+})
 const answeredCount = computed(() => ALL_KEYS.filter((k) => touched.has(k)).length)
 
 /** Client-side PREVIEW of the §6.2 arithmetic — the saved score is the server's. */
