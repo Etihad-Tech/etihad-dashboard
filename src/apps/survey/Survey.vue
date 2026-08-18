@@ -14,28 +14,143 @@
       </header>
 
       <div class="sn-wrap">
-         <!-- ─────────── QUEUE ─────────── -->
+         <!-- ─────────── GROUPS → their pilgrims ─────────── -->
+         <!-- The way in is the GROUP (owner, 2026-08-18). The roster is pasted INTO a
+              group, so the group is chosen once for a whole sheet instead of being
+              re-picked on every pilgrim's card — and the list doubles as the §10.3
+              coverage board, which is the one number that decides whether a group's
+              surveys count at all. -->
          <aside class="sn-panel sn-sticky">
-            <div class="sn-lbl">Navbat · Bitrix24 (ism + telefon)</div>
-            <input v-model="search" class="sn-input" placeholder="Qidirish: ism yoki telefon" />
+            <div class="sn-lbl">Guruhlar · dashboarddan</div>
+            <input v-model="search" class="sn-input" placeholder="Qidirish: guruh, ism yoki telefon" />
             <select v-model="statusFilter" class="sn-input">
                <option value="">Barcha holatlar</option>
                <option v-for="(l, k) in CALL_LABELS" :key="k" :value="k">{{ l }}</option>
             </select>
             <div class="sn-queue">
-               <button v-for="p in filteredQueue" :key="p.id" class="sn-qitem"
-                  :class="{ on: current && current.id === p.id }" @click="open(p)">
-                  <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
-                  <span class="sn-qmain">
-                     <b>{{ p.full_name }}</b>
-                     <small>{{ p.group_title || 'guruh tanlanmagan' }}</small>
-                  </span>
-                  <small class="sn-qst">{{ CALL_LABELS[p.call_status] || p.call_status }}</small>
-               </button>
-               <p v-if="!filteredQueue.length" class="sn-note">Navbat bo'sh — CSV import qiling.</p>
+               <div v-for="g in filteredGroups" :key="g.chat_id" class="sn-gwrap">
+                  <button class="sn-gitem" :class="{ on: openGroup === g.chat_id }"
+                     @click="toggleGroup(g.chat_id)">
+                     <span class="sn-qmain">
+                        <b>{{ g.title || g.chat_id }}</b>
+                        <small>
+                           {{ g.trip_start_date ? dmy(g.trip_start_date) : '—' }}
+                           <template v-if="g.trip_end_date"> — {{ dmy(g.trip_end_date) }}</template>
+                        </small>
+                     </span>
+                     <!-- Coverage, not a raw count: §10.3 drops a group's surveys from
+                          the ball entirely under 50%, so «12/49» is the number the
+                          specialist is actually working towards. -->
+                     <small class="sn-qst" :class="coverPct(g) >= 50 ? 'ok' : ''">
+                        {{ g.surveyed_count || 0 }}/{{ g.pilgrim_count || 0 }}
+                     </small>
+                  </button>
+
+                  <div v-if="openGroup === g.chat_id" class="sn-gbody">
+                     <button class="sn-btn sn-ghost sn-add" @click="togglePaste(g.chat_id)">
+                        + Ziyoratchilar qo'shish
+                     </button>
+
+                     <!-- The paste box. One textarea, because that is the whole
+                          interaction: select the rows in the sheet, Ctrl+C, Ctrl+V. -->
+                     <div v-if="pasteFor === g.chat_id" class="sn-paste">
+                        <textarea v-model="pasteText" class="sn-input sn-ta"
+                           placeholder="Jadvaldan qatorlarni nusxalab shu yerga qo'ying (Ctrl+V)"
+                           @paste="onPaste"></textarea>
+                        <p class="sn-note">
+                           Faqat <b>C</b> (Ф.И.Ш.) va <b>R</b> (тел.ракам) ustunlari
+                           o'qiladi. Sarlavha qatori bo'lsa ham bo'ladi.
+                        </p>
+                        <div class="sn-prow">
+                           <button class="sn-btn" :disabled="!pasteText.trim() || pasting"
+                              @click="previewPaste(g.chat_id)">Tekshirish</button>
+                           <button v-if="pastePreview" class="sn-btn sn-primary"
+                              :disabled="pasting || !pastePreview.parsed"
+                              @click="commitPaste(g.chat_id)">
+                              {{ pastePreview.parsed }} ta ziyoratchini qo'shish
+                           </button>
+                           <button class="sn-btn sn-ghost" @click="closePaste">Bekor</button>
+                        </div>
+
+                        <!-- The report BEFORE anything is written. A spreadsheet
+                             selection is easy to get subtly wrong — one column short,
+                             a filtered view — and every one of those looks like a
+                             successful import until somebody counts the queue. -->
+                        <div v-if="pastePreview" class="sn-report">
+                           <p>
+                              <b>{{ pastePreview.counts.ok || 0 }}</b> ta telefon bilan
+                              <template v-if="pastePreview.counts.no_phone">
+                                 · <b>{{ pastePreview.counts.no_phone }}</b> ta telefonsiz
+                              </template>
+                              <template v-if="pastePreview.counts.bad_phone">
+                                 · <b>{{ pastePreview.counts.bad_phone }}</b> ta raqam o'qilmadi
+                              </template>
+                              <template v-if="pastePreview.counts.no_name">
+                                 · <b>{{ pastePreview.counts.no_name }}</b> ta ismsiz
+                              </template>
+                              <template v-if="pastePreview.counts.short_row">
+                                 · <b>{{ pastePreview.counts.short_row }}</b> ta qator kalta
+                              </template>
+                           </p>
+                           <p v-if="pastePreview.counts.short_row" class="sn-warn">
+                              Kalta qatorlar bor — jadvalning butun kengligini (A–S)
+                              belgilab nusxalang.
+                           </p>
+                           <p v-if="pastePreview.counts.no_phone" class="sn-note">
+                              Telefonsizlar ham qo'shiladi — qamrov hisobiga kiradi,
+                              raqamini keyin shu panelda yozib qo'ysa bo'ladi.
+                           </p>
+                           <div class="sn-plist">
+                              <div v-for="r in pastePreview.preview" :key="r.line"
+                                 class="sn-prow2" :class="'st-' + r.status">
+                                 <small>{{ r.line }}</small>
+                                 <span>{{ r.name || '—' }}</span>
+                                 <small>{{ r.phone || r.phone_cell || '—' }}</small>
+                              </div>
+                           </div>
+                           <p v-if="pastePreview.preview_truncated" class="sn-note">
+                              …va yana {{ pastePreview.preview_truncated }} ta qator
+                              (ro'yxat qisqartirildi, hammasi qo'shiladi).
+                           </p>
+                        </div>
+                     </div>
+
+                     <button v-for="p in pilgrimsOf(g.chat_id)" :key="p.id" class="sn-qitem"
+                        :class="{ on: current && current.id === p.id }" @click="open(p)">
+                        <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
+                        <span class="sn-qmain">
+                           <b>{{ p.full_name }}</b>
+                           <small :class="p.phone ? '' : 'sn-warn'">
+                              {{ p.phone || 'telefon yo\'q' }}
+                           </small>
+                        </span>
+                        <small class="sn-qst">{{ CALL_LABELS[p.call_status] || p.call_status }}</small>
+                     </button>
+                     <p v-if="!pilgrimsOf(g.chat_id).length" class="sn-note">
+                        Bu guruhda ziyoratchi yo'q — «+» orqali jadvalni qo'ying.
+                     </p>
+                  </div>
+               </div>
+               <p v-if="!filteredGroups.length" class="sn-note">Guruh topilmadi.</p>
             </div>
-            <p class="sn-note">Bitrixdan faqat ism va telefon olinadi. Guruh — dashboarddagi
-               ro'yxatdan, sanalar va ellikboshi guruhdan keladi.</p>
+
+            <!-- Anyone imported before the group flow existed, or unassigned by hand. -->
+            <div v-if="unassigned.length" class="sn-gwrap">
+               <button class="sn-gitem" :class="{ on: openGroup === 0 }" @click="toggleGroup(0)">
+                  <span class="sn-qmain"><b>Guruhsiz</b><small>guruh tayinlanmagan</small></span>
+                  <small class="sn-qst">{{ unassigned.length }}</small>
+               </button>
+               <div v-if="openGroup === 0" class="sn-gbody">
+                  <button v-for="p in unassigned" :key="p.id" class="sn-qitem"
+                     :class="{ on: current && current.id === p.id }" @click="open(p)">
+                     <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
+                     <span class="sn-qmain"><b>{{ p.full_name }}</b><small>{{ p.phone || 'telefon yo\'q' }}</small></span>
+                  </button>
+               </div>
+            </div>
+
+            <p class="sn-note">Guruh, sanalar va ellikboshi — dashboarddan. Jadvaldan
+               faqat ism va telefon olinadi.</p>
          </aside>
 
          <!-- ─────────── FORM ─────────── -->
@@ -320,8 +435,92 @@ const filteredQueue = computed(() => {
    const n = search.value.trim().toLowerCase()
    return queue.value.filter((p) =>
       (!statusFilter.value || p.call_status === statusFilter.value)
-      && (!n || p.full_name.toLowerCase().includes(n) || p.phone.includes(n)))
+      && (!n || p.full_name.toLowerCase().includes(n) || (p.phone || '').includes(n)))
 })
+
+// ── the group-first list ────────────────────────────────────────────────────────────
+const openGroup = ref<number | null>(null)
+const pasteFor = ref<number | null>(null)
+const pasteText = ref('')
+const pastePreview = ref<any>(null)
+const pasting = ref(false)
+
+function pilgrimsOf(chatId: number) {
+   return filteredQueue.value.filter((p) => p.chat_id === chatId)
+}
+const unassigned = computed(() => filteredQueue.value.filter((p) => !p.chat_id))
+
+/** Groups the search still matches — by their OWN name, or by a pilgrim inside them,
+ *  so typing a pilgrim's name finds the group holding them rather than emptying the
+ *  list. A search that hides the only way in is worse than no search. */
+const filteredGroups = computed(() => {
+   const n = search.value.trim().toLowerCase()
+   if (!n) return groups.value
+   const hit = new Set(filteredQueue.value.map((p) => p.chat_id))
+   return groups.value.filter((g) =>
+      (g.title || '').toLowerCase().includes(n) || hit.has(g.chat_id))
+})
+
+/** §10.3 — a group under 50% has its surveys dropped from the ball entirely. */
+function coverPct(g: any) {
+   return g.pilgrim_count ? Math.round((g.surveyed_count / g.pilgrim_count) * 100) : 0
+}
+
+function toggleGroup(chatId: number) {
+   openGroup.value = openGroup.value === chatId ? null : chatId
+   if (openGroup.value !== chatId) closePaste()
+}
+
+function togglePaste(chatId: number) {
+   if (pasteFor.value === chatId) return closePaste()
+   pasteFor.value = chatId
+   pasteText.value = ''
+   pastePreview.value = null
+}
+
+function closePaste() {
+   pasteFor.value = null
+   pasteText.value = ''
+   pastePreview.value = null
+}
+
+/** A fresh paste invalidates the report shown next to it — otherwise the specialist
+ *  reads counts for the PREVIOUS clipboard and presses «add» on them. */
+function onPaste() {
+   pastePreview.value = null
+}
+
+/** Parse-only: the server reads C and R and says what it found, writing nothing.
+ *  Parsing lives on the server so the column rules exist once, in the module the
+ *  probe exercises — a TypeScript copy of them is a second set of rules to drift. */
+async function previewPaste(chatId: number) {
+   pasting.value = true
+   try {
+      const { data } = await api.post('/survey/paste',
+         { chat_id: chatId, text: pasteText.value, commit: false })
+      pastePreview.value = data
+      if (!data.parsed) toast.error("Jadvaldan birorta ism o'qilmadi — C ustunini tekshiring")
+   } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Xato')
+   } finally { pasting.value = false }
+}
+
+async function commitPaste(chatId: number) {
+   pasting.value = true
+   try {
+      const { data } = await api.post('/survey/paste',
+         { chat_id: chatId, text: pasteText.value, commit: true })
+      const parts = [`${data.added} qo'shildi`]
+      if (data.duplicates) parts.push(`${data.duplicates} avvaldan bor`)
+      if (data.no_phone) parts.push(`${data.no_phone} telefonsiz`)
+      if (data.unnamed) parts.push(`${data.unnamed} ismsiz`)
+      toast.success(`Import: ${parts.join(', ')}`)
+      closePaste()
+      await Promise.all([loadQueue(), loadGroups()])
+   } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Import xatosi')
+   } finally { pasting.value = false }
+}
 const doneToday = computed(() => queue.value.filter((p) => p.survey_status === 'saved').length)
 const groupInfo = computed(() => groups.value.find((g) => g.chat_id === pickedGroup.value) || null)
 
@@ -620,6 +819,38 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .sn-qmain small, .sn-qst { color: #8a8474; font-size: 12px; }
 .sn-dot { width: 8px; height: 8px; border-radius: 50%; background: #d8b45a; flex-shrink: 0; }
 .sn-dot.done { background: #2e7d5b; }
+
+/* ── group-first list ── the group is the way in, its pilgrims nest under it ── */
+.sn-gwrap { border-top: 1px solid #eee9dd; }
+.sn-gitem { width: 100%; display: flex; gap: 8px; align-items: center; padding: 10px 6px;
+   border: 0; background: none; cursor: pointer; text-align: left; font: inherit;
+   border-radius: 8px; }
+.sn-gitem.on { background: #f3f6f2; }
+.sn-gitem b { font-size: 14px; }
+/* Coverage goes green at the §10.3 threshold — the only state change on this list
+   that means something official, so it is the only one that gets a colour. */
+.sn-qst.ok { color: #2e7d5b; font-weight: 700; }
+.sn-gbody { padding: 2px 0 10px 10px; border-left: 2px solid #eee9dd; margin-left: 8px; }
+.sn-add { width: 100%; margin-bottom: 6px; }
+.sn-paste { background: #fbfaf7; border: 1px solid #e2ddd0; border-radius: 10px;
+   padding: 8px; margin-bottom: 8px; }
+.sn-ta { min-height: 92px; font-family: ui-monospace, monospace; font-size: 12px;
+   white-space: pre; overflow-x: auto; }
+.sn-prow { display: flex; gap: 6px; flex-wrap: wrap; }
+.sn-btn.sn-primary { background: #0f3d2e; color: #fff; border-color: #0f3d2e; }
+.sn-report { margin-top: 8px; font-size: 12.5px; }
+.sn-report p { margin: 4px 0; }
+.sn-warn { color: #a3541f; }
+.sn-plist { max-height: 220px; overflow-y: auto; margin-top: 6px;
+   border-top: 1px solid #eee9dd; }
+.sn-prow2 { display: grid; grid-template-columns: 28px 1fr auto; gap: 6px;
+   padding: 3px 2px; border-bottom: 1px solid #f2eee3; align-items: baseline; }
+.sn-prow2 small { color: #8a8474; font-size: 11.5px; }
+/* Every non-ok row is tinted, so a shifted paste is visible as a block of colour
+   rather than as a number somebody has to read. */
+.sn-prow2.st-no_phone { background: #fdf6e8; }
+.sn-prow2.st-bad_phone, .sn-prow2.st-no_name, .sn-prow2.st-short_row { background: #fbeee8; }
+.sn-prow2.st-header { opacity: .5; }
 .sn-subject h1 { font-size: 24px; margin: 0 0 8px; }
 .sn-facts { display: flex; flex-wrap: wrap; gap: 8px; }
 .sn-fact { font-size: 12.5px; background: #fbfaf7; border: 1px solid #e2ddd0; border-radius: 999px;
