@@ -54,11 +54,14 @@ export interface Worker {
    // The §5.4 cut of the same average — needs raised 06:00–00:00 Makka time only.
    day_avg_response_seconds: number | null
    kpi: WorkerKpi | null
-   // §1 — years of service (a real ellikboshi only; null for crew, the doctor, or
-   // simply not entered yet) and the unvon+fiks the server derives from it. Pay
-   // arithmetic lives on the server, same rule as `kpi`.
-   staj_years: number | null
-   fiks_info: { unvon: string; fiks: number } | null
+   // §3 — the ASSIGNED category code ('stajer' | 'katta' | 'yetakchi' | 'ekspert'),
+   // which the fiks keys on. Null = nobody has placed this leader yet: the screen shows
+   // «—» and pays nothing, because a default rung would be a decision nobody made.
+   category: string | null
+   // The unvon + so'm the SERVER resolves from that category and the current pay
+   // table. Null when no category is assigned. Pay arithmetic lives on the server,
+   // same rule as `kpi` — the panel renders it and never recomputes it.
+   fiks_info: { code: string; unvon: string; fiks: number } | null
    // §8 row 3 — accepted 2× slower than the §6 window. Pure timestamps on cards the
    // worker PERSONALLY accepted, so a detector mistake can never become money.
    sla_breaches: number
@@ -66,12 +69,31 @@ export interface Worker {
    // account). Already counted inside never_accepted; kept separately because §8
    // row 4 fines the act itself.
    blocked_cards: number
-   // §7 — «Oyning ellikboshisi», decided on the SERVER (month, ≥20 cards, real
-   // ellikboshilar only) so the star and its sovrin come from one decision.
+   // §5.4 — «Oyning ellikboshisi», decided on the SERVER (month, ≥10 gradable cards,
+   // ≥1,0 SG, ≥90 ball, real ellikboshilar only) so the star and its sovrin come from
+   // one decision.
    best?: boolean
-   // §1 + §2 + §7 − §8 composed on the SERVER, one authority for pay. Null without
-   // a staj. The sovrin sits OUTSIDE the 30% deduction cap.
-   salary: { fiks: number; mukofot: number; sovrin: number
+   // §4 — Shartli guruh: the month's LOAD, summed over the city segments this leader
+   // was assigned (guruh turi × shahar koeffitsienti). Null for the crew and the
+   // doctor — §4 measures a leader's groups, and their own reglament does not exist
+   // yet. `sg_units` is the same figure in hundredths, the unit the server does all
+   // SG arithmetic in; the UI only ever displays `sg`.
+   sg: number | null
+   sg_units: number | null
+   sg_segments: { chat_id: number; title: string | null; trip_start_date: string
+                  hotel_tier: string | null; cities: string[]; sg: number | null
+                  override: boolean }[]
+   // How many of those groups have NO Daraja set. Such a group is counted as a whole
+   // group (neutral: K unaffected, no load payment) rather than guessed at from its
+   // title — the screen asks somebody to set it instead of quietly paying half.
+   sg_tier_unset: number
+   // §4.3 — over 2,0 SG at once needs the CEO's written consent. Reported, not blocked.
+   sg_over_ceiling: boolean
+   // §3 + §5×K + §4.3 + §5.4 − §11 composed on the SERVER, one authority for pay. Null
+   // until a category is assigned. The sovrin sits OUTSIDE the 30% deduction cap; the yuklama to'lovi
+   // is inside its base, being income like the fiks and the mukofot.
+   salary: { fiks: number; mukofot: number; mukofot_base: number; sovrin: number
+             k: number; sg: number | null; yuklama: number
              jarima: number; jarima_capped: boolean
              sla_breaches: number; bot_block: boolean; day_javobsiz: number
              total: number } | null
@@ -129,6 +151,14 @@ export interface LeaderPeriodCount {
    groups: { telegram_id: number; title: string | null
              cities: string[]; weight: number
              trip_start_date: string; trip_end_date: string }[]
+}
+
+/** §3 — one rung of the ellikboshi ladder and what it currently pays. The ladder is
+ *  the reglament's and changes with its version; the SUM is the office's and is revised
+ *  without any document being reissued, which is why it is data and not a constant.
+ *  `stored` false = the row is the seed default, never yet edited in the dashboard. */
+export interface KpiCategory {
+   code: string; title: string; fiks: number; sort_order: number; stored: boolean
 }
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
@@ -562,14 +592,25 @@ export const useNazoratStore = defineStore('nazorat', () => {
       } catch { /* the badge is not worth an error toast */ }
    }
 
-   /** §1 staj write — the API allows only the admin. Patches the row for instant
-    *  feedback, then reloads the slice: the composed salary (fiks + mukofot − jarima)
-    *  lives on the server, and recomputing it here would be a second pay authority. */
-   async function setStaj(w: Worker, staj_years: number | null): Promise<boolean> {
+   /** §3 — the four category rungs and what each currently pays. Loaded once; the
+    *  KPI board needs the titles to render an unvon whoever is looking. */
+   const categories = ref<KpiCategory[]>([])
+   async function loadCategories() {
       try {
-         const { data } = await api.put('/control/ellikboshi-staj',
-            { username: w.username, staj_years })
-         w.staj_years = data.staj_years
+         categories.value = (await api.get('/control/categories')).data
+      } catch { /* the board still renders; fiks_info carries its own unvon */ }
+   }
+
+   /** §3 — place a leader on a rung. The API allows the full nazoratchi AND the
+    *  ellikboshi-scoped one (owner, 2026-08-18): they run the leaders and know who is
+    *  where. Patches the row for instant feedback, then reloads the slice — the
+    *  composed salary lives on the server, and recomputing it here would be a second
+    *  pay authority. */
+   async function setCategory(w: Worker, category: string | null): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/ellikboshi-category',
+            { username: w.username, category })
+         w.category = data.category
          w.fiks_info = data.fiks_info
          await load()
          return true
@@ -578,8 +619,23 @@ export const useNazoratStore = defineStore('nazorat', () => {
       }
    }
 
+   /** §3 — what a rung PAYS. Full nazoratchi + admin only: this moves every leader on
+    *  that rung at once, which is why it is a different endpoint from the one above. */
+   async function setCategoryFiks(code: string, fiks: number): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/categories', { code, fiks })
+         const row = categories.value.find((c) => c.code === code)
+         if (row) row.fiks = data.fiks
+         await load()
+         return true
+      } catch {
+         return false
+      }
+   }
+
    return {
-      period, loading, loadError, saving, savedMsg, setStaj,
+      period, loading, loadError, saving, savedMsg,
+      categories, loadCategories, setCategory, setCategoryFiks,
       report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
