@@ -67,13 +67,15 @@
 
                <div v-if="openKey === keyOf(r.w)"
                   class="mx-1 mb-2 px-4 py-3 rounded-[1rem] bg-[color:var(--n-soft,rgba(0,0,0,0.04))] space-y-3">
-                  <!-- §7's own entry bar, said out loud: the title is decided AMONG
-                       leaders with 20+ gradable murojaat, so a higher ball on a small
-                       month neither wins nor blocks — without this line the star on a
-                       35 next to an unstarred 80 reads as a bug (owner, 2026-08-15). -->
+                  <!-- §5.4's own entry bar, said out loud: the title is decided AMONG
+                       leaders with 10+ gradable murojaat AND a full group's load, so a
+                       higher ball on a small month neither wins nor blocks — without
+                       this line the star on a 35 next to an unstarred 80 reads as a bug
+                       (owner, 2026-08-15). v4.4 lowered the card count and added the SG
+                       half; the sentence has to move with the document. -->
                   <span v-if="r.best" class="badge badge-indigo">
                      <font-awesome-icon icon="star" class="w-3 h-3" />
-                     Oyning ellikboshisi — 20+ murojaat va kamida 90 ball
+                     Oyning ellikboshisi — 10+ murojaat, 1,0 SG va kamida 90 ball
                   </span>
 
                   <!-- The four components in the reglament's own order, one per line,
@@ -142,9 +144,27 @@
                         class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
                         <span class="text-[color:var(--n-muted)]">Fiks</span>
                         <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
+                        <!-- §4 — the month's load. Stated even at 1,0, because a
+                             payslip whose Mukofot silently carries a ×1,2 somewhere is
+                             a payslip nobody can check. The multiplication is written
+                             out for the same reason: «5 000 000 × 1,2» is arguable,
+                             a lone 6 000 000 is not. -->
+                        <template v-if="r.w.salary.sg !== null">
+                           <span class="text-[color:var(--n-muted)]">Yuklama · SG</span>
+                           <span class="text-right">{{ sgText(r.w.salary) }}</span>
+                        </template>
                         <template v-if="r.w.salary.mukofot">
-                           <span class="text-[color:var(--n-muted)]">Mukofot</span>
+                           <span class="text-[color:var(--n-muted)]">
+                              Mukofot
+                              <span v-if="r.w.salary.k > 1" class="text-[11.5px]">
+                                 ({{ soum(r.w.salary.mukofot_base) }} × {{ r.w.salary.k }})
+                              </span>
+                           </span>
                            <span class="text-right">+{{ soum(r.w.salary.mukofot) }}</span>
+                        </template>
+                        <template v-if="r.w.salary.yuklama">
+                           <span class="text-[color:var(--n-muted)]">Yuklama to'lovi (§4.3)</span>
+                           <span class="text-right">+{{ soum(r.w.salary.yuklama) }}</span>
                         </template>
                         <template v-if="r.w.salary.sovrin">
                            <span class="text-[color:var(--n-muted)]">Sovrin · Oyning ellikboshisi</span>
@@ -159,12 +179,25 @@
                         </template>
                         <template v-if="r.w.salary.jarima_capped">
                            <span class="col-span-2 text-[12px] text-[color:var(--n-muted)]">
-                              30% chegara qo'llandi (§8)
+                              30% chegara qo'llandi (§11)
                            </span>
                         </template>
                         <span class="font-semibold">Oylik</span>
                         <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
                      </div>
+                     <!-- A group with no Daraja is an unanswered question, not a
+                          premium group: SG counts it as a WHOLE group (neutral both
+                          ways) and asks here rather than quietly paying half a load. -->
+                     <p v-if="r.w.sg_tier_unset"
+                        class="text-[12.5px] text-[color:var(--n-muted)]">
+                        {{ r.w.sg_tier_unset }} ta guruhda daraja belgilanmagan — to'liq
+                        guruh sifatida hisoblandi. Guruhlar sahifasida darajani tanlang.
+                     </p>
+                     <p v-if="r.w.sg_over_ceiling"
+                        class="text-[12.5px] text-[color:var(--n-muted)]">
+                        Yuklama 2,0 SG dan ortiq — reglament bo'yicha CEO ning yozma
+                        ruxsati talab qilinadi (§4.3).
+                     </p>
                      <p v-else class="text-[color:var(--n-muted)]">
                         Staj kiritilmagan — fiks aniqlanmaydi
                      </p>
@@ -224,8 +257,18 @@ function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    return parts.join(' + ')
 }
 
+/** §4 — the load line: the month's SG, and the K it produced when K actually bit.
+ *  Both numbers come from the server; this only formats them. Shown even at 1,0,
+ *  because «Yuklama · SG 1,0» is what tells a reader the ×1,2 they are NOT seeing
+ *  elsewhere is genuinely absent. */
+function sgText(sal: NonNullable<Worker['salary']>): string {
+   const sg = (sal.sg ?? 0).toFixed(1).replace('.', ',')
+   return sal.k > 1 ? `${sg} · K ${sal.k.toFixed(1).replace('.', ',')}` : sg
+}
+
 /** The one quiet line under the name: pay for a leader, the job for everyone else.
- *  The total comes composed from the server (§1 + §2 − §8) — no pay maths here. */
+ *  The total comes composed from the server (§3 + §5×K + §4.3 − §11) — no pay maths
+ *  here. */
 function subline(r: { w: Worker; job: string }): string {
    if (r.w.role === 'ellikboshi') {
       // The murojaat count rides along so the §7 star is legible at a glance: an

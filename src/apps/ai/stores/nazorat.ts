@@ -60,12 +60,31 @@ export interface Worker {
    // account). Already counted inside never_accepted; kept separately because §8
    // row 4 fines the act itself.
    blocked_cards: number
-   // §7 — «Oyning ellikboshisi», decided on the SERVER (month, ≥20 cards, real
-   // ellikboshilar only) so the star and its sovrin come from one decision.
+   // §5.4 — «Oyning ellikboshisi», decided on the SERVER (month, ≥10 gradable cards,
+   // ≥1,0 SG, ≥90 ball, real ellikboshilar only) so the star and its sovrin come from
+   // one decision.
    best?: boolean
-   // §1 + §2 + §7 − §8 composed on the SERVER, one authority for pay. Null without
-   // a staj. The sovrin sits OUTSIDE the 30% deduction cap.
-   salary: { fiks: number; mukofot: number; sovrin: number
+   // §4 — Shartli guruh: the month's LOAD, summed over the city segments this leader
+   // was assigned (guruh turi × shahar koeffitsienti). Null for the crew and the
+   // doctor — §4 measures a leader's groups, and their own reglament does not exist
+   // yet. `sg_units` is the same figure in hundredths, the unit the server does all
+   // SG arithmetic in; the UI only ever displays `sg`.
+   sg: number | null
+   sg_units: number | null
+   sg_segments: { chat_id: number; title: string | null; trip_start_date: string
+                  hotel_tier: string | null; cities: string[]; sg: number | null
+                  override: boolean }[]
+   // How many of those groups have NO Daraja set. Such a group is counted as a whole
+   // group (neutral: K unaffected, no load payment) rather than guessed at from its
+   // title — the screen asks somebody to set it instead of quietly paying half.
+   sg_tier_unset: number
+   // §4.3 — over 2,0 SG at once needs the CEO's written consent. Reported, not blocked.
+   sg_over_ceiling: boolean
+   // §3 + §5×K + §4.3 + §5.4 − §11 composed on the SERVER, one authority for pay. Null
+   // without a staj. The sovrin sits OUTSIDE the 30% deduction cap; the yuklama to'lovi
+   // is inside its base, being income like the fiks and the mukofot.
+   salary: { fiks: number; mukofot: number; mukofot_base: number; sovrin: number
+             k: number; sg: number | null; yuklama: number
              jarima: number; jarima_capped: boolean
              sla_breaches: number; bot_block: boolean; day_javobsiz: number
              total: number } | null
