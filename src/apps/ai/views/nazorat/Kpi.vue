@@ -22,7 +22,7 @@
       </div>
 
       <!-- ONE number per collapsed row. The screen now answers three questions (ball,
-           staj, oylik), and a phone row that tries to say all three at once answers
+           toifa, oylik), and a phone row that tries to say all three at once answers
            none — so the row states the ball and one quiet pay line, and everything
            else lives behind the tap. Single-open accordion: comparing two people is
            what the collapsed list is for. -->
@@ -115,26 +115,31 @@
                      {{ r.w.kpi.base }} ta murojaat — reglament bo'yicha qo'lda baholanadi (§5.5)
                   </p>
 
-                  <!-- §1: staj -> unvon + fiks, §2: ball -> mukofot. Only a REAL
-                       ellikboshi has a pool row to hold staj — the doctor sits on this
-                       board by display rule alone and is not paid by this table. The
-                       staj write is the admin's; everyone else reads. -->
+                  <!-- §3: category -> unvon + fiks, §5: ball -> mukofot. Only a REAL
+                       ellikboshi has a pool row to hold a category — the doctor sits on
+                       this board by display rule alone and is not paid by this table.
+                       WHO MAY WRITE WHAT (owner, 2026-08-18): the ellikboshi controller
+                       PLACES people on a rung — they run the leaders and know who is
+                       where — while what a rung PAYS is the full nazoratchi's, below.
+                       Nobody types a number of years any more. -->
                   <div v-if="r.w.role === 'ellikboshi'"
                      class="pt-2 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5 text-[13.5px]">
                      <div class="flex items-center gap-2">
-                        <span class="text-[color:var(--n-muted)]">Ish staji</span>
-                        <template v-if="isAdmin">
-                           <input type="number" min="0" max="60" step="0.5"
-                              class="w-16 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums"
-                              :value="r.w.staj_years ?? ''" placeholder="—"
-                              @click.stop @change="saveStaj(r.w, $event)" />
-                           <span class="text-[color:var(--n-muted)]">yil</span>
-                        </template>
-                        <span v-else class="font-semibold tabular-nums">
-                           {{ r.w.staj_years !== null ? r.w.staj_years + ' yil' : '—' }}
+                        <span class="text-[color:var(--n-muted)]">Toifa</span>
+                        <select v-if="canSetCategory"
+                           class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px]"
+                           :value="r.w.category ?? ''"
+                           @click.stop @change="saveCategory(r.w, $event)">
+                           <option value="">— tanlanmagan</option>
+                           <option v-for="c in s.categories" :key="c.code" :value="c.code">
+                              {{ c.title }}
+                           </option>
+                        </select>
+                        <span v-else class="font-semibold">
+                           {{ r.w.fiks_info ? r.w.fiks_info.unvon : '—' }}
                         </span>
                         <span v-if="r.w.fiks_info" class="badge badge-indigo ml-auto">
-                           {{ r.w.fiks_info.unvon }}
+                           {{ soum(r.w.fiks_info.fiks) }} so'm
                         </span>
                      </div>
                      <!-- §1 + §2 − §8, straight from the server's composition. The
@@ -199,7 +204,7 @@
                         ruxsati talab qilinadi (§4.3).
                      </p>
                      <p v-else class="text-[color:var(--n-muted)]">
-                        Staj kiritilmagan — fiks aniqlanmaydi
+                        Toifa tanlanmagan — fiks aniqlanmaydi
                      </p>
                   </div>
 
@@ -213,11 +218,40 @@
             </div>
          </div>
       </section>
+
+      <!-- §3's PAY SCALE — the full nazoratchi's alone (owner, 2026-08-18). Its own
+           panel, below the people, on purpose: an amount edited inline next to one
+           name reads as that person's salary, and this moves everyone on the rung. -->
+      <section v-if="canSetPayScale && s.categories.length" class="card p-5 n-enter">
+         <div class="flex items-baseline gap-2.5">
+            <h3 class="n-h">Toifalar va fiks</h3>
+            <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">§3</span>
+         </div>
+         <p class="mt-1 text-[12.5px] text-[color:var(--n-muted)]">
+            Bu yerdagi summa shu toifadagi <b>barcha</b> ellikboshilarning fiksini
+            o'zgartiradi. Kim qaysi toifada — har bir ellikboshining kartochkasida.
+         </p>
+         <div class="mt-3 space-y-0.5">
+            <div v-for="c in s.categories" :key="c.code"
+               class="flex items-center gap-3 py-2.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
+               <span class="flex-1 min-w-0">
+                  <span class="block text-[14px] font-semibold truncate">{{ c.title }}</span>
+                  <span class="block text-[12px] text-[color:var(--n-muted)]">
+                     {{ countIn(c.code) }} ta ellikboshi
+                  </span>
+               </span>
+               <input type="number" min="0" step="100000"
+                  class="w-36 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums text-right"
+                  :value="c.fiks" @change="saveCategoryFiks(c.code, $event)" />
+               <span class="text-[12.5px] text-[color:var(--n-muted)]">so'm</span>
+            </div>
+         </div>
+      </section>
    </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../../../stores/auth'
 import { useToast } from '../../../../composables/useToast'
@@ -230,11 +264,15 @@ const toast = useToast()
 const s = useNazoratStore()
 const { kpiBoards: boards, kpiBoard: board } = useNazoratView()
 
-/** Who may WRITE staj: admin and the combined nazoratchi (owner, 2026-08-15) —
- *  mirrors the API's rule rather than trusting the client. The two scoped controller
- *  logins get plain text: an account confined to one population should not be
- *  setting pay inputs for it. */
-const isAdmin = computed(() => auth.role === 'admin' || auth.role === 'nazoratchi')
+/** The two writes of §3, mirroring the API's guards rather than trusting the client
+ *  (owner, 2026-08-18):
+ *
+ *    who PAYS WHAT   — admin + the combined nazoratchi. It moves every leader on a rung.
+ *    who IS WHERE    — ...and the ellikboshi-scoped controller too: they run the leaders.
+ *
+ *  The staff-scoped login gets neither; it never sees this board at all. */
+const canSetPayScale = computed(() => auth.role === 'admin' || auth.role === 'nazoratchi')
+const canSetCategory = computed(() => canSetPayScale.value || auth.role === 'nazoratchi_ellikboshi')
 
 /** Accordion key: the username when there is one — quiet pool members all carry
  *  telegram_id 0 (the pool knows usernames, not ids), so the id alone would open
@@ -244,6 +282,17 @@ const openKey = ref<string | null>(null)
 const toggle = (k: string) => { openKey.value = openKey.value === k ? null : k }
 
 const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
+
+/** How many leaders sit on a rung — so an edit says how far it reaches BEFORE it is
+ *  made. Counted off the board actually on screen, which is the same set the change
+ *  will be visible on. */
+function countIn(code: string) {
+   return s.workers.filter((w) => w.role === 'ellikboshi' && w.category === code).length
+}
+
+// The ladder is needed to render an unvon and to fill the picker; the board itself
+// arrives with the period slice the store already loads.
+onMounted(() => { void s.loadCategories() })
 
 /** «16 900 000» — thin-space thousands, the way a payslip writes it. */
 const soum = (v: number) => v.toLocaleString('ru-RU')
@@ -276,23 +325,32 @@ function subline(r: { w: Worker; job: string }): string {
       // without the count the starred lower ball reads as a bug.
       const base = r.w.kpi ? `${r.w.kpi.base} murojaat` : ''
       if (!r.w.salary || !r.w.fiks_info)
-         return ['Staj kiritilmagan', base].filter(Boolean).join(' · ')
+         return ['Toifa tanlanmagan', base].filter(Boolean).join(' · ')
       return [`${r.w.fiks_info.unvon} · oylik ${soum(r.w.salary.total)} so'm`, base]
          .filter(Boolean).join(' · ')
    }
    return r.job
 }
 
-async function saveStaj(w: Worker, ev: Event) {
-   const raw = (ev.target as HTMLInputElement).value.trim()
-   const years = raw === '' ? null : Number(raw)
-   if (years !== null && (Number.isNaN(years) || years < 0 || years > 60)) {
-      toast.error("Staj 0–60 yil oralig'ida bo'lsin")
-      return
-   }
-   if (!(await s.setStaj(w, years))) {
+async function saveCategory(w: Worker, ev: Event) {
+   const code = (ev.target as HTMLSelectElement).value || null
+   if (!(await s.setCategory(w, code))) {
       toast.error("Saqlanmadi — ellikboshi ro'yxatda topilmadi")
    }
+}
+
+/** §3's pay SCALE. Editing one rung moves every leader on it, which is why it is the
+ *  full nazoratchi's alone and why it sits in its own panel rather than inline on a
+ *  person's card — an amount edited next to one name reads as that person's salary. */
+async function saveCategoryFiks(code: string, ev: Event) {
+   const raw = (ev.target as HTMLInputElement).value.replace(/\s+/g, '')
+   const fiks = Number(raw)
+   if (raw === '' || Number.isNaN(fiks) || fiks < 0) {
+      toast.error('Summani tekshiring')
+      return
+   }
+   if (await s.setCategoryFiks(code, fiks)) toast.success('Toifa fiksi yangilandi')
+   else toast.error('Saqlanmadi')
 }
 
 /** A row is a way in to the person behind it — same rule as the Reyting. */
