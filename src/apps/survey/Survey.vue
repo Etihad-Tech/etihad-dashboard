@@ -385,7 +385,12 @@ const BLOCKS = [
       { k: 'q1_again', label: 'Yana shu ellikboshi bilan borasizmi?', type: 'choice',
         choices: [{ v: 30, l: 'Ha' }, { v: 15, l: 'Bilmayman' }, { v: 0, l: "Yo'q" }] },
    ] },
-   { key: 'q2', title: 'Otinoyi xizmatlari', who: 'otinoyi', rows: [
+   // «Otinoyi» IS the ayol maslahatchi the company already has (owner, 2026-08-18:
+   // @Zilola_Irfon), configured as the city-agnostic `female_advisor` inquiry tag —
+   // NOT a new staff role somebody has to create. Said here because the block's bare
+   // title reads like a role that does not exist yet, which is how it nearly became
+   // one.
+   { key: 'q2', title: 'Otinoyi (ayol maslahatchi)', who: 'otinoyi', rows: [
       { k: 'q2_otinoyi', label: 'Umumiy baho', type: 'scale' }] },
    { key: 'q3', title: 'Toshkentdagi kuzatuv jamoasi', who: "bo'lim bahosi", rows: [
       { k: 'q3_tashkent', label: 'Umumiy baho', type: 'scale' }] },
