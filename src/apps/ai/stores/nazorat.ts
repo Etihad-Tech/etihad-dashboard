@@ -101,7 +101,10 @@ export interface Worker {
    salary: { fiks: number; kpi: number | null; total: number
              fund: number; fund_base: number; k: number; sg: number | null
              share: number; min_ball: number; earned: number
-             jarima: number; bot_block: boolean; manual_adjust: number
+             jarima: number; bot_block: boolean
+             sla_breaches: number; day_javobsiz: number; false_completions: number
+             xatolik_abuse: boolean
+             manual_adjust: number
              floor: number; floored: boolean; pending_manual: boolean } | null
    // Always true in practice: the API sends dashboard-roster members only (active
    // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for

@@ -384,12 +384,16 @@ const soum = (v: number) => v.toLocaleString('ru-RU')
  *  already rounded to one and 89.90000000000001 is what subtraction does to a float. */
 const pct100 = (fault: number) => Math.round((100 - fault) * 10) / 10
 
-/** What the jarima line is FOR. ONE automatic fine survives v4.5 — the other two
- *  double-charged what §8.1 already scores — so this is a list of one today, and stays
- *  a list because §11's table is not finished with. */
+/** What the jarima line is FOR — every §11 row that actually fired, named. A leader
+ *  appealing under §12 has to point at the exact cards, and «jarima 1 700 000» points
+ *  at nothing. Order follows §11's own table. */
 function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    const parts: string[] = []
+   if (sal.day_javobsiz) parts.push(`${sal.day_javobsiz} ta kunduzgi javobsiz`)
+   if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta kechikish`)
    if (sal.bot_block) parts.push('bot bloklangan')
+   if (sal.false_completions) parts.push(`${sal.false_completions} ta soxta «bajarildi»`)
+   if (sal.xatolik_abuse) parts.push('«Xatolik» tugmasidan suiiste'mol')
    return parts.join(' + ')
 }
 
