@@ -100,6 +100,7 @@ export interface Worker {
    // «fund × K × share − jarima» is arguable, a lone 5 720 000 is not.
    salary: { fiks: number; kpi: number | null; total: number
              fund: number; fund_base: number; k: number; sg: number | null
+             k_sg: number | null; yuklama: number
              share: number; min_ball: number; earned: number
              jarima: number; bot_block: boolean
              sla_breaches: number; day_javobsiz: number; false_completions: number
@@ -173,7 +174,7 @@ export interface KpiCategory {
 /** v4.5 — the four numbers that shape the KPI line, all editable by the full
  *  nazoratchi. The reglament owns the ratios, the office owns the sums. */
 export interface KpiSettings {
-   fund: number; min_ball: number; max_deduction_pct: number
+   fund: number; load_rate: number; min_ball: number; max_deduction_pct: number
    k_min_units: number; k_max_units: number
 }
 

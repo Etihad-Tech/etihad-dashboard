@@ -180,14 +180,21 @@
                         <span></span>
                         <span>Fond</span>
                         <span class="text-right">{{ soum(r.w.salary.fund_base) }}</span>
-                        <template v-if="r.w.salary.k > 1">
+                        <template v-if="r.w.salary.k > 1 || r.w.salary.k_sg !== r.w.salary.sg">
                            <span>×</span>
-                           <span>K · SG {{ sgText(r.w.salary) }}</span>
+                           <!-- §4.2 — when only part of the load is reward-assigned, say so.
+                                «K · SG 1,6» beside a K of 1,0 reads as a bug otherwise. -->
+                           <span>K · {{ kBasis(r.w.salary) }}</span>
                            <span class="text-right">{{ dec(r.w.salary.k) }}</span>
                         </template>
                         <span>×</span>
                         <span>Ball ulushi · {{ r.w.salary.min_ball }} dan</span>
                         <span class="text-right">{{ dec(r.w.salary.share) }}</span>
+                        <template v-if="r.w.salary.yuklama">
+                           <span>+</span>
+                           <span>Yuklama to'lovi · SG {{ sgText(r.w.salary) }} dan ortiq</span>
+                           <span class="text-right">{{ soum(r.w.salary.yuklama) }}</span>
+                        </template>
                         <template v-if="r.w.salary.jarima">
                            <span>−</span>
                            <span>Jarima · {{ jarimaWhy(r.w.salary) }}</span>
@@ -334,6 +341,9 @@ const SETTING_ROWS = [
    { key: 'fund' as const, label: 'KPI fondi', unit: "so'm",
      hint: 'Bitta guruhda (SG 1,0) eng ko\u2018p mukofot', min: 0, max: 1_000_000_000,
      step: 100_000, scale: 1 },
+   { key: 'load_rate' as const, label: "Yuklama to'lovi", unit: "so'm",
+     hint: 'Bitta guruhdan ortiq har bir SG uchun', min: 0, max: 100_000_000,
+     step: 100_000, scale: 1 },
    { key: 'min_ball' as const, label: 'Minimal ball', unit: 'ball',
      hint: 'Shu balldan pastda KPI ishlab topilmaydi', min: 0, max: 99, step: 1, scale: 1 },
    { key: 'max_deduction_pct' as const, label: 'Maksimal ushlab qolish', unit: '%',
@@ -420,6 +430,15 @@ function cityLoad(w: Worker): string {
  *  itself and nothing else. */
 function sgText(sal: NonNullable<Worker['salary']>): string {
    return dec(sal.sg ?? 0)
+}
+
+/** What K was taken OF. When every segment is reward-assigned this is just the SG;
+ *  when only part of it is, both numbers are named — «K · SG 1,6» next to a K of 1,0
+ *  reads as a bug rather than as §4.2 working. */
+function kBasis(sal: NonNullable<Worker['salary']>): string {
+   const sg = dec(sal.sg ?? 0)
+   const k = dec(sal.k_sg ?? sal.sg ?? 0)
+   return k === sg ? `SG ${sg}` : `SG ${sg} dan ${k} natija bo'yicha`
 }
 
 /** «1,2» — a coefficient with the decimal comma this panel writes numbers in. */
