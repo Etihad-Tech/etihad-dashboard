@@ -176,6 +176,11 @@ export interface KpiCategory {
 export interface KpiSettings {
    fund: number; load_rate: number; min_ball: number; max_deduction_pct: number
    k_min_units: number; k_max_units: number
+   // §4.4 — the coefficient tables, in hundredths. Data rather than constants because
+   // they describe the company's own tariffs, which move without the reglament
+   // changing version.
+   city_makka_units: number; city_madina_units: number
+   pkg_comfort_units: number; pkg_premium_units: number
 }
 
 /** TZ 5 — one reason a card may be taken out of the §8.1 base. Served by the API

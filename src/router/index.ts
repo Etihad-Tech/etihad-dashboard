@@ -106,6 +106,7 @@ const router = createRouter({
         { path: '', name: 'AiNazorat', component: () => import('../apps/ai/views/nazorat/Holat.vue') },
         { path: 'reyting', name: 'AiNazoratReyting', component: () => import('../apps/ai/views/nazorat/Reyting.vue') },
         { path: 'kpi', name: 'AiNazoratKpi', component: () => import('../apps/ai/views/nazorat/Kpi.vue') },
+        { path: 'qiymatlar', name: 'AiNazoratQiymatlar', component: () => import('../apps/ai/views/nazorat/Qiymatlar.vue') },
         { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
         { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'suhbat', name: 'AiNazoratSuhbat', component: () => import('../apps/ai/views/nazorat/Suhbat.vue') },

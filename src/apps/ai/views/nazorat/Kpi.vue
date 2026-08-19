@@ -240,52 +240,6 @@
          </div>
       </section>
 
-      <!-- v4.5 — THE SCHEME's own four numbers, same permission and same reasoning as
-           the pay scale below: the reglament owns the ratios, the office owns the
-           sums, and a raise must not need a deploy. Above the ladder because it moves
-           EVERYBODY at once, where a toifa moves one rung. -->
-      <section v-if="canSetPayScale && s.kpiSettings" class="card p-5 n-enter">
-         <div class="flex items-baseline gap-2.5">
-            <h3 class="n-h">KPI sozlamalari</h3>
-         </div>
-         <div class="mt-3 space-y-0.5">
-            <div v-for="f in SETTING_ROWS" :key="f.key"
-               class="flex items-center gap-3 py-2.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
-               <span class="flex-1 min-w-0">
-                  <span class="block text-[14px] font-semibold">{{ f.label }}</span>
-                  <span class="block text-[12px] text-[color:var(--n-muted)]">{{ f.hint }}</span>
-               </span>
-               <input type="number" :min="f.min" :max="f.max" :step="f.step"
-                  class="w-32 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums text-right"
-                  :value="settingValue(f.key)" @change="saveSetting(f, $event)" />
-               <span class="w-8 text-[12.5px] text-[color:var(--n-muted)]">{{ f.unit }}</span>
-            </div>
-         </div>
-      </section>
-
-      <!-- The PAY SCALE — the full nazoratchi's alone, and its own panel below the
-           people on purpose: an amount edited inline beside one name reads as that
-           person's salary, and this moves everyone on the rung. -->
-      <section v-if="canSetPayScale && s.categories.length" class="card p-5 n-enter">
-         <div class="flex items-baseline gap-2.5">
-            <h3 class="n-h">Toifalar va fiks</h3>
-         </div>
-         <div class="mt-3 space-y-0.5">
-            <div v-for="c in s.categories" :key="c.code"
-               class="flex items-center gap-3 py-2.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
-               <span class="flex-1 min-w-0">
-                  <span class="block text-[14px] font-semibold truncate">{{ c.title }}</span>
-                  <span class="block text-[12px] text-[color:var(--n-muted)]">
-                     {{ countIn(c.code) }} ta ellikboshi
-                  </span>
-               </span>
-               <input type="number" min="0" step="100000"
-                  class="w-36 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums text-right"
-                  :value="c.fiks" @change="saveCategoryFiks(c.code, $event)" />
-               <span class="text-[12.5px] text-[color:var(--n-muted)]">so'm</span>
-            </div>
-         </div>
-      </section>
    </div>
 </template>
 
@@ -325,65 +279,15 @@ const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
 /** How many leaders sit on a rung — so an edit says how far it reaches BEFORE it is
  *  made. Counted off the board actually on screen, which is the same set the change
  *  will be visible on. */
-function countIn(code: string) {
-   return s.workers.filter((w) => w.role === 'ellikboshi' && w.category === code).length
-}
 
 // The ladder is needed to render an unvon and to fill the picker; the board itself
 // arrives with the period slice the store already loads.
-onMounted(() => { void s.loadCategories(); void s.loadKpiSettings() })
+// The ladder is still needed here to render an unvon; the SCHEME's numbers moved
+// to Qiymatlar, which loads them itself.
+onMounted(() => { void s.loadCategories() })
 
-/** The settings rows, declared once and rendered by loop. K is stored in HUNDREDTHS on
- *  the server (all SG arithmetic is integer, deliberately) and shown as the coefficient
- *  a human reads, so the two K rows carry their own conversion rather than making the
- *  reader multiply by 100 in their head. */
-const SETTING_ROWS = [
-   { key: 'fund' as const, label: 'KPI fondi', unit: "so'm",
-     hint: 'Bitta guruhda (SG 1,0) eng ko\u2018p mukofot', min: 0, max: 1_000_000_000,
-     step: 100_000, scale: 1 },
-   { key: 'load_rate' as const, label: "Yuklama to'lovi", unit: "so'm",
-     hint: 'Bitta guruhdan ortiq har bir SG uchun', min: 0, max: 100_000_000,
-     step: 100_000, scale: 1 },
-   { key: 'min_ball' as const, label: 'Minimal ball', unit: 'ball',
-     hint: 'Shu balldan pastda KPI ishlab topilmaydi', min: 0, max: 99, step: 1, scale: 1 },
-   { key: 'max_deduction_pct' as const, label: 'Maksimal ushlab qolish', unit: '%',
-     hint: 'KPI fiksning shuncha qismidan ortiq yeya olmaydi', min: 0, max: 100,
-     step: 5, scale: 1 },
-   { key: 'k_min_units' as const, label: 'K — eng past', unit: '',
-     hint: 'Yuklama koeffitsientining quyi chegarasi', min: 0.01, max: 10, step: 0.1,
-     scale: 100 },
-   { key: 'k_max_units' as const, label: 'K — eng yuqori', unit: '',
-     hint: 'Yuklama koeffitsientining yuqori chegarasi', min: 0.01, max: 10, step: 0.1,
-     scale: 100 },
-]
 
-type SettingRow = (typeof SETTING_ROWS)[number]
 
-function settingValue(key: SettingRow['key']): number | string {
-   const st = s.kpiSettings
-   if (!st) return ''
-   const row = SETTING_ROWS.find((r) => r.key === key)!
-   return row.scale === 1 ? st[key] : st[key] / row.scale
-}
-
-/** Writes ONE setting. The old value is put back on failure rather than left showing
- *  what the operator typed: an input that keeps a rejected number looks saved, and the
- *  next person to read the screen would believe it. */
-async function saveSetting(row: SettingRow, ev: Event) {
-   const el = ev.target as HTMLInputElement
-   const typed = Number(el.value)
-   if (!Number.isFinite(typed)) {
-      el.value = String(settingValue(row.key))
-      return
-   }
-   const value = Math.round(typed * row.scale)
-   if (await s.setKpiSetting(row.key, value)) {
-      toast.success('KPI sozlamasi yangilandi')
-   } else {
-      el.value = String(settingValue(row.key))
-      toast.error('Saqlanmadi — qiymatni tekshiring')
-   }
-}
 
 /** «16 900 000» — thin-space thousands, the way a payslip writes it. */
 const soum = (v: number) => v.toLocaleString('ru-RU')
@@ -488,16 +392,6 @@ async function saveCategory(w: Worker, ev: Event) {
 /** §3's pay SCALE. Editing one rung moves every leader on it, which is why it is the
  *  full nazoratchi's alone and why it sits in its own panel rather than inline on a
  *  person's card — an amount edited next to one name reads as that person's salary. */
-async function saveCategoryFiks(code: string, ev: Event) {
-   const raw = (ev.target as HTMLInputElement).value.replace(/\s+/g, '')
-   const fiks = Number(raw)
-   if (raw === '' || Number.isNaN(fiks) || fiks < 0) {
-      toast.error('Summani tekshiring')
-      return
-   }
-   if (await s.setCategoryFiks(code, fiks)) toast.success('Toifa fiksi yangilandi')
-   else toast.error('Saqlanmadi')
-}
 
 /** A row is a way in to the person behind it — same rule as the Reyting. */
 function open(id: number) {
