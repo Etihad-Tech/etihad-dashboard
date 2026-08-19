@@ -277,13 +277,12 @@ async function removeFromPool(e: Ellik) {
  *  whoever was on it before the split; the bot itself never reads it while a city
  *  column is set. Sending the city fields explicitly also switches OFF the server's
  *  old-dashboard mirror, so assigning one city can never overwrite the other. */
-/** §4.2 — the three reasons an assignment exists, and what each one pays. Only the
- *  first carries the bonus coefficient; «Majburiy» carries the §9.2 SLA relief instead.
- *  Titles say the consequence out loud, because a picker whose options are three bare
- *  nouns gets filled in at random. */
+/** §4.2 — the three reasons an assignment exists, named as the reglament names them.
+ *  What each one pays is the reglament's business and stays there: «natija» carries the
+ *  bonus coefficient, «majburiy» the §9.2 relief, «tashkiliy» neither. */
 const TYPES = [
-  { code: 'natija', title: "Natija bo'yicha — K bilan" },
-  { code: 'majburiy', title: 'Majburiy — SLA yengilligi' },
+  { code: 'natija', title: "Natija bo'yicha" },
+  { code: 'majburiy', title: 'Majburiy' },
   { code: 'tashkiliy', title: 'Tashkiliy' },
 ]
 
