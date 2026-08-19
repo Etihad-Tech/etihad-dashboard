@@ -852,6 +852,13 @@ export function useNazoratView() {
             is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
             outcome: needOutcome(r),
             recipients: r.recipients || [],
+            // TZ 5 — the cards this murojaat actually puts into somebody's §8.1 base,
+            // which are the only ones there is any point excluding. A released card
+            // (a colleague claimed it first) and a flagged one already left the base
+            // by their own rules, and offering to exclude them would suggest they
+            // were counting.
+            graded: (r.recipients || []).filter(
+               (rec: any) => !rec.released_at && !rec.flagged_at),
          })),
    )
 

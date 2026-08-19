@@ -109,7 +109,50 @@
                      title="Bu aslida takror emas. Noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
                      Takror emas
                   </button>
+                  <button v-if="r.graded.length" @click="toggleExclude(r.id)"
+                     class="font-medium text-[color:var(--n-ink-2)] underline underline-offset-2">
+                     KPI
+                  </button>
                </p>
+
+               <!-- TZ 5 — which of this murojaat's cards are out of the §8.1 base, and
+                    why. Shown WITHOUT opening anything: an exclusion is the one thing on
+                    this row that changes somebody's pay, so it cannot be a state you have
+                    to go looking for. -->
+               <p v-for="c in r.graded.filter((x: any) => x.excluded_at)" :key="'x' + c.id"
+                  class="mt-1.5 text-[12.5px] text-[color:var(--n-muted)]">
+                  KPI dan chiqarilgan · {{ cardName(c) }} · {{ reasonTitle(c.excluded_reason) }}
+                  <span v-if="c.excluded_note">— {{ c.excluded_note }}</span>
+               </p>
+
+               <!-- Per CARD, never one tap for the whole murojaat. A crew need reaches
+                    the whole city crew, and «ta'til» is true of one person, not of four.
+                    With a single graded card this is still one select and one tap. -->
+               <div v-if="openExclude === r.id" class="mt-2 space-y-2">
+                  <div v-for="c in r.graded" :key="c.id"
+                     class="flex flex-wrap items-center gap-2 text-[13px]">
+                     <span class="min-w-0 flex-1 truncate text-[color:var(--n-muted)]">
+                        {{ cardName(c) }}
+                     </span>
+                     <select class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
+                        :value="c.excluded_reason || ''" @change="pick(c, $event)">
+                        <option value="">Hisobda</option>
+                        <option v-for="o in s.exclusionReasons" :key="o.code" :value="o.code">
+                           {{ o.title }}
+                        </option>
+                     </select>
+                  </div>
+                  <!-- «Boshqa sabab» is the one code that cannot stand alone: an
+                       unexplained «other» is an exclusion with no reason at all, and the
+                       server refuses it. Asking here beats a rejected save. -->
+                  <input v-if="noteFor" v-model="noteText" type="text" maxlength="200"
+                     placeholder="Sabab izohi — majburiy"
+                     class="w-full px-2.5 py-1.5 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
+                     @keyup.enter="commitNote()" />
+                  <button v-if="noteFor" class="btn-ghost text-[13px]" @click="commitNote()">
+                     Saqlash
+                  </button>
+               </div>
             </div>
          </article>
       </div>
@@ -134,8 +177,62 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNazoratStore, MAX_REQ_LIMIT } from '../../stores/nazorat'
 import { cityLabel, fmtDateTime, useNazoratView } from './shared'
+import { useToast } from '../../../../composables/useToast'
 
 const s = useNazoratStore()
+const toast = useToast()
+
+// TZ 5 — the open row, and the card waiting on a mandatory note. Both are single-
+// valued: two half-finished exclusions on one screen is a way to save the wrong one.
+const openExclude = ref<number | null>(null)
+const noteFor = ref<any>(null)
+const noteText = ref('')
+
+function toggleExclude(id: number) {
+   openExclude.value = openExclude.value === id ? null : id
+   noteFor.value = null
+   noteText.value = ''
+   void s.loadExclusionReasons()
+}
+
+function cardName(c: any): string {
+   const w = s.workers.find((x) => x.telegram_id === c.telegram_id)
+   return (w && (w.name || w.username)) || c.username || ('ID ' + c.telegram_id)
+}
+
+function reasonTitle(code: string | null): string {
+   return s.exclusionReasons.find((o) => o.code === code)?.title || code || ''
+}
+
+/** A reason picked from the select. «boshqa» waits for its note; everything else
+ *  writes at once — a confirm step on a reversible, audited, one-card action is
+ *  friction that teaches people to tap through dialogs. */
+async function pick(card: any, ev: Event) {
+   const code = (ev.target as HTMLSelectElement).value || null
+   if (code === 'boshqa') {
+      noteFor.value = card
+      noteText.value = card.excluded_note || ''
+      return
+   }
+   noteFor.value = null
+   if (!(await s.setCardExclusion(card.id, code))) {
+      toast.error('Saqlanmadi')
+      return
+   }
+   toast.success(code ? 'KPI dan chiqarildi' : 'KPI ga qaytarildi')
+}
+
+async function commitNote() {
+   const card = noteFor.value
+   if (!card || !noteText.value.trim()) return
+   if (await s.setCardExclusion(card.id, 'boshqa', noteText.value.trim())) {
+      toast.success('KPI dan chiqarildi')
+      noteFor.value = null
+      noteText.value = ''
+   } else {
+      toast.error('Saqlanmadi')
+   }
+}
 const route = useRoute()
 const router = useRouter()
 const { feed, journalPeople, personWord, personWordLower } = useNazoratView()

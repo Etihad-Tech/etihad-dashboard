@@ -174,6 +174,12 @@ export interface KpiSettings {
    k_min_units: number; k_max_units: number
 }
 
+/** TZ 5 — one reason a card may be taken out of the §8.1 base. Served by the API
+ *  rather than duplicated here: a client-side copy is how the dropdown and the
+ *  validator drift apart, and the one that loses is the controller staring at a
+ *  rejected save. */
+export interface ExclusionReason { code: string; title: string }
+
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 
 /** One complaint that carried real hostility, and the ellikboshi who has to settle it.
@@ -529,6 +535,32 @@ export const useNazoratStore = defineStore('nazorat', () => {
    }
 
    /** Dismiss a falsely auto-detected repeat, then refresh the evidence. */
+   /** TZ 5 — the fixed reason list, loaded once with the journal. */
+   const exclusionReasons = ref<ExclusionReason[]>([])
+   async function loadExclusionReasons() {
+      if (exclusionReasons.value.length) return
+      try {
+         exclusionReasons.value = (await api.get('/control/exclusion-reasons')).data
+      } catch { /* the control hides itself with no reasons to offer */ }
+   }
+
+   /** TZ 5 — take ONE card out of the §8.1 base, or put it back (`reason` null).
+    *
+    *  Reloads the board as well as the journal: an exclusion changes somebody's ball
+    *  and therefore their KPI line, and a journal that showed the card as excluded
+    *  while the ball still counted it would be the panel disagreeing with itself. */
+   async function setCardExclusion(recipientId: number, reason: string | null,
+                                   note?: string): Promise<boolean> {
+      try {
+         await api.put(`/control/cards/${recipientId}/exclusion`, { reason, note })
+         await load()
+         await loadRequests(true)
+         return true
+      } catch {
+         return false
+      }
+   }
+
    async function dismissReopen(id: number) {
       try {
          await api.post(`/control/requests/${id}/dismiss-reopen`)
@@ -683,6 +715,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       form, sliceQuery, dismissed,
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
       dismissProblems, restoreProblems, dismissReopen, save,
+      exclusionReasons, loadExclusionReasons, setCardExclusion,
       chatPeers, chatThread, chatUnread, chatLoading, chatSending,
       loadChatUnread, loadChatPeers, loadChatThread, sendChat, markChatRead,
    }
