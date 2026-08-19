@@ -86,16 +86,33 @@
                 class="text-[12px] text-amber-700 hover:text-amber-800 hover:underline whitespace-nowrap px-1">
                 Shaharlar bo'yicha ajratish
               </button>
+              <!-- §4.2 — WHY this person got the group. Not a label: «Natija bo'yicha»
+                   carries the bonus coefficient K, the other two do not. Shown only once
+                   a leader is chosen — a reason for an assignment nobody made is noise. -->
+              <select v-if="leaderOf(g)" :value="typeOf(g, 'makka')"
+                @change="onType(g, 'both', $event)" :disabled="savingId === g.id"
+                class="min-w-[11rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                <option value="">Sabab — tanlanmagan</option>
+                <option v-for="t in TYPES" :key="t.code" :value="t.code">{{ t.title }}</option>
+              </select>
             </div>
 
             <!-- SPLIT: one select per city. Makka first — it is the heavier half. -->
             <div v-else class="mt-3 space-y-2">
-              <div v-for="c in CITIES" :key="c.key" class="flex items-center gap-2">
+              <div v-for="c in CITIES" :key="c.key" class="flex flex-wrap items-center gap-2">
                 <span class="w-16 shrink-0 text-[12px] text-gray-500">{{ c.label }}</span>
                 <select :value="cityLeader(g, c.key)" @change="onAssign(g, c.key, $event)" :disabled="savingId === g.id"
-                  class="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                  class="flex-1 min-w-[9rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
                   <option value="">— tanlanmagan —</option>
                   <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
+                </select>
+                <!-- Per CITY: one group can be a reward in Makka and a stopgap in
+                     Madina, because those are two assignments to two people. -->
+                <select v-if="cityLeader(g, c.key)" :value="typeOf(g, c.key)"
+                  @change="onType(g, c.key, $event)" :disabled="savingId === g.id"
+                  class="min-w-[10rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                  <option value="">Sabab — tanlanmagan</option>
+                  <option v-for="t in TYPES" :key="t.code" :value="t.code">{{ t.title }}</option>
                 </select>
               </div>
               <div class="flex items-center gap-3 pt-0.5">
@@ -130,6 +147,8 @@ interface Grp {
   ellikboshi_username: string | null
   ellikboshi_makka: string | null
   ellikboshi_madina: string | null
+  assignment_type_makka: string | null
+  assignment_type_madina: string | null
 }
 
 type City = 'makka' | 'madina'
@@ -258,6 +277,48 @@ async function removeFromPool(e: Ellik) {
  *  whoever was on it before the split; the bot itself never reads it while a city
  *  column is set. Sending the city fields explicitly also switches OFF the server's
  *  old-dashboard mirror, so assigning one city can never overwrite the other. */
+/** §4.2 — the three reasons an assignment exists, and what each one pays. Only the
+ *  first carries the bonus coefficient; «Majburiy» carries the §9.2 SLA relief instead.
+ *  Titles say the consequence out loud, because a picker whose options are three bare
+ *  nouns gets filled in at random. */
+const TYPES = [
+  { code: 'natija', title: "Natija bo'yicha — K bilan" },
+  { code: 'majburiy', title: 'Majburiy — SLA yengilligi' },
+  { code: 'tashkiliy', title: 'Tashkiliy' },
+]
+
+function typeOf(g: Grp, city: City): string {
+  return (city === 'makka' ? g.assignment_type_makka : g.assignment_type_madina) || ''
+}
+
+/** Saves the REASON alone, leaving the people untouched. Sent as its own request
+ *  rather than folded into onAssign, because changing why somebody holds a group is
+ *  not a handover — the history records a correction, not a new leader. */
+async function onType(g: Grp, city: City | 'both', event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  const makka = city === 'madina' ? typeOf(g, 'makka') : value
+  const madina = city === 'makka' ? typeOf(g, 'madina') : value
+  savingId.value = g.id
+  savedId.value = null
+  try {
+    await api.put(`/groups/${g.id}/location/public`, {
+      assignment_type_makka: makka,
+      assignment_type_madina: madina,
+    })
+    const idx = groups.value.findIndex(x => x.id === g.id)
+    if (idx !== -1) {
+      groups.value[idx].assignment_type_makka = makka || null
+      groups.value[idx].assignment_type_madina = madina || null
+    }
+    savedId.value = g.id
+    setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2000)
+  } catch {
+    toast.error('Saqlanmadi — qayta urinib ko\'ring')
+  } finally {
+    savingId.value = null
+  }
+}
+
 async function onAssign(g: Grp, city: City | 'both', event: Event) {
   const username = (event.target as HTMLSelectElement).value
   const makka = city === 'madina' ? cityLeader(g, 'makka') : username
