@@ -80,19 +80,31 @@
 
                   <!-- The four components in the reglament's own order, one per line,
                        so a person can be checked against the document. «—» is a vaqt
-                       the period produced no daytime evidence of. -->
+                       the period produced no daytime evidence of.
+                       EVERY ROW READS THE SAME WAY: higher is better, in both columns.
+                       It used to name the FAULT and show the fault's share («Javobsiz
+                       10%») beside the ball that share had EARNED («0/25») — two numbers
+                       on one line pointing opposite ways, which reads as though being
+                       javobsiz paid 25 ball. The owner read it that way (2026-08-19) and
+                       he is the person who wrote the reglament, so a guide will too.
+                       The percentages are therefore the COMPLEMENTS now, and the labels
+                       name the merit being paid for rather than the fault being counted.
+                       The bucket names themselves are untouched: «Bajarildi /
+                       Bajarilmagan / Javobsiz» stay the three outcomes everywhere they
+                       count CARDS (see shared.ts BUCKETS) — this grid scores BEHAVIOUR,
+                       which is a different thing wearing the same words. -->
                   <div v-if="board.scored && r.w.kpi"
                      class="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
-                     <span>Bajarilish</span>
+                     <span>Bajarilgani</span>
                      <span class="text-[color:var(--n-muted)]">{{ r.w.kpi.bajarilish_pct }}%</span>
                      <span class="font-semibold text-right">{{ r.w.kpi.bajarilish_ball }}/40</span>
-                     <span>Javobsiz</span>
-                     <span class="text-[color:var(--n-muted)]">{{ r.w.kpi.javobsiz_pct }}%</span>
+                     <span>Javob berilgani</span>
+                     <span class="text-[color:var(--n-muted)]">{{ pct100(r.w.kpi.javobsiz_pct) }}%</span>
                      <span class="font-semibold text-right">{{ r.w.kpi.javobsiz_ball }}/25</span>
-                     <span>Takroriy</span>
-                     <span class="text-[color:var(--n-muted)]">{{ r.w.kpi.takroriy_pct }}%</span>
+                     <span>Takrorlanmagani</span>
+                     <span class="text-[color:var(--n-muted)]">{{ pct100(r.w.kpi.takroriy_pct) }}%</span>
                      <span class="font-semibold text-right">{{ r.w.kpi.takroriy_ball }}/15</span>
-                     <span>Javob vaqti</span>
+                     <span>Javob tezligi</span>
                      <span class="text-[color:var(--n-muted)]">
                         {{ r.w.kpi.vaqt_measured ? dur(r.w.day_avg_response_seconds) : '—' }}
                      </span>
@@ -316,6 +328,12 @@ onMounted(() => { void s.loadCategories() })
 
 /** «16 900 000» — thin-space thousands, the way a payslip writes it. */
 const soum = (v: number) => v.toLocaleString('ru-RU')
+
+/** The MERIT behind a fault percentage: «javobsiz 10%» is «javob berilgan 90%».
+ *  Both halves of a scored row then move the same way — up is better — so the ball
+ *  beside it never reads as payment for the fault. One decimal, because the server
+ *  already rounded to one and 89.90000000000001 is what subtraction does to a float. */
+const pct100 = (fault: number) => Math.round((100 - fault) * 10) / 10
 
 /** What the jarima line is FOR — the §8 rows that actually fired. */
 function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
