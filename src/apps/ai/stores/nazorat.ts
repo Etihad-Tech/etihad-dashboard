@@ -181,6 +181,13 @@ export interface KpiSettings {
    // changing version.
    city_makka_units: number; city_madina_units: number
    pkg_comfort_units: number; pkg_premium_units: number
+   // §11's unit prices, READ-ONLY. Constants on the server — the reglament names each
+   // sum in its own table — served here so a screen explaining a jarima line never
+   // keeps its own copy of the numbers.
+   fines: {
+      day_javobsiz: number; sla_breach: number; bot_block: number
+      false_completion: number; xatolik_abuse: number
+   }
 }
 
 /** TZ 5 — one reason a card may be taken out of the §8.1 base. Served by the API

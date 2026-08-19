@@ -65,14 +65,22 @@ const toast = useToast()
 
 onMounted(() => { void s.loadCategories(); void s.loadKpiSettings() })
 
-/** Grouped the way the arithmetic reads, not the way the columns happen to sit in the
- *  table: what the fund pays, what the load pays, what a group weighs. A flat list of
- *  ten numbers is a list nobody can check against the reglament. */
+/** Only the EDITABLE numeric settings. `fines` rides on the same object but is
+ *  read-only — §11 names each sum in its own table, so moving one is a document
+ *  change, not an office adjustment — and excluding it here means the page cannot
+ *  render a field for something it must not write. */
+type EditableKey = {
+   [K in keyof KpiSettings]: KpiSettings[K] extends number ? K : never
+}[keyof KpiSettings]
+
 type Row = {
-   key: keyof KpiSettings; label: string; hint: string; unit: string
+   key: EditableKey; label: string; hint: string; unit: string
    min: number; max: number; step: number; scale: number
 }
 
+/** Grouped the way the arithmetic reads, not the way the columns happen to sit in the
+ *  table: what the fund pays, what the load pays, what a group weighs. A flat list of
+ *  ten numbers is a list nobody can check against the reglament. */
 const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
    {
       title: 'KPI fondi',
