@@ -154,47 +154,53 @@
                            {{ soum(r.w.fiks_info.fiks) }} so'm
                         </span>
                      </div>
-                     <!-- Straight from the server's composition — no pay maths here. -->
+                     <!-- v4.5 — THREE lines. The fiks takes no input at all; everything
+                          variable lives inside the KPI line, which carries its own sign.
+                          Straight from the server's composition, no pay maths here. -->
                      <div v-if="r.w.salary"
                         class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
                         <span class="text-[color:var(--n-muted)]">Fiks</span>
                         <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
-                        <!-- Stated even at 1,0: a Mukofot silently carrying a ×1,2 is a
-                             payslip nobody can check. -->
-                        <template v-if="r.w.salary.sg !== null">
-                           <span class="text-[color:var(--n-muted)]">Yuklama · SG</span>
-                           <span class="text-right">{{ sgText(r.w.salary) }}</span>
-                        </template>
-                        <template v-if="r.w.salary.mukofot">
-                           <span class="text-[color:var(--n-muted)]">
-                              Mukofot
-                              <span v-if="r.w.salary.k > 1" class="text-[11.5px]">
-                                 ({{ soum(r.w.salary.mukofot_base) }} × {{ r.w.salary.k }})
-                              </span>
-                           </span>
-                           <span class="text-right">+{{ soum(r.w.salary.mukofot) }}</span>
-                        </template>
-                        <template v-if="r.w.salary.yuklama">
-                           <span class="text-[color:var(--n-muted)]">Yuklama to'lovi</span>
-                           <span class="text-right">+{{ soum(r.w.salary.yuklama) }}</span>
-                        </template>
-                        <template v-if="r.w.salary.sovrin">
-                           <span class="text-[color:var(--n-muted)]">Sovrin</span>
-                           <span class="text-right">+{{ soum(r.w.salary.sovrin) }}</span>
-                        </template>
-                        <template v-if="r.w.salary.jarima">
-                           <span class="text-[color:var(--n-muted)]">
-                              Jarima · {{ jarimaWhy(r.w.salary) }}
-                           </span>
-                           <span class="text-right">−{{ soum(r.w.salary.jarima) }}</span>
-                        </template>
-                        <template v-if="r.w.salary.jarima_capped">
-                           <span class="col-span-2 text-[12px] text-[color:var(--n-muted)]">
-                              30% chegara qo'llandi
-                           </span>
-                        </template>
-                        <span class="font-semibold">Oylik</span>
+                        <span class="text-[color:var(--n-muted)]">KPI</span>
+                        <span v-if="r.w.salary.pending_manual"
+                           class="text-right text-[color:var(--n-muted)]">qo'lda baholanadi</span>
+                        <span v-else class="text-right font-semibold" :class="kpiTone(r.w.salary)">
+                           {{ signed(r.w.salary.kpi as number) }}
+                        </span>
+                        <span class="font-semibold">Yakuniy oylik</span>
                         <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
+                     </div>
+
+                     <!-- Where that one number came from, step by step. A KPI line
+                          nobody can check is a KPI line everybody argues about, and this
+                          is the screen a leader is shown on an appeal (§12). -->
+                     <div v-if="r.w.salary && !r.w.salary.pending_manual"
+                        class="grid grid-cols-[0.75rem_1fr_auto] gap-x-2.5 gap-y-1
+                               text-[12.5px] tabular-nums text-[color:var(--n-muted)]">
+                        <span></span>
+                        <span>Fond</span>
+                        <span class="text-right">{{ soum(r.w.salary.fund_base) }}</span>
+                        <template v-if="r.w.salary.k > 1">
+                           <span>×</span>
+                           <span>K · SG {{ sgText(r.w.salary) }}</span>
+                           <span class="text-right">{{ dec(r.w.salary.k) }}</span>
+                        </template>
+                        <span>×</span>
+                        <span>Ball ulushi · {{ r.w.salary.min_ball }} dan</span>
+                        <span class="text-right">{{ dec(r.w.salary.share) }}</span>
+                        <template v-if="r.w.salary.jarima">
+                           <span>−</span>
+                           <span>Jarima · {{ jarimaWhy(r.w.salary) }}</span>
+                           <span class="text-right">{{ soum(r.w.salary.jarima) }}</span>
+                        </template>
+                        <template v-if="r.w.salary.manual_adjust">
+                           <span>{{ r.w.salary.manual_adjust > 0 ? '+' : '−' }}</span>
+                           <span>Qo'lda tuzatish</span>
+                           <span class="text-right">{{ soum(Math.abs(r.w.salary.manual_adjust)) }}</span>
+                        </template>
+                        <span v-if="r.w.salary.floored" class="col-span-3">
+                           Ushlab qolish chegarasi qo'llandi — {{ soum(-r.w.salary.floor) }}
+                        </span>
                      </div>
                      <!-- A group with no Daraja is an unanswered question, not a premium
                           group: SG counts it as a WHOLE group and says so here rather
@@ -223,6 +229,29 @@
                      <font-awesome-icon icon="chevron-right" class="w-2.5 h-2.5" />
                   </button>
                </div>
+            </div>
+         </div>
+      </section>
+
+      <!-- v4.5 — THE SCHEME's own four numbers, same permission and same reasoning as
+           the pay scale below: the reglament owns the ratios, the office owns the
+           sums, and a raise must not need a deploy. Above the ladder because it moves
+           EVERYBODY at once, where a toifa moves one rung. -->
+      <section v-if="canSetPayScale && s.kpiSettings" class="card p-5 n-enter">
+         <div class="flex items-baseline gap-2.5">
+            <h3 class="n-h">KPI sozlamalari</h3>
+         </div>
+         <div class="mt-3 space-y-0.5">
+            <div v-for="f in SETTING_ROWS" :key="f.key"
+               class="flex items-center gap-3 py-2.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
+               <span class="flex-1 min-w-0">
+                  <span class="block text-[14px] font-semibold">{{ f.label }}</span>
+                  <span class="block text-[12px] text-[color:var(--n-muted)]">{{ f.hint }}</span>
+               </span>
+               <input type="number" :min="f.min" :max="f.max" :step="f.step"
+                  class="w-32 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums text-right"
+                  :value="settingValue(f.key)" @change="saveSetting(f, $event)" />
+               <span class="w-8 text-[12.5px] text-[color:var(--n-muted)]">{{ f.unit }}</span>
             </div>
          </div>
       </section>
@@ -295,7 +324,56 @@ function countIn(code: string) {
 
 // The ladder is needed to render an unvon and to fill the picker; the board itself
 // arrives with the period slice the store already loads.
-onMounted(() => { void s.loadCategories() })
+onMounted(() => { void s.loadCategories(); void s.loadKpiSettings() })
+
+/** The settings rows, declared once and rendered by loop. K is stored in HUNDREDTHS on
+ *  the server (all SG arithmetic is integer, deliberately) and shown as the coefficient
+ *  a human reads, so the two K rows carry their own conversion rather than making the
+ *  reader multiply by 100 in their head. */
+const SETTING_ROWS = [
+   { key: 'fund' as const, label: 'KPI fondi', unit: "so'm",
+     hint: 'Bitta guruhda (SG 1,0) eng ko\u2018p mukofot', min: 0, max: 1_000_000_000,
+     step: 100_000, scale: 1 },
+   { key: 'min_ball' as const, label: 'Minimal ball', unit: 'ball',
+     hint: 'Shu balldan pastda KPI ishlab topilmaydi', min: 0, max: 99, step: 1, scale: 1 },
+   { key: 'max_deduction_pct' as const, label: 'Maksimal ushlab qolish', unit: '%',
+     hint: 'KPI fiksning shuncha qismidan ortiq yeya olmaydi', min: 0, max: 100,
+     step: 5, scale: 1 },
+   { key: 'k_min_units' as const, label: 'K — eng past', unit: '',
+     hint: 'Yuklama koeffitsientining quyi chegarasi', min: 0.01, max: 10, step: 0.1,
+     scale: 100 },
+   { key: 'k_max_units' as const, label: 'K — eng yuqori', unit: '',
+     hint: 'Yuklama koeffitsientining yuqori chegarasi', min: 0.01, max: 10, step: 0.1,
+     scale: 100 },
+]
+
+type SettingRow = (typeof SETTING_ROWS)[number]
+
+function settingValue(key: SettingRow['key']): number | string {
+   const st = s.kpiSettings
+   if (!st) return ''
+   const row = SETTING_ROWS.find((r) => r.key === key)!
+   return row.scale === 1 ? st[key] : st[key] / row.scale
+}
+
+/** Writes ONE setting. The old value is put back on failure rather than left showing
+ *  what the operator typed: an input that keeps a rejected number looks saved, and the
+ *  next person to read the screen would believe it. */
+async function saveSetting(row: SettingRow, ev: Event) {
+   const el = ev.target as HTMLInputElement
+   const typed = Number(el.value)
+   if (!Number.isFinite(typed)) {
+      el.value = String(settingValue(row.key))
+      return
+   }
+   const value = Math.round(typed * row.scale)
+   if (await s.setKpiSetting(row.key, value)) {
+      toast.success('KPI sozlamasi yangilandi')
+   } else {
+      el.value = String(settingValue(row.key))
+      toast.error('Saqlanmadi — qiymatni tekshiring')
+   }
+}
 
 /** «16 900 000» — thin-space thousands, the way a payslip writes it. */
 const soum = (v: number) => v.toLocaleString('ru-RU')
@@ -306,11 +384,11 @@ const soum = (v: number) => v.toLocaleString('ru-RU')
  *  already rounded to one and 89.90000000000001 is what subtraction does to a float. */
 const pct100 = (fault: number) => Math.round((100 - fault) * 10) / 10
 
-/** What the jarima line is FOR — the §8 rows that actually fired. */
+/** What the jarima line is FOR. ONE automatic fine survives v4.5 — the other two
+ *  double-charged what §8.1 already scores — so this is a list of one today, and stays
+ *  a list because §11's table is not finished with. */
 function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    const parts: string[] = []
-   if (sal.day_javobsiz) parts.push(`${sal.day_javobsiz} ta kunduzgi javobsiz`)
-   if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta SLA buzilish`)
    if (sal.bot_block) parts.push('bot bloklangan')
    return parts.join(' + ')
 }
@@ -334,13 +412,30 @@ function cityLoad(w: Worker): string {
    return `${parts.join(' · ')} — ${Number(w.weighted_load.toFixed(2))} ish birligi`
 }
 
-/** §4 — the load line: the month's SG, and the K it produced when K actually bit.
- *  Both numbers come from the server; this only formats them. Shown even at 1,0,
- *  because «Yuklama · SG 1,0» is what tells a reader the ×1,2 they are NOT seeing
- *  elsewhere is genuinely absent. */
+/** The month's SG. K is printed beside it in the arithmetic row, so this is the load
+ *  itself and nothing else. */
 function sgText(sal: NonNullable<Worker['salary']>): string {
-   const sg = (sal.sg ?? 0).toFixed(1).replace('.', ',')
-   return sal.k > 1 ? `${sg} · K ${sal.k.toFixed(1).replace('.', ',')}` : sg
+   return dec(sal.sg ?? 0)
+}
+
+/** «1,2» — a coefficient with the decimal comma this panel writes numbers in. */
+const dec = (v: number) => v.toFixed(v % 1 === 0 ? 1 : 2).replace('.', ',')
+
+/** A SIGNED money figure: «+ 5 720 000» / «− 200 000». The sign is the whole point of
+ *  the KPI line — it is the one number on this payslip that can go either way, and a
+ *  bare 200 000 in red is a guess, not a statement. */
+function signed(v: number): string {
+   if (!v) return '0'
+   return `${v < 0 ? '−' : '+'} ${soum(Math.abs(v))}`
+}
+
+/** Green earned, red deducted, plain zero. The colour is the only thing on the row that
+ *  reads at arm's length on a phone; it must never be the ONLY thing that says the sign,
+ *  which is what `signed` is for. */
+function kpiTone(sal: NonNullable<Worker['salary']>): string {
+   if (!sal.kpi) return ''
+   return sal.kpi < 0 ? 'text-[#dc2626] dark:text-[#f87171]'
+                      : 'text-[#059669] dark:text-[#34d399]'
 }
 
 /** The one quiet line under the name: pay for a leader, the job for everyone else.

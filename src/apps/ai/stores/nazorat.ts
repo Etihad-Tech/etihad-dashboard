@@ -36,11 +36,11 @@ export interface WorkerKpi {
    bajarilish_pct: number; javobsiz_pct: number; takroriy_pct: number
    bajarilish_ball: number; javobsiz_ball: number; takroriy_ball: number
    vaqt_ball: number; vaqt_measured: boolean
-   total: number; bonus: number; min_sample: boolean
-   // v2(2) §5 — the month's Ziyoratchi bahosi (null: no survey / coverage under
-   // §6.3's bar) and the COMBINED Sifat reytingi = op × 0.5 + survey × 0.5. With no
-   // survey, combined == total — the document's own operational-only fallback. The
-   // mukofot in `bonus` already rides the combined number.
+   total: number; min_sample: boolean
+   // §8 — the month's Ziyoratchi bahosi (null: no survey / coverage under §10.3's bar)
+   // and the COMBINED Sifat reytingi = op × 0.5 + survey × 0.5. With no survey,
+   // combined == total — the document's own operational-only fallback. No money is
+   // derived here: under v4.5 the ball becomes a sum in one place, `compose_salary`.
    survey_ball?: number | null
    combined?: number
 }
@@ -70,8 +70,7 @@ export interface Worker {
    // row 4 fines the act itself.
    blocked_cards: number
    // §5.4 — «Oyning ellikboshisi», decided on the SERVER (month, ≥10 gradable cards,
-   // ≥1,0 SG, ≥90 ball, real ellikboshilar only) so the star and its sovrin come from
-   // one decision.
+   // ≥1,0 SG, ≥90 ball, real ellikboshilar only). A TITLE under v4.5, not a payment.
    best?: boolean
    // §4 — Shartli guruh: the month's LOAD, summed over the city segments this leader
    // was assigned (guruh turi × shahar koeffitsienti). Null for the crew and the
@@ -89,14 +88,21 @@ export interface Worker {
    sg_tier_unset: number
    // §4.3 — over 2,0 SG at once needs the CEO's written consent. Reported, not blocked.
    sg_over_ceiling: boolean
-   // §3 + §5×K + §4.3 + §5.4 − §11 composed on the SERVER, one authority for pay. Null
-   // until a category is assigned. The sovrin sits OUTSIDE the 30% deduction cap; the yuklama to'lovi
-   // is inside its base, being income like the fiks and the mukofot.
-   salary: { fiks: number; mukofot: number; mukofot_base: number; sovrin: number
-             k: number; sg: number | null; yuklama: number
-             jarima: number; jarima_capped: boolean
-             sla_breaches: number; bot_block: boolean; day_javobsiz: number
-             total: number } | null
+   // v4.5 — `fiks + KPI`, composed on the SERVER, one authority for pay. Null until a
+   // category is assigned.
+   //
+   // THE FIKS TAKES NO INPUT. Every variable thing is inside `kpi`, which carries its
+   // own sign and may be negative. `kpi` NULL (with `pending_manual`) is not zero: it
+   // is a min-sample month waiting to be scored by hand (§8.2), and rendering it as 0
+   // would read as a decision somebody made.
+   //
+   // The rest are the steps of that one number, sent so a payslip can be CHECKED:
+   // «fund × K × share − jarima» is arguable, a lone 5 720 000 is not.
+   salary: { fiks: number; kpi: number | null; total: number
+             fund: number; fund_base: number; k: number; sg: number | null
+             share: number; min_ball: number; earned: number
+             jarima: number; bot_block: boolean; manual_adjust: number
+             floor: number; floored: boolean; pending_manual: boolean } | null
    // Always true in practice: the API sends dashboard-roster members only (active
    // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for
    // transparency. Deleted workers' names survive only inside Jurnal timelines.
@@ -159,6 +165,13 @@ export interface LeaderPeriodCount {
  *  `stored` false = the row is the seed default, never yet edited in the dashboard. */
 export interface KpiCategory {
    code: string; title: string; fiks: number; sort_order: number; stored: boolean
+}
+
+/** v4.5 — the four numbers that shape the KPI line, all editable by the full
+ *  nazoratchi. The reglament owns the ratios, the office owns the sums. */
+export interface KpiSettings {
+   fund: number; min_ball: number; max_deduction_pct: number
+   k_min_units: number; k_max_units: number
 }
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
@@ -619,6 +632,30 @@ export const useNazoratStore = defineStore('nazorat', () => {
       }
    }
 
+   /** v4.5 — the KPI scheme's own four numbers. Loaded beside the categories because
+    *  the payslip needs both to explain itself, and always complete: the server fills
+    *  any missing one from its seeds rather than answering with a blank fund. */
+   const kpiSettings = ref<KpiSettings | null>(null)
+   async function loadKpiSettings() {
+      try {
+         kpiSettings.value = (await api.get('/control/kpi-settings')).data
+      } catch { /* the board still renders; the salary arrives composed either way */ }
+   }
+
+   /** Write ONE setting. Sent alone rather than as the whole object, so a stale value
+    *  sitting in this tab cannot overwrite a change somebody made in another. Reloads
+    *  the slice afterwards: every payslip on screen just changed. */
+   async function setKpiSetting(field: keyof KpiSettings, value: number): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/kpi-settings', { [field]: value })
+         kpiSettings.value = data
+         await load()
+         return true
+      } catch {
+         return false
+      }
+   }
+
    /** §3 — what a rung PAYS. Full nazoratchi + admin only: this moves every leader on
     *  that rung at once, which is why it is a different endpoint from the one above. */
    async function setCategoryFiks(code: string, fiks: number): Promise<boolean> {
@@ -636,6 +673,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
    return {
       period, loading, loadError, saving, savedMsg,
       categories, loadCategories, setCategory, setCategoryFiks,
+      kpiSettings, loadKpiSettings, setKpiSetting,
       report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
