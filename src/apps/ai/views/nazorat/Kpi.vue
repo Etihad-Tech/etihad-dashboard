@@ -11,10 +11,10 @@
          </button>
       </div>
 
-      <!-- The official close is MONTHLY (§10) — on shorter periods the same arithmetic
-           is a preview, and saying so beats letting a daily 62 read as somebody's pay. -->
-      <p v-if="s.period !== 'month'" class="px-1 text-[13px] text-[color:var(--n-muted)]">
-         Rasmiy KPI hisobi Oylik davr bo'yicha yopiladi — boshqa davrlar mo'ljal uchun.
+      <!-- The official close is monthly; on a shorter period this is a preview and
+           must say so, or a daily 62 reads as somebody's pay. -->
+      <p v-if="s.period !== 'month'" class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
+         Mo'ljal — rasmiy hisob oylik
       </p>
 
       <div v-if="!board" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
@@ -67,32 +67,17 @@
 
                <div v-if="openKey === keyOf(r.w)"
                   class="mx-1 mb-2 px-4 py-3 rounded-[1rem] bg-[color:var(--n-soft,rgba(0,0,0,0.04))] space-y-3">
-                  <!-- §5.4's own entry bar, said out loud: the title is decided AMONG
-                       leaders with 10+ gradable murojaat AND a full group's load, so a
-                       higher ball on a small month neither wins nor blocks — without
-                       this line the star on a 35 next to an unstarred 80 reads as a bug
-                       (owner, 2026-08-15). v4.4 lowered the card count and added the SG
-                       half; the sentence has to move with the document. -->
                   <span v-if="r.best" class="badge badge-indigo">
                      <font-awesome-icon icon="star" class="w-3 h-3" />
-                     Oyning ellikboshisi — 10+ murojaat, 1,0 SG va kamida 90 ball
+                     Oyning ellikboshisi
                   </span>
 
-                  <!-- The four components in the reglament's own order, one per line,
-                       so a person can be checked against the document. «—» is a vaqt
-                       the period produced no daytime evidence of.
-                       EVERY ROW READS THE SAME WAY: higher is better, in both columns.
-                       It used to name the FAULT and show the fault's share («Javobsiz
-                       10%») beside the ball that share had EARNED («0/25») — two numbers
-                       on one line pointing opposite ways, which reads as though being
-                       javobsiz paid 25 ball. The owner read it that way (2026-08-19) and
-                       he is the person who wrote the reglament, so a guide will too.
-                       The percentages are therefore the COMPLEMENTS now, and the labels
-                       name the merit being paid for rather than the fault being counted.
-                       The bucket names themselves are untouched: «Bajarildi /
-                       Bajarilmagan / Javobsiz» stay the three outcomes everywhere they
-                       count CARDS (see shared.ts BUCKETS) — this grid scores BEHAVIOUR,
-                       which is a different thing wearing the same words. -->
+                  <!-- The four components, reglament order. Every row reads one way —
+                       higher is better in BOTH columns — so the percentages are the
+                       complements of the server's fault shares and the labels name the
+                       merit. Naming the fault beside the ball it earned («Javobsiz 10%
+                       · 0/25») reads as though the fault paid. The BUCKET names stay as
+                       they are wherever cards are counted: this grid scores behaviour. -->
                   <div v-if="board.scored && r.w.kpi"
                      class="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
                      <span>Bajarilgani</span>
@@ -134,26 +119,21 @@
 
                   <p v-if="board.scored && r.w.kpi && r.w.kpi.min_sample"
                      class="text-[12.5px] text-[color:var(--n-muted)]">
-                     {{ r.w.kpi.base }} ta murojaat — reglament bo'yicha qo'lda baholanadi (§5.5)
+                     {{ r.w.kpi.base }} murojaat · qo'lda baholanadi
                   </p>
 
-                  <!-- WHERE the month's work happened. Shown only when the person worked
-                       in more than one city, and deliberately BESIDE the ball rather than
-                       inside it: the §8.1 score is percentage-based, so weighting it would
-                       make a Makka mistake cost more than a Madina one — a management
-                       decision, not a rounding. This counts MUROJAAT by city; the SG line
-                       below counts assigned GROUPS. Different questions, different rows. -->
+                  <!-- WHERE the month's work happened, beside the ball and never inside
+                       it: the score is percentage-based, so weighting it would make a
+                       Makka mistake cost more than a Madina one. Counts MUROJAAT; the SG
+                       line below counts assigned GROUPS. -->
                   <p v-if="cityLoad(r.w)" class="text-[12.5px] text-[color:var(--n-muted)]">
                      {{ cityLoad(r.w) }}
                   </p>
 
-                  <!-- §3: category -> unvon + fiks, §5: ball -> mukofot. Only a REAL
-                       ellikboshi has a pool row to hold a category — the doctor sits on
-                       this board by display rule alone and is not paid by this table.
-                       WHO MAY WRITE WHAT (owner, 2026-08-18): the ellikboshi controller
-                       PLACES people on a rung — they run the leaders and know who is
-                       where — while what a rung PAYS is the full nazoratchi's, below.
-                       Nobody types a number of years any more. -->
+                  <!-- Only a REAL ellikboshi holds a category; the doctor sits on this
+                       board by display rule and is not paid by this table. WHO MAY WRITE
+                       WHAT: the ellikboshi controller places people on a rung, what a
+                       rung PAYS is the full nazoratchi's panel below. -->
                   <div v-if="r.w.role === 'ellikboshi'"
                      class="pt-2 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5 text-[13.5px]">
                      <div class="flex items-center gap-2">
@@ -174,18 +154,13 @@
                            {{ soum(r.w.fiks_info.fiks) }} so'm
                         </span>
                      </div>
-                     <!-- §1 + §2 − §8, straight from the server's composition. The
-                          jarima line carries its own health warnings: draft sums
-                          (CEO), and the 30% cap when it bit. -->
+                     <!-- Straight from the server's composition — no pay maths here. -->
                      <div v-if="r.w.salary"
                         class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
                         <span class="text-[color:var(--n-muted)]">Fiks</span>
                         <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
-                        <!-- §4 — the month's load. Stated even at 1,0, because a
-                             payslip whose Mukofot silently carries a ×1,2 somewhere is
-                             a payslip nobody can check. The multiplication is written
-                             out for the same reason: «5 000 000 × 1,2» is arguable,
-                             a lone 6 000 000 is not. -->
+                        <!-- Stated even at 1,0: a Mukofot silently carrying a ×1,2 is a
+                             payslip nobody can check. -->
                         <template v-if="r.w.salary.sg !== null">
                            <span class="text-[color:var(--n-muted)]">Yuklama · SG</span>
                            <span class="text-right">{{ sgText(r.w.salary) }}</span>
@@ -200,43 +175,44 @@
                            <span class="text-right">+{{ soum(r.w.salary.mukofot) }}</span>
                         </template>
                         <template v-if="r.w.salary.yuklama">
-                           <span class="text-[color:var(--n-muted)]">Yuklama to'lovi (§4.3)</span>
+                           <span class="text-[color:var(--n-muted)]">Yuklama to'lovi</span>
                            <span class="text-right">+{{ soum(r.w.salary.yuklama) }}</span>
                         </template>
                         <template v-if="r.w.salary.sovrin">
-                           <span class="text-[color:var(--n-muted)]">Sovrin · Oyning ellikboshisi</span>
+                           <span class="text-[color:var(--n-muted)]">Sovrin</span>
                            <span class="text-right">+{{ soum(r.w.salary.sovrin) }}</span>
                         </template>
                         <template v-if="r.w.salary.jarima">
                            <span class="text-[color:var(--n-muted)]">
                               Jarima · {{ jarimaWhy(r.w.salary) }}
-                              <span class="text-[11.5px]">(tasdiqlanmagan jarima)</span>
                            </span>
                            <span class="text-right">−{{ soum(r.w.salary.jarima) }}</span>
                         </template>
                         <template v-if="r.w.salary.jarima_capped">
                            <span class="col-span-2 text-[12px] text-[color:var(--n-muted)]">
-                              30% chegara qo'llandi (§11)
+                              30% chegara qo'llandi
                            </span>
                         </template>
                         <span class="font-semibold">Oylik</span>
                         <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
                      </div>
-                     <!-- A group with no Daraja is an unanswered question, not a
-                          premium group: SG counts it as a WHOLE group (neutral both
-                          ways) and asks here rather than quietly paying half a load. -->
+                     <!-- A group with no Daraja is an unanswered question, not a premium
+                          group: SG counts it as a WHOLE group and says so here rather
+                          than quietly paying half a load. -->
                      <p v-if="r.w.sg_tier_unset"
                         class="text-[12.5px] text-[color:var(--n-muted)]">
-                        {{ r.w.sg_tier_unset }} ta guruhda daraja belgilanmagan — to'liq
-                        guruh sifatida hisoblandi. Guruhlar sahifasida darajani tanlang.
+                        {{ r.w.sg_tier_unset }} ta guruhda daraja belgilanmagan
                      </p>
                      <p v-if="r.w.sg_over_ceiling"
                         class="text-[12.5px] text-[color:var(--n-muted)]">
-                        Yuklama 2,0 SG dan ortiq — reglament bo'yicha CEO ning yozma
-                        ruxsati talab qilinadi (§4.3).
+                        2,0 SG dan ortiq · CEO ruxsati kerak
                      </p>
-                     <p v-else class="text-[color:var(--n-muted)]">
-                        Toifa tanlanmagan — fiks aniqlanmaydi
+                     <!-- Tied to the CATEGORY, not chained to the line above it: this
+                          `v-else` used to hang off `sg_over_ceiling`, so every leader
+                          under the 2,0 ceiling was told their category was unset —
+                          including the ones whose category was set. -->
+                     <p v-if="!r.w.fiks_info" class="text-[12.5px] text-[color:var(--n-muted)]">
+                        Toifa tanlanmagan
                      </p>
                   </div>
 
@@ -251,18 +227,13 @@
          </div>
       </section>
 
-      <!-- §3's PAY SCALE — the full nazoratchi's alone (owner, 2026-08-18). Its own
-           panel, below the people, on purpose: an amount edited inline next to one
-           name reads as that person's salary, and this moves everyone on the rung. -->
+      <!-- The PAY SCALE — the full nazoratchi's alone, and its own panel below the
+           people on purpose: an amount edited inline beside one name reads as that
+           person's salary, and this moves everyone on the rung. -->
       <section v-if="canSetPayScale && s.categories.length" class="card p-5 n-enter">
          <div class="flex items-baseline gap-2.5">
             <h3 class="n-h">Toifalar va fiks</h3>
-            <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">§3</span>
          </div>
-         <p class="mt-1 text-[12.5px] text-[color:var(--n-muted)]">
-            Bu yerdagi summa shu toifadagi <b>barcha</b> ellikboshilarning fiksini
-            o'zgartiradi. Kim qaysi toifada — har bir ellikboshining kartochkasida.
-         </p>
          <div class="mt-3 space-y-0.5">
             <div v-for="c in s.categories" :key="c.code"
                class="flex items-center gap-3 py-2.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
