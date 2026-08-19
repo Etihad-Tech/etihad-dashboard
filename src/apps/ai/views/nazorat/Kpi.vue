@@ -393,7 +393,7 @@ function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    if (sal.sla_breaches) parts.push(`${sal.sla_breaches} ta kechikish`)
    if (sal.bot_block) parts.push('bot bloklangan')
    if (sal.false_completions) parts.push(`${sal.false_completions} ta soxta «bajarildi»`)
-   if (sal.xatolik_abuse) parts.push('«Xatolik» tugmasidan suiiste'mol')
+   if (sal.xatolik_abuse) parts.push("«Xatolik» tugmasidan suiiste'mol")
    return parts.join(' + ')
 }
 
