@@ -124,6 +124,10 @@ export interface Worker {
    // Their JOB from the staff table (ishchi_guruh / doctor / airport), NOT the
    // control-system role. A doctor only ever receives health needs.
    staff_role: string | null
+   // What was written by hand on THIS month, or null. Present on the row whether or not
+   // it applied: a ball entered for a month that has since risen above ten cards is not
+   // being used, and the screen has to be able to say so rather than leave it a mystery.
+   manual?: ManualEntry | null
 }
 
 // One leader's standing assignment — every group pinned to them, with no period at all.
@@ -203,6 +207,14 @@ export interface KpiSettings {
  *  validator drift apart, and the one that loses is the controller staring at a
  *  rejected save. */
 /** TZ 1 — one closed revision of one month, as the history screen lists it. */
+/** The two numbers a human writes on a payslip: the hand score for a month under the
+ *  ten-card minimum, and the office's ± on the KPI line. Null on a row nobody wrote. */
+export interface ManualEntry {
+   ball: number | null; ball_note: string | null
+   adjust: number; adjust_reason: string | null
+   updated_by: string | null; updated_at: string | null
+}
+
 export interface SnapshotRevision {
    period: string; revision: number
    frozen_at: string | null; frozen_by: string | null
@@ -622,6 +634,27 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return url
    }
 
+   /** Write (or clear) one person's hand-written numbers for the CURRENT calendar
+    *  month — the same month the server applies them to. Only the fields passed are
+    *  touched; `null` clears one, which is how a hand score is taken back off a month.
+    *
+    *  Reloads the board: both numbers land straight on somebody's salary, and a screen
+    *  still showing the old total after the save would be the panel disagreeing with
+    *  the payslip it just wrote. */
+   async function setManual(username: string, patch: Record<string, unknown>):
+      Promise<string | null> {
+      const now = new Date()
+      const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const bare = (username || '').replace(/^@/, '')
+      try {
+         await api.put(`/control/manual/${period}/${bare}`, patch)
+         await load()
+         return null
+      } catch (e: any) {
+         return e?.response?.data?.detail || 'Saqlanmadi'
+      }
+   }
+
    /** Dismiss a falsely auto-detected repeat, then refresh the evidence. */
    /** TZ 5 — the fixed reason list, loaded once with the journal. */
    const exclusionReasons = ref<ExclusionReason[]>([])
@@ -821,6 +854,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       dismissProblems, restoreProblems, dismissReopen, save,
       exclusionReasons, loadExclusionReasons, setCardExclusion, setRequestExclusion,
       snapshots, snapshotsLoading, loadSnapshots, loadSnapshotRows, freezeMonth,
+      setManual,
       exportSnapshot,
       chatPeers, chatThread, chatUnread, chatLoading, chatSending,
       loadChatUnread, loadChatPeers, loadChatThread, sendChat, markChatRead,

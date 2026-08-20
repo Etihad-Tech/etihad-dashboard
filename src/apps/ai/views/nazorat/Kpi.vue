@@ -120,11 +120,36 @@
                      </template>
                   </div>
 
-                  <p v-if="board.scored && r.w.kpi && r.w.kpi.min_sample"
-                     class="text-[12.5px] text-[color:var(--n-muted)]">
-                     Bu oyda {{ r.w.kpi.base }} ta baholanadigan murojaat — 10 tadan
-                     kam. Ball qo'lda qo'yiladi, KPI shundan keyin hisoblanadi.
-                  </p>
+                  <!-- A month under the ten-card minimum is scored BY HAND, and until
+                       today there was nowhere to write that score: such a month paid the
+                       base salary and nothing else, for ever. The note that used to say
+                       so is now the field that fixes it. -->
+                  <div v-if="board.scored && r.w.kpi && r.w.kpi.min_sample"
+                     class="space-y-1.5 text-[12.5px] text-[color:var(--n-muted)]">
+                     <p>
+                        Bu oyda {{ r.w.kpi.base }} ta baholanadigan murojaat — 10 tadan
+                        kam. Ball qo'lda qo'yiladi, KPI shundan keyin hisoblanadi.
+                     </p>
+                     <p v-if="r.w.manual && r.w.manual.ball !== null">
+                        Qo'lda qo'yilgan ball: <b>{{ r.w.manual.ball }}</b>
+                        <template v-if="r.w.manual.ball_note"> — {{ r.w.manual.ball_note }}</template>
+                        <template v-if="r.w.manual.updated_by"> · {{ r.w.manual.updated_by }}</template>
+                     </p>
+                     <div v-if="canWritePay" class="flex flex-wrap items-center gap-2">
+                        <input type="number" min="0" max="100" placeholder="ball"
+                           class="w-20 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px] tabular-nums text-right"
+                           :value="r.w.manual?.ball ?? ''" @click.stop
+                           @change="saveBall(r.w, $event)" />
+                        <input type="text" maxlength="200" placeholder="izoh"
+                           class="flex-1 min-w-[8rem] px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
+                           :value="r.w.manual?.ball_note ?? ''" @click.stop
+                           @change="saveBallNote(r.w, $event)" />
+                        <button v-if="r.w.manual && r.w.manual.ball !== null"
+                           class="btn-ghost text-[12.5px]" @click.stop="clearBall(r.w)">
+                           Olib tashlash
+                        </button>
+                     </div>
+                  </div>
 
                   <!-- WHERE the month's work happened, beside the ball and never inside
                        it: the score is percentage-based, so weighting it would make a
@@ -178,6 +203,31 @@
                         Asosiy oylik toifaga bog'liq va o'zgarmaydi. KPI — ball,
                         yuklama va jarimalardan; manfiy ham bo'lishi mumkin.
                      </p>
+
+                     <!-- The office's own ± on this line. It sits with the payslip it
+                          changes rather than on a settings screen, because it is about
+                          one person and one month — and it is refused without a reason,
+                          here and on the server both: an unexplained adjustment to
+                          somebody's pay is the one thing this panel exists to prevent. -->
+                     <div v-if="canWritePay" class="pt-2 space-y-1.5
+                                border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
+                        <div class="flex flex-wrap items-center gap-2 text-[12.5px]">
+                           <span class="text-[color:var(--n-muted)]">Qo'lda tuzatish</span>
+                           <input type="number" step="50000" placeholder="0"
+                              class="w-28 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px] tabular-nums text-right"
+                              :value="r.w.manual?.adjust || ''" @click.stop
+                              @change="saveAdjust(r.w, $event)" />
+                           <input type="text" maxlength="200" placeholder="sabab — majburiy"
+                              class="flex-1 min-w-[8rem] px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
+                              :value="r.w.manual?.adjust_reason ?? ''" @click.stop
+                              @change="saveAdjustReason(r.w, $event)" />
+                        </div>
+                        <p v-if="r.w.manual && r.w.manual.adjust"
+                           class="text-[12px] text-[color:var(--n-muted)]">
+                           {{ r.w.manual.adjust_reason || 'sababsiz' }}
+                           <template v-if="r.w.manual.updated_by"> · {{ r.w.manual.updated_by }}</template>
+                        </p>
+                     </div>
 
                      <!-- Where that one number came from, step by step. A KPI line
                           nobody can check is a KPI line everybody argues about, and this
@@ -407,6 +457,49 @@ function subline(r: { w: Worker; job: string }): string {
          .filter(Boolean).join(' · ')
    }
    return r.job
+}
+
+/** WHO may write pay. The same accounts the endpoint allows — admin and the full
+ *  nazoratchi — so a field is never offered to a login whose save would 403. The
+ *  scoped controllers curate evidence; they do not set salaries. */
+const canWritePay = computed(() => s.scope === 'all' && s.period === 'month')
+
+/** Every hand-written save goes through here: one place to report a refusal, and one
+ *  place that knows the server's message is the useful one. The rules are the server's
+ *  — a reason for an adjustment, 0..100 for a ball — and it says which was broken. */
+async function saveManual(w: Worker, patch: Record<string, unknown>, ok: string) {
+   const err = await s.setManual(w.username || '', patch)
+   if (err) return toast.error(err)
+   toast.success(ok)
+}
+
+function saveBall(w: Worker, ev: Event) {
+   const raw = (ev.target as HTMLInputElement).value.trim()
+   return saveManual(w, { ball: raw === '' ? null : Number(raw) },
+                     raw === '' ? 'Ball olib tashlandi' : "Ball qo'yildi")
+}
+
+function saveBallNote(w: Worker, ev: Event) {
+   return saveManual(w, { ball_note: (ev.target as HTMLInputElement).value }, 'Saqlandi')
+}
+
+function clearBall(w: Worker) {
+   return saveManual(w, { ball: null, ball_note: null }, 'Ball olib tashlandi')
+}
+
+/** The amount and its reason are two fields and one rule: the server refuses a non-zero
+ *  amount with no reason, so a save of either sends BOTH — typing the reason first and
+ *  the amount second would otherwise be rejected on the first keystroke. */
+function saveAdjust(w: Worker, ev: Event) {
+   const raw = (ev.target as HTMLInputElement).value.trim()
+   return saveManual(w, { adjust: raw === '' ? 0 : Number(raw),
+                          adjust_reason: w.manual?.adjust_reason ?? null },
+                     raw === '' || Number(raw) === 0 ? 'Tuzatish olib tashlandi' : 'Saqlandi')
+}
+
+function saveAdjustReason(w: Worker, ev: Event) {
+   return saveManual(w, { adjust: w.manual?.adjust ?? 0,
+                          adjust_reason: (ev.target as HTMLInputElement).value }, 'Saqlandi')
 }
 
 async function saveCategory(w: Worker, ev: Event) {
