@@ -192,6 +192,11 @@
                            <span>Yuklama to'lovi · SG {{ sgText(r.w.salary) }} dan ortiq</span>
                            <span class="text-right">{{ soum(r.w.salary.yuklama) }}</span>
                         </template>
+                        <template v-if="r.w.salary.sovrin">
+                           <span>+</span>
+                           <span>Sovrin · Oyning ellikboshisi</span>
+                           <span class="text-right">{{ soum(r.w.salary.sovrin) }}</span>
+                        </template>
                         <template v-if="r.w.salary.jarima">
                            <span>−</span>
                            <span>Jarima · {{ jarimaWhy(r.w.salary) }}</span>

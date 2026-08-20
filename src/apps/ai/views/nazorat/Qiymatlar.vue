@@ -97,13 +97,17 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
          { key: 'bonus_high_sum', label: 'Yuqori pog‘ona — summa', unit: "so'm",
            hint: 'K ga ko‘paytiriladi', min: 0, max: 1_000_000_000,
            step: 100_000, scale: 1 },
+         { key: 'sovrin_sum', label: '«Oyning ellikboshisi»', unit: "so'm",
+           hint: 'Oyning eng yuqori reytingi uchun sovrin',
+           min: 0, max: 1_000_000_000, step: 100_000, scale: 1 },
          { key: 'max_deduction_pct', label: 'Maksimal ushlab qolish', unit: '%',
            hint: 'KPI fiksning shuncha qismidan ortiq manfiyga ketmaydi',
            min: 0, max: 100, step: 5, scale: 1 },
       ],
       note: "Ikki pog‘ona — §5 ning o‘z jadvali. Pog‘ona ochilgan joyda sakrash bor: "
           + "bir ball pastda mukofot yo‘q, bir ball yuqorida to‘liq summa. Sonlarni "
-          + "o‘zgartirish mumkin, sakrashning o‘zi esa reglament qaroridir.",
+          + "o‘zgartirish mumkin, sakrashning o‘zi esa reglament qaroridir. Sovrin "
+          + "ushlab qolish chegarasidan tashqarida to‘lanadi.",
    },
    {
       title: 'Yuklama',

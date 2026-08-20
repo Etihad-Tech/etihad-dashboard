@@ -100,6 +100,7 @@ export interface Worker {
    // «5 000 000 × 1,2 + 300 000» is arguable, a lone 6 300 000 is not.
    salary: { fiks: number; kpi: number | null; total: number
              mukofot_base: number; k: number; sg: number | null
+             sovrin: number; best: boolean
              k_sg: number | null; yuklama: number
              earned: number
              jarima: number; bot_block: boolean
@@ -179,6 +180,8 @@ export interface KpiSettings {
    // reissuing the reglament. The SHAPE (two tiers, a hard edge) is not a setting.
    bonus_high_ball: number; bonus_high_sum: number
    bonus_base_ball: number; bonus_base_sum: number
+   //  §5.4 — the month's best leader's prize. Outside the deduction floor.
+   sovrin_sum: number
    load_rate: number; max_deduction_pct: number
    k_min_units: number; k_max_units: number
    // §4.4 — the coefficient tables, in hundredths. Data rather than constants because

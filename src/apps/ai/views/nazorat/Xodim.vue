@@ -279,6 +279,15 @@ const payRows = computed(() => {
       })
    }
 
+   if (sal.sovrin) {
+      rows.push({
+         label: 'Sovrin · Oyning ellikboshisi',
+         how: soum(sal.sovrin),
+         why: "Oyning eng yuqori reytingi uchun. Ushlab qolish chegarasidan tashqarida "
+            + "to'lanadi — jarimalar yeya oladigan sovrin sovrin bo'lmasdi.",
+         amount: soum(sal.sovrin),
+      })
+   }
    if (sal.day_javobsiz && f) {
       rows.push({
          label: 'Kunduzgi javobsiz',
