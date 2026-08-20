@@ -83,18 +83,27 @@ type Row = {
  *  ten numbers is a list nobody can check against the reglament. */
 const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
    {
-      title: 'KPI fondi',
+      title: 'Sifat mukofoti',
       rows: [
-         { key: 'fund', label: 'Fond', unit: "so'm",
-           hint: "Bitta guruhda (SG 1,0) eng ko'p sifat mukofoti",
-           min: 0, max: 1_000_000_000, step: 100_000, scale: 1 },
-         { key: 'min_ball', label: 'Minimal ball', unit: 'ball',
-           hint: "Shu balldan pastda sifat uchun to'lanmaydi",
-           min: 0, max: 99, step: 1, scale: 1 },
+         { key: 'bonus_base_ball', label: 'Quyi pog‘ona — balldan', unit: 'ball',
+           hint: "Shu balldan pastda mukofot to'lanmaydi",
+           min: 0, max: 100, step: 1, scale: 1 },
+         { key: 'bonus_base_sum', label: 'Quyi pog‘ona — summa', unit: "so'm",
+           hint: 'K ga ko‘paytiriladi', min: 0, max: 1_000_000_000,
+           step: 100_000, scale: 1 },
+         { key: 'bonus_high_ball', label: 'Yuqori pog‘ona — balldan', unit: 'ball',
+           hint: 'Quyi pog‘onadan past bo‘lmasin',
+           min: 0, max: 100, step: 1, scale: 1 },
+         { key: 'bonus_high_sum', label: 'Yuqori pog‘ona — summa', unit: "so'm",
+           hint: 'K ga ko‘paytiriladi', min: 0, max: 1_000_000_000,
+           step: 100_000, scale: 1 },
          { key: 'max_deduction_pct', label: 'Maksimal ushlab qolish', unit: '%',
            hint: 'KPI fiksning shuncha qismidan ortiq manfiyga ketmaydi',
            min: 0, max: 100, step: 5, scale: 1 },
       ],
+      note: "Ikki pog‘ona — §5 ning o‘z jadvali. Pog‘ona ochilgan joyda sakrash bor: "
+          + "bir ball pastda mukofot yo‘q, bir ball yuqorida to‘liq summa. Sonlarni "
+          + "o‘zgartirish mumkin, sakrashning o‘zi esa reglament qaroridir.",
    },
    {
       title: 'Yuklama',

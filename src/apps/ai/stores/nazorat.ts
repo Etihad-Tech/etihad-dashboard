@@ -97,11 +97,11 @@ export interface Worker {
    // would read as a decision somebody made.
    //
    // The rest are the steps of that one number, sent so a payslip can be CHECKED:
-   // «fund × K × share − jarima» is arguable, a lone 5 720 000 is not.
+   // «5 000 000 × 1,2 + 300 000» is arguable, a lone 6 300 000 is not.
    salary: { fiks: number; kpi: number | null; total: number
-             fund: number; fund_base: number; k: number; sg: number | null
+             mukofot_base: number; k: number; sg: number | null
              k_sg: number | null; yuklama: number
-             share: number; min_ball: number; earned: number
+             earned: number
              jarima: number; bot_block: boolean
              sla_breaches: number; day_javobsiz: number; false_completions: number
              xatolik_abuse: boolean
@@ -174,7 +174,12 @@ export interface KpiCategory {
 /** v4.5 — the four numbers that shape the KPI line, all editable by the full
  *  nazoratchi. The reglament owns the ratios, the office owns the sums. */
 export interface KpiSettings {
-   fund: number; load_rate: number; min_ball: number; max_deduction_pct: number
+   // §5's two tiers — the ball each opens at and what each pays. Seeded at the
+   // document's own numbers; settings because the office may lower a threshold without
+   // reissuing the reglament. The SHAPE (two tiers, a hard edge) is not a setting.
+   bonus_high_ball: number; bonus_high_sum: number
+   bonus_base_ball: number; bonus_base_sum: number
+   load_rate: number; max_deduction_pct: number
    k_min_units: number; k_max_units: number
    // §4.4 — the coefficient tables, in hundredths. Data rather than constants because
    // they describe the company's own tariffs, which move without the reglament
@@ -682,7 +687,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
 
    /** v4.5 — the KPI scheme's own four numbers. Loaded beside the categories because
     *  the payslip needs both to explain itself, and always complete: the server fills
-    *  any missing one from its seeds rather than answering with a blank fund. */
+    *  any missing one from its seeds rather than answering with a blank tier. */
    const kpiSettings = ref<KpiSettings | null>(null)
    async function loadKpiSettings() {
       try {

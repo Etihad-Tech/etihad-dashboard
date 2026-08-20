@@ -178,8 +178,8 @@
                         class="grid grid-cols-[0.75rem_1fr_auto] gap-x-2.5 gap-y-1
                                text-[12.5px] tabular-nums text-[color:var(--n-muted)]">
                         <span></span>
-                        <span>Fond</span>
-                        <span class="text-right">{{ soum(r.w.salary.fund_base) }}</span>
+                        <span>Mukofot · {{ r.w.kpi ? (r.w.kpi.combined ?? r.w.kpi.total) : '—' }} ball</span>
+                        <span class="text-right">{{ soum(r.w.salary.mukofot_base) }}</span>
                         <template v-if="r.w.salary.k > 1 || r.w.salary.k_sg !== r.w.salary.sg">
                            <span>×</span>
                            <!-- §4.2 — when only part of the load is reward-assigned, say so.
@@ -187,9 +187,6 @@
                            <span>K · {{ kBasis(r.w.salary) }}</span>
                            <span class="text-right">{{ dec(r.w.salary.k) }}</span>
                         </template>
-                        <span>×</span>
-                        <span>Ball ulushi · {{ r.w.salary.min_ball }} dan</span>
-                        <span class="text-right">{{ dec(r.w.salary.share) }}</span>
                         <template v-if="r.w.salary.yuklama">
                            <span>+</span>
                            <span>Yuklama to'lovi · SG {{ sgText(r.w.salary) }} dan ortiq</span>

@@ -188,9 +188,9 @@
                         </b>
                      </div>
                      <p v-if="worker.salary.floored" class="text-[12.5px] text-[color:var(--n-muted)]">
-                        Ushlab qolish chegarasi qo'llandi — fiksning
-                        {{ worker.salary.min_ball ? '' : '' }}{{ soum(-worker.salary.floor) }} so'mdan
-                        ortig'i ushlab qolinmadi.
+                        Ushlab qolish chegarasi qo'llandi —
+                        {{ soum(-worker.salary.floor) }} so'mdan ortig'i ushlab
+                        qolinmadi.
                      </p>
                   </div>
                </section>
@@ -247,11 +247,14 @@ const payRows = computed(() => {
    const rows: { label: string; how: string; why: string; amount: string
                  negative?: boolean }[] = []
 
+   const ball = w.kpi ? (w.kpi.combined ?? w.kpi.total) : null
    rows.push({
       label: 'Sifat mukofoti',
-      how: `${soum(sal.fund_base)} × K ${dec(sal.k)} × ${dec(sal.share)} = ${soum(sal.earned)}`,
-      why: `Fond ballning ulushiga ko'paytiriladi. Ulush ${sal.min_ball} balldan `
-         + `boshlanadi va 100 ballda to'liq fondga yetadi.`,
+      how: sal.mukofot_base
+         ? `${soum(sal.mukofot_base)} × K ${dec(sal.k)} = ${soum(sal.earned)}`
+         : `${ball ?? '—'} ball — pog'ona ochilmadi`,
+      why: "§5 jadvali: ball pog'onaga yetsa, o'sha pog'ona summasi K ga "
+         + "ko'paytiriladi. Yetmasa — mukofot to'lanmaydi.",
       amount: soum(sal.earned),
    })
 
