@@ -839,6 +839,12 @@ export function useNazoratView() {
    /** The feed: newest first, one card per murojaat. */
    const feed = computed(() =>
       [...s.requests]
+         // The lavozim filter narrows the FEED as well as the person list (owner,
+         // 2026-08-20). A murojaat belongs to whoever it was sent to, so «Ellikboshilar»
+         // keeps the cards a leader received and drops the crew's. Filtering only the
+         // person list would leave the two tabs of one screen counting different things.
+         .filter((r) => !s.filterRole || (r.recipients || []).some(
+            (rec: any) => matchesRoleFilter({ role: rec.role }, s.filterRole)))
          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
          .map((r) => ({
             id: r.id,

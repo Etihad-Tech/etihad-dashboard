@@ -16,6 +16,22 @@
          </button>
       </div>
 
+      <!-- LAVOZIM, not guruh/shahar (owner, 2026-08-20). The journal is read to find a
+           PERSON, so the cut that helps here is "whose list am I reading" — a crew of
+           twenty and eight leaders are two different questions and the answer to one is
+           noise in the other. It narrows BOTH views: the murojaat feed keeps only the
+           cards sent to that population, and the person list keeps only those people, so
+           the two can never describe different sets. Hidden for a controller whose own
+           scope is already one population — a filter with one option is furniture. -->
+      <div v-if="!isLeaderScope && !isStaffScope" class="seg">
+         <button :class="s.filterRole === '' ? 'is-on' : ''" @click="setRole('')">Hammasi</button>
+         <button :class="s.filterRole === 'staff' ? 'is-on' : ''" @click="setRole('staff')">
+            Ishchilar
+         </button>
+         <button :class="s.filterRole === 'ellikboshi' ? 'is-on' : ''"
+            @click="setRole('ellikboshi')">Ellikboshilar</button>
+      </div>
+
       <!-- The chip row bleeds to the screen edges so a chip scrolled halfway out is cut
            by the screen rather than by an invisible container. The negative margin has
            to track the scroll container's own padding (px-5). -->
@@ -38,8 +54,13 @@
          </div>
       </div>
 
-      <!-- BY PERSON. Tapping a name opens that person's screen — the same log as before,
-           now with their numbers above it instead of only the sentences. -->
+      <!-- BY PERSON. Tapping a name opens THAT PERSON'S LOG, right here.
+           It used to navigate to the person's screen, and when the duplicate journal was
+           taken off that screen (owner: «журнал там лишний») this list started opening a
+           payslip instead of a log — the journal by employee simply stopped existing
+           (owner, 2026-08-20: «журнал по сотрудникам не работает, открывает kpi»).
+           The log belongs to the journal, so it stays in the journal; the person's screen
+           stays what it now is, which is their money. The link to it is still one tap. -->
       <template v-else-if="mode === 'people'">
          <div v-if="!journalPeople.length"
             class="card py-16 text-center text-[15px] text-[color:var(--n-muted)]">
@@ -47,21 +68,53 @@
                : 'Filtrga mos ' + personWordLower + ' topilmadi' }}
          </div>
          <div v-else class="card divide-y divide-gray-100 overflow-hidden">
-            <button v-for="p in journalPeople" :key="p.telegram_id" type="button"
-               class="row-tap flex items-center gap-3.5 px-4 py-3 hover:bg-gray-50"
-               @click="openPerson(p.telegram_id)">
-               <span class="n-avatar" :class="p.leaderLevel ? 'n-avatar-leader' : ''">{{ p.initials }}</span>
-               <span class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span class="text-[16px] font-semibold tracking-[-0.015em]">{{ p.name }}</span>
-                  <span class="badge shrink-0"
-                     :class="p.leaderLevel ? 'badge-indigo' : 'badge-amber'">{{ p.job }}</span>
-               </span>
-               <span class="text-[13.5px] text-[color:var(--n-muted)] shrink-0 tabular-nums">
-                  {{ p.count }} ta
-               </span>
-               <font-awesome-icon icon="chevron-right"
-                  class="w-3 h-3 text-[color:var(--n-faint)] shrink-0" />
-            </button>
+            <template v-for="p in journalPeople" :key="p.telegram_id">
+               <button type="button"
+                  class="row-tap w-full flex items-center gap-3.5 px-4 py-3 hover:bg-gray-50"
+                  @click="togglePerson(p.telegram_id)">
+                  <span class="n-avatar" :class="p.leaderLevel ? 'n-avatar-leader' : ''">{{ p.initials }}</span>
+                  <span class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                     <span class="text-[16px] font-semibold tracking-[-0.015em]">{{ p.name }}</span>
+                     <span class="badge shrink-0"
+                        :class="p.leaderLevel ? 'badge-indigo' : 'badge-amber'">{{ p.job }}</span>
+                  </span>
+                  <span class="text-[13.5px] text-[color:var(--n-muted)] shrink-0 tabular-nums">
+                     {{ p.count }} ta
+                  </span>
+                  <font-awesome-icon :icon="openPersonId === p.telegram_id ? 'chevron-down' : 'chevron-right'"
+                     class="w-3 h-3 text-[color:var(--n-faint)] shrink-0" />
+               </button>
+
+               <!-- Their log: one sentence per murojaat they were sent, newest first —
+                    the same sentences the person's screen used to print. -->
+               <div v-if="openPersonId === p.telegram_id" class="bg-gray-50/60 px-4 py-3">
+                  <div v-if="!openEntries.length"
+                     class="text-[13.5px] text-[color:var(--n-muted)]">
+                     Bu davrda murojaat yo'q.
+                  </div>
+                  <ul v-else class="space-y-2.5">
+                     <li v-for="e in openEntries" :key="e.id"
+                        class="pl-3 border-l-2" :style="{ borderColor: e.sum.rail }">
+                        <p class="text-[14px] leading-snug">{{ e.text }}</p>
+                        <p class="text-[12.5px] mt-0.5" :style="{ color: e.sum.ink }">
+                           {{ e.sum.text }}
+                        </p>
+                        <p class="text-[12px] text-[color:var(--n-faint)] mt-0.5">
+                           {{ e.group_label }}
+                           <template v-if="e.city"> · {{ cityLabel(e.city) }}</template>
+                           <template v-if="e.room_no"> · {{ e.room_no }}-xona</template>
+                           · {{ fmtDateTime(e.created_at) }}
+                           <a v-if="e.message_link" :href="e.message_link" target="_blank"
+                              rel="noopener" class="text-[color:var(--n-accent)] ml-1">Telegram</a>
+                        </p>
+                     </li>
+                  </ul>
+                  <button type="button" class="btn-ghost mt-3 text-[13px]"
+                     @click="openPerson(p.telegram_id)">
+                     {{ p.name }} — KPI va oylik
+                  </button>
+               </div>
+            </template>
          </div>
       </template>
 
@@ -109,9 +162,12 @@
                      title="Bu aslida takror emas. Noto'g'ri aniqlangan qayta so'rovni bekor qiladi (asl murojaat yana «bajarildi» bo'ladi)">
                      Takror emas
                   </button>
+                  <!-- «XATOLIK», not «KPI» (owner, 2026-08-20). The button names what
+                       the controller is saying — this murojaat was a mistake — instead
+                       of naming the machinery it happens to feed. -->
                   <button v-if="r.graded.length" @click="toggleExclude(r.id)"
                      class="font-medium text-[color:var(--n-ink-2)] underline underline-offset-2">
-                     KPI
+                     XATOLIK
                   </button>
                </p>
 
@@ -119,23 +175,27 @@
                     why. Shown WITHOUT opening anything: an exclusion is the one thing on
                     this row that changes somebody's pay, so it cannot be a state you have
                     to go looking for. -->
-               <p v-for="c in r.graded.filter((x: any) => x.excluded_at)" :key="'x' + c.id"
-                  class="mt-1.5 text-[12.5px] text-[color:var(--n-muted)]">
-                  KPI dan chiqarilgan · {{ cardName(c) }} · {{ reasonTitle(c.excluded_reason) }}
-                  <span v-if="c.excluded_note">— {{ c.excluded_note }}</span>
+               <p v-if="excludedInfo(r)" class="mt-1.5 text-[12.5px] text-[color:var(--n-muted)]">
+                  Xatolik — KPI dan chiqarilgan · {{ reasonTitle(excludedInfo(r)?.reason) }}
+                  <span v-if="excludedInfo(r)?.note">— {{ excludedInfo(r)?.note }}</span>
+                  <span v-if="excludedInfo(r)?.partial">
+                     · {{ excludedInfo(r)?.count }}/{{ r.graded.length }} kartochka
+                  </span>
                </p>
 
-               <!-- Per CARD, never one tap for the whole murojaat. A crew need reaches
-                    the whole city crew, and «ta'til» is true of one person, not of four.
-                    With a single graded card this is still one select and one tap. -->
+               <!-- ONE reason for the whole murojaat (owner, 2026-08-20): «не надо там по
+                    каждому сотруднику выбирать причину, нужно просто причина для этой
+                    карточки». And that is what is being judged — «this murojaat was a
+                    mistake» is a fact about the MESSAGE, and it cannot be true of one
+                    recipient and false of the colleague who got the same card. The server
+                    writes every graded card in one transaction. -->
                <div v-if="openExclude === r.id" class="mt-2 space-y-2">
-                  <div v-for="c in r.graded" :key="c.id"
-                     class="flex flex-wrap items-center gap-2 text-[13px]">
+                  <div class="flex flex-wrap items-center gap-2 text-[13px]">
                      <span class="min-w-0 flex-1 truncate text-[color:var(--n-muted)]">
-                        {{ cardName(c) }}
+                        {{ r.graded.length }} ta kartochka · {{ gradedNames(r) }}
                      </span>
                      <select class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
-                        :value="c.excluded_reason || ''" @change="pick(c, $event)">
+                        :value="excludedInfo(r)?.reason || ''" @change="pick(r, $event)">
                         <option value="">Hisobda</option>
                         <option v-for="o in s.exclusionReasons" :key="o.code" :value="o.code">
                            {{ o.title }}
@@ -200,33 +260,58 @@ function cardName(c: any): string {
    return (w && (w.name || w.username)) || c.username || ('ID ' + c.telegram_id)
 }
 
-function reasonTitle(code: string | null): string {
+function reasonTitle(code?: string | null): string {
    return s.exclusionReasons.find((o) => o.code === code)?.title || code || ''
 }
 
+/** What this murojaat's exclusion currently says, or null if it counts.
+ *
+ *  Read off the CARDS, because that is where it is stored and where every other reader
+ *  (the ball, the export, a frozen month) reads it from. `partial` covers the rows
+ *  written one card at a time before the reason became per-murojaat: they are shown as
+ *  they are rather than rounded up into "excluded", which would claim a colleague's card
+ *  had been taken out of their base when it had not. */
+function excludedInfo(r: any) {
+   const out = (r.graded || []).filter((c: any) => c.excluded_at)
+   if (!out.length) return null
+   return {
+      reason: out[0].excluded_reason,
+      note: out[0].excluded_note,
+      count: out.length,
+      partial: out.length < (r.graded || []).length,
+   }
+}
+
+/** Who the murojaat's graded cards belong to — named, because the reason is one but the
+ *  people it affects are not, and a controller should see whose month this touches. */
+function gradedNames(r: any): string {
+   const names = (r.graded || []).map(cardName)
+   return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3}` : names.join(', ')
+}
+
 /** A reason picked from the select. «boshqa» waits for its note; everything else
- *  writes at once — a confirm step on a reversible, audited, one-card action is
- *  friction that teaches people to tap through dialogs. */
-async function pick(card: any, ev: Event) {
+ *  writes at once — a confirm step on a reversible, audited action is friction that
+ *  teaches people to tap through dialogs. */
+async function pick(request: any, ev: Event) {
    const code = (ev.target as HTMLSelectElement).value || null
    if (code === 'boshqa') {
-      noteFor.value = card
-      noteText.value = card.excluded_note || ''
+      noteFor.value = request
+      noteText.value = excludedInfo(request)?.note || ''
       return
    }
    noteFor.value = null
-   if (!(await s.setCardExclusion(card.id, code))) {
+   if (!(await s.setRequestExclusion(request.id, code))) {
       toast.error('Saqlanmadi')
       return
    }
-   toast.success(code ? 'KPI dan chiqarildi' : 'KPI ga qaytarildi')
+   toast.success(code ? 'Xatolik — KPI dan chiqarildi' : 'KPI ga qaytarildi')
 }
 
 async function commitNote() {
-   const card = noteFor.value
-   if (!card || !noteText.value.trim()) return
-   if (await s.setCardExclusion(card.id, 'boshqa', noteText.value.trim())) {
-      toast.success('KPI dan chiqarildi')
+   const request = noteFor.value
+   if (!request || !noteText.value.trim()) return
+   if (await s.setRequestExclusion(request.id, 'boshqa', noteText.value.trim())) {
+      toast.success('Xatolik — KPI dan chiqarildi')
       noteFor.value = null
       noteText.value = ''
    } else {
@@ -235,7 +320,8 @@ async function commitNote() {
 }
 const route = useRoute()
 const router = useRouter()
-const { feed, journalPeople, personWord, personWordLower } = useNazoratView()
+const { feed, journalPeople, entriesFor, personWord, personWordLower,
+        isLeaderScope, isStaffScope } = useNazoratView()
 
 // Which way in. Module-scope would survive a tab switch, but a fresh visit should land on
 // the overview: the per-person list is the deliberate second step.
@@ -263,8 +349,29 @@ function setFilter(key: string) {
    if (route.query.holat !== holat) router.replace({ path: route.path, query: { holat } })
 }
 
+/** The person whose log is expanded. One at a time: two open logs on a phone is a
+ *  scroll through somebody else's month to reach the end of this one. */
+const openPersonId = ref<number | null>(null)
+function togglePerson(id: number) {
+   openPersonId.value = openPersonId.value === id ? null : id
+}
+
+/** Built once per open person, not once per render: entriesFor walks every loaded
+ *  murojaat, and the template asks for it twice (the empty check and the list). */
+const openEntries = computed(() =>
+   openPersonId.value === null ? [] : entriesFor(openPersonId.value))
+
+/** ...and the way out to their money, kept as a deliberate second tap. */
 function openPerson(id: number) {
    router.push(`/ai/nazorat/xodim/${id}`)
+}
+
+/** Changing the lavozim filter reloads nothing — both views are computed from the
+ *  requests already loaded — but an expanded log belonging to somebody the filter has
+ *  just hidden must not stay open underneath it. */
+function setRole(role: string) {
+   s.filterRole = role
+   openPersonId.value = null
 }
 
 const filters = computed(() => {

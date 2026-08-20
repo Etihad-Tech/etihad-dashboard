@@ -585,6 +585,22 @@ export const useNazoratStore = defineStore('nazorat', () => {
       }
    }
 
+   /** The same exclusion for a WHOLE murojaat (owner, 2026-08-20): «xato edi» is a fact
+    *  about the message, so the reason is stated once and the server applies it to every
+    *  graded card in one transaction. Looping the single-card call from here would be
+    *  the same request, except it can stop halfway. */
+   async function setRequestExclusion(requestId: number, reason: string | null,
+                                      note?: string): Promise<boolean> {
+      try {
+         await api.put(`/control/requests/${requestId}/exclusion`, { reason, note })
+         await load()
+         await loadRequests(true)
+         return true
+      } catch {
+         return false
+      }
+   }
+
    async function dismissReopen(id: number) {
       try {
          await api.post(`/control/requests/${id}/dismiss-reopen`)
@@ -739,7 +755,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       form, sliceQuery, dismissed,
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
       dismissProblems, restoreProblems, dismissReopen, save,
-      exclusionReasons, loadExclusionReasons, setCardExclusion,
+      exclusionReasons, loadExclusionReasons, setCardExclusion, setRequestExclusion,
       chatPeers, chatThread, chatUnread, chatLoading, chatSending,
       loadChatUnread, loadChatPeers, loadChatThread, sendChat, markChatRead,
    }

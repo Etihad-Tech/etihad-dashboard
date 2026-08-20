@@ -122,7 +122,8 @@
                  paid this month», which has no per-city version — the salary is one
                  number for the whole month. Leaving the controls there let somebody
                  slice a payslip and read the fragment as pay. -->
-            <div v-if="!isDetail && !isChat && !isKpiScreen" class="flex flex-wrap items-center gap-2 mb-4">
+            <div v-if="!isDetail && !isChat && !isKpiScreen && !isJournal"
+               class="flex flex-wrap items-center gap-2 mb-4">
                <select v-model="s.filterGroup" @change="s.setSlice()"
                   class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
                   <option value="">Barcha guruhlar</option>
@@ -324,6 +325,16 @@ const isValues = computed(() => route.path === '/ai/nazorat/qiymatlar')
 // which has a per-city version.
 const isKpiScreen = computed(() =>
    route.path === '/ai/nazorat/kpi' || isValues.value)
+/** ...and the journal, since 2026-08-20 (owner: «убери фильтр по группам и городам,
+ *  добавь фильтр по работникам и лидерам»). The journal is read to find a PERSON — who
+ *  was sent what, and what they did about it — so the useful cut there is lavozim, and
+ *  it lives on that screen next to the list it narrows. Cleared on the way in for the
+ *  same reason Reyting's city is: a slice still applying behind a control the reader
+ *  cannot see is worse than one they can. */
+const isJournal = computed(() => route.path === '/ai/nazorat/jurnal')
+watch(isJournal, (on) => {
+   if (on && (s.filterGroup || s.filterCity)) s.clearSlice()
+}, { immediate: true })
 const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
 watch(isRating, (on) => {
    if (on && s.filterCity) {
