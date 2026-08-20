@@ -107,6 +107,9 @@ const router = createRouter({
         { path: 'reyting', name: 'AiNazoratReyting', component: () => import('../apps/ai/views/nazorat/Reyting.vue') },
         { path: 'kpi', name: 'AiNazoratKpi', component: () => import('../apps/ai/views/nazorat/Kpi.vue') },
         { path: 'qiymatlar', name: 'AiNazoratQiymatlar', component: () => import('../apps/ai/views/nazorat/Qiymatlar.vue') },
+        // §13 — closing the month. Admin + the full nazoratchi only; the API enforces
+        // it, and the panel only offers the link to the same accounts.
+        { path: 'yopish', name: 'AiNazoratYopish', component: () => import('../apps/ai/views/nazorat/Yopish.vue') },
         { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
         { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'suhbat', name: 'AiNazoratSuhbat', component: () => import('../apps/ai/views/nazorat/Suhbat.vue') },

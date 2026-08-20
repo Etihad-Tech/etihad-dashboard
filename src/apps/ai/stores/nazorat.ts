@@ -202,6 +202,13 @@ export interface KpiSettings {
  *  rather than duplicated here: a client-side copy is how the dropdown and the
  *  validator drift apart, and the one that loses is the controller staring at a
  *  rejected save. */
+/** TZ 1 — one closed revision of one month, as the history screen lists it. */
+export interface SnapshotRevision {
+   period: string; revision: number
+   frozen_at: string | null; frozen_by: string | null
+   comment: string | null; rows: number; payout_total: number
+}
+
 export interface ExclusionReason { code: string; title: string }
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
@@ -558,6 +565,63 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return setSlice()
    }
 
+   // ─── TZ 1 — CLOSING THE MONTH ────────────────────────────────────────────────────
+   // Deliberately NOT part of load(): the freeze screen is opened a few times a month by
+   // two accounts, and putting its history into every panel refresh would make every
+   // controller pay for it on every period change.
+   const snapshots = ref<SnapshotRevision[]>([])
+   const snapshotsLoading = ref(false)
+
+   /** Every frozen revision, newest first. */
+   async function loadSnapshots(period?: string) {
+      snapshotsLoading.value = true
+      try {
+         snapshots.value = (await api.get('/control/snapshots',
+            { params: period ? { period } : {} })).data
+      } catch {
+         snapshots.value = []
+      } finally {
+         snapshotsLoading.value = false
+      }
+   }
+
+   /** One revision's rows — the payslips as they were written down. */
+   async function loadSnapshotRows(period: string, revision?: number) {
+      const { data } = await api.get(`/control/snapshot/${period}`,
+         { params: revision ? { revision } : {} })
+      return data
+   }
+
+   /** Close the month. Returns the server's own message on refusal, because every one of
+    *  them is a rule the reader has to know about — the month is not over, a re-freeze
+    *  needs a reason — and «Xato» would hide which. */
+   async function freezeMonth(period: string, comment?: string):
+      Promise<{ ok: boolean; revision?: number; rows?: number; error?: string }> {
+      try {
+         const { data } = await api.post(`/control/snapshot/${period}/freeze`,
+            { comment: comment || null })
+         await loadSnapshots()
+         return { ok: true, revision: data.revision, rows: data.rows }
+      } catch (e: any) {
+         return { ok: false, error: e?.response?.data?.detail || 'Yopilmadi' }
+      }
+   }
+
+   /** The accountant's file. Fetched as a blob rather than linked: the export needs the
+    *  JWT, and a plain href carries no Authorization header. */
+   async function exportSnapshot(period: string, revision?: number): Promise<string> {
+      const { data } = await api.get(`/control/snapshot/${period}/export`, {
+         params: revision ? { revision } : {}, responseType: 'blob',
+      })
+      const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `kpi-${period}${revision ? `-r${revision}` : ''}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      return url
+   }
+
    /** Dismiss a falsely auto-detected repeat, then refresh the evidence. */
    /** TZ 5 — the fixed reason list, loaded once with the journal. */
    const exclusionReasons = ref<ExclusionReason[]>([])
@@ -756,6 +820,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
       dismissProblems, restoreProblems, dismissReopen, save,
       exclusionReasons, loadExclusionReasons, setCardExclusion, setRequestExclusion,
+      snapshots, snapshotsLoading, loadSnapshots, loadSnapshotRows, freezeMonth,
+      exportSnapshot,
       chatPeers, chatThread, chatUnread, chatLoading, chatSending,
       loadChatUnread, loadChatPeers, loadChatThread, sendChat, markChatRead,
    }
