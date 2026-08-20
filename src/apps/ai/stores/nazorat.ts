@@ -710,7 +710,15 @@ export const useNazoratStore = defineStore('nazorat', () => {
       saving.value = true
       savedMsg.value = ''
       try {
-         await api.put('/control/settings', form.value)
+         // A CLEARED number input is an empty string, not null — `v-model.number`
+         // leaves it as typed when it cannot parse. Sent as it stands, the IT topic
+         // field refused the whole save with a bare «Saqlashda xatolik», which is
+         // exactly what an IT group that is not a forum needs to do: leave it blank.
+         const body: Record<string, unknown> = { ...form.value }
+         for (const k of Object.keys(body)) {
+            if (typeof body[k] === 'string' && !(body[k] as string).trim()) body[k] = null
+         }
+         await api.put('/control/settings', body)
          savedMsg.value = 'Saqlandi'
          setTimeout(() => (savedMsg.value = ''), 2500)
       } catch {
