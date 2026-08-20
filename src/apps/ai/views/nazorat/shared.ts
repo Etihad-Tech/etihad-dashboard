@@ -735,10 +735,17 @@ export function useNazoratView() {
             w, name: personLabel(w), job: jobLabel(w), best: !!w.best,
          }))
          if (!scored) return rows
+         // Ordered by the ball the row DISPLAYS — the combined one, cards and survey
+         // together. It sorted by the operational half alone, so once a group's
+         // surveys started counting the list could put a 50 above a 62 and the month's
+         // star anywhere in it: the server picks the star on the combined ball, with
+         // the load as its tie-break, and this now follows the same three keys.
          rows.sort((a, b) => {
-            const at = a.w.kpi ? a.w.kpi.total : -1
-            const bt = b.w.kpi ? b.w.kpi.total : -1
+            const ball = (w: Worker) => (w.kpi ? (w.kpi.combined ?? w.kpi.total) : -1)
+            const at = ball(a.w), bt = ball(b.w)
             if (at !== bt) return bt - at
+            const asg = a.w.sg_units ?? 0, bsg = b.w.sg_units ?? 0
+            if (asg !== bsg) return bsg - asg
             const ad = a.w.day_avg_response_seconds ?? Infinity
             return ad - (b.w.day_avg_response_seconds ?? Infinity)
          })

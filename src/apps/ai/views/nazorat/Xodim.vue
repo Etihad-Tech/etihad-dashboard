@@ -141,23 +141,25 @@
                      </span>
                      <template v-if="worker.kpi.survey_ball !== null && worker.kpi.survey_ball !== undefined">
                         <span class="pt-1.5" style="border-top: 1px solid var(--n-line-soft)">
-                           Operatsion ball
+                           Kartochkalar bo'yicha
                         </span>
                         <span class="text-[color:var(--n-muted)] pt-1.5"
-                           style="border-top: 1px solid var(--n-line-soft)">× 0,5</span>
+                           style="border-top: 1px solid var(--n-line-soft)">yarmi</span>
                         <span class="font-semibold text-right pt-1.5"
                            style="border-top: 1px solid var(--n-line-soft)">{{ worker.kpi.total }}</span>
-                        <span>Ziyoratchi bahosi</span>
-                        <span class="text-[color:var(--n-muted)]">× 0,5</span>
+                        <span>Ziyoratchilar bahosi</span>
+                        <span class="text-[color:var(--n-muted)]">yarmi</span>
                         <span class="font-semibold text-right">{{ worker.kpi.survey_ball }}</span>
                      </template>
                   </div>
                   <p class="mt-3 text-[12.5px] text-[color:var(--n-muted)]">
                      <template v-if="worker.kpi.survey_ball === null || worker.kpi.survey_ball === undefined">
-                        So'rovnoma bu davrda hisobga kirmadi — reyting operatsion ballga teng.
+                        So'rovnoma bu oyda hisobga kirmadi — ball faqat kartochkalardan.
+                        Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan
+                        bo'lsa, so'rovnoma sanalmaydi.
                      </template>
                      <template v-else>
-                        Reyting ikki manbadan: kartochkalar va ziyoratchilar so'rovnomasi,
+                        Ball ikki manbadan: kartochkalar va ziyoratchilar so'rovnomasi,
                         har biri yarmi.
                      </template>
                   </p>
@@ -249,32 +251,32 @@ const payRows = computed(() => {
 
    const ball = w.kpi ? (w.kpi.combined ?? w.kpi.total) : null
    rows.push({
-      label: 'Sifat mukofoti',
+      label: 'Ball mukofoti',
       how: sal.mukofot_base
-         ? `${soum(sal.mukofot_base)} × K ${dec(sal.k)} = ${soum(sal.earned)}`
+         ? `${soum(sal.mukofot_base)} × ${dec(sal.k)} = ${soum(sal.earned)}`
          : `${ball ?? '—'} ball — pog'ona ochilmadi`,
-      why: "§5 jadvali: ball pog'onaga yetsa, o'sha pog'ona summasi K ga "
-         + "ko'paytiriladi. Yetmasa — mukofot to'lanmaydi.",
+      why: "Ball pog'onaga yetsa, o'sha pog'ona summasi beriladi va oylik yuklamaga "
+         + "ko'paytiriladi. Yetmasa — mukofot yo'q.",
       amount: soum(sal.earned),
    })
 
    if (sal.k_sg !== null && sal.sg !== null && sal.k_sg !== sal.sg) {
       rows.push({
-         label: 'K nega SG dan past',
-         how: `SG ${dec(sal.sg)}, shundan ${dec(sal.k_sg)} «Natija bo'yicha»`,
-         why: "K faqat rag'bat sifatida berilgan segmentlarga tegishli (§4.2). "
-            + "Majburiy va tashkiliy biriktirish hajm uchun to'lanadi, koeffitsient bermaydi.",
+         label: 'Nega ko\u2019paytiruvchi to\u2019liq emas',
+         how: `Yuklama ${dec(sal.sg)} guruh, shundan ${dec(sal.k_sg)} tasi «Natija bo'yicha»`,
+         why: "Ko'paytiruvchi faqat rag'bat uchun berilgan guruhlarga tegishli. "
+            + "Majburiy va tashkiliy biriktirish hajm uchun to'lanadi.",
          amount: '',
       })
    }
 
    if (sal.yuklama) {
       rows.push({
-         label: "Yuklama to'lovi",
-         how: `SG ${dec(sal.sg ?? 0)} — 1,0 = ${dec((sal.sg ?? 0) - 1)} `
+         label: "Ortiqcha guruh uchun",
+         how: `${dec(sal.sg ?? 0)} − 1 = ${dec((sal.sg ?? 0) - 1)} guruh `
             + `× ${soum(s.kpiSettings?.load_rate ?? 0)}`,
-         why: "Bitta guruhdan ortiq har bir SG uchun. Biriktirish turidan ham, balldan "
-            + "ham qat'i nazar to'lanadi — soatlar ishlangan.",
+         why: "Bitta guruhdan ortiq olib borilgan har bir guruh uchun. Ball qanday "
+            + "bo'lishidan qat'i nazar beriladi — soatlar ishlangan.",
          amount: soum(sal.yuklama),
       })
    }

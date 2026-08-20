@@ -28,9 +28,9 @@
            what the collapsed list is for. -->
       <section v-else class="card p-5 n-enter">
          <div class="flex items-baseline gap-2.5">
-            <h3 class="n-h">{{ board.scored ? 'Sifat reytingi' : 'Ko‘rsatkichlar' }}</h3>
+            <h3 class="n-h">{{ board.scored ? 'Ball va oylik' : 'Ko‘rsatkichlar' }}</h3>
             <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">
-               {{ board.scored ? '100 ball' : 'ball qo‘yilmaydi' }}
+               {{ board.scored ? '100 ballli' : 'ball qo‘yilmaydi' }}
             </span>
          </div>
 
@@ -98,12 +98,15 @@
                      </span>
                      <!-- v2(2) §5 — the survey half, when the month has one with enough
                           coverage: the headline number above is the COMBINED score. -->
+                     <!-- Two halves, each labelled with its weight. The survey row
+                          carried «× 0,5» while the operational row carried nothing, which
+                          read as though only one of them was halved. -->
                      <template v-if="r.w.kpi.survey_ball !== null && r.w.kpi.survey_ball !== undefined">
-                        <span>Operatsion ball</span>
-                        <span></span>
+                        <span>Kartochkalar bo'yicha</span>
+                        <span class="text-[color:var(--n-muted)]">yarmi</span>
                         <span class="font-semibold text-right">{{ r.w.kpi.total }}</span>
-                        <span>Ziyoratchi bahosi</span>
-                        <span class="text-[color:var(--n-muted)]">× 0,5</span>
+                        <span>Ziyoratchilar bahosi</span>
+                        <span class="text-[color:var(--n-muted)]">yarmi</span>
                         <span class="font-semibold text-right">{{ r.w.kpi.survey_ball }}</span>
                      </template>
                   </div>
@@ -119,7 +122,8 @@
 
                   <p v-if="board.scored && r.w.kpi && r.w.kpi.min_sample"
                      class="text-[12.5px] text-[color:var(--n-muted)]">
-                     {{ r.w.kpi.base }} murojaat · qo'lda baholanadi
+                     Bu oyda {{ r.w.kpi.base }} ta baholanadigan murojaat — 10 tadan
+                     kam. Ball qo'lda qo'yiladi, KPI shundan keyin hisoblanadi.
                   </p>
 
                   <!-- WHERE the month's work happened, beside the ball and never inside
@@ -159,7 +163,7 @@
                           Straight from the server's composition, no pay maths here. -->
                      <div v-if="r.w.salary"
                         class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
-                        <span class="text-[color:var(--n-muted)]">Fiks</span>
+                        <span class="text-[color:var(--n-muted)]">Asosiy oylik</span>
                         <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
                         <span class="text-[color:var(--n-muted)]">KPI</span>
                         <span v-if="r.w.salary.pending_manual"
@@ -170,6 +174,10 @@
                         <span class="font-semibold">Yakuniy oylik</span>
                         <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
                      </div>
+                     <p class="text-[12px] text-[color:var(--n-muted)]">
+                        Asosiy oylik toifaga bog'liq va o'zgarmaydi. KPI — ball,
+                        yuklama va jarimalardan; manfiy ham bo'lishi mumkin.
+                     </p>
 
                      <!-- Where that one number came from, step by step. A KPI line
                           nobody can check is a KPI line everybody argues about, and this
@@ -178,18 +186,20 @@
                         class="grid grid-cols-[0.75rem_1fr_auto] gap-x-2.5 gap-y-1
                                text-[12.5px] tabular-nums text-[color:var(--n-muted)]">
                         <span></span>
-                        <span>Mukofot · {{ r.w.kpi ? (r.w.kpi.combined ?? r.w.kpi.total) : '—' }} ball</span>
+                        <span>Ball mukofoti · {{ r.w.kpi ? (r.w.kpi.combined ?? r.w.kpi.total) : '—' }} ball</span>
                         <span class="text-right">{{ soum(r.w.salary.mukofot_base) }}</span>
                         <template v-if="r.w.salary.k > 1 || r.w.salary.k_sg !== r.w.salary.sg">
                            <span>×</span>
-                           <!-- §4.2 — when only part of the load is reward-assigned, say so.
-                                «K · SG 1,6» beside a K of 1,0 reads as a bug otherwise. -->
-                           <span>K · {{ kBasis(r.w.salary) }}</span>
+                           <!-- The multiplier is named by what it MEASURES — how many
+                                groups the month held — never by its letter. A reader who
+                                has never opened the reglament must be able to check
+                                their own payslip; «K · SG 1,6» told them nothing. -->
+                           <span>{{ kBasis(r.w.salary) }}</span>
                            <span class="text-right">{{ dec(r.w.salary.k) }}</span>
                         </template>
                         <template v-if="r.w.salary.yuklama">
                            <span>+</span>
-                           <span>Yuklama to'lovi · SG {{ sgText(r.w.salary) }} dan ortiq</span>
+                           <span>Ortiqcha guruh uchun · {{ extraText(r.w.salary) }}</span>
                            <span class="text-right">{{ soum(r.w.salary.yuklama) }}</span>
                         </template>
                         <template v-if="r.w.salary.sovrin">
@@ -208,19 +218,29 @@
                            <span class="text-right">{{ soum(Math.abs(r.w.salary.manual_adjust)) }}</span>
                         </template>
                         <span v-if="r.w.salary.floored" class="col-span-3">
-                           Ushlab qolish chegarasi qo'llandi — {{ soum(-r.w.salary.floor) }}
+                           Jarima chegaraga tirandi — ko'pi bilan {{ soum(-r.w.salary.floor) }}
                         </span>
+                        <!-- The month's load, on every payslip and not only on the ones
+                             where it multiplied something. «Why is my bonus 1,2 times» and
+                             «how much did I carry» are the same question, and a line that
+                             appears only in good months answers it only in good months. -->
+                        <template v-if="r.w.sg !== null">
+                           <span></span>
+                           <span>Oylik yuklama</span>
+                           <span class="text-right">{{ dec(r.w.sg) }} guruh</span>
+                        </template>
                      </div>
                      <!-- A group with no Daraja is an unanswered question, not a premium
                           group: SG counts it as a WHOLE group and says so here rather
                           than quietly paying half a load. -->
                      <p v-if="r.w.sg_tier_unset"
                         class="text-[12.5px] text-[color:var(--n-muted)]">
-                        {{ r.w.sg_tier_unset }} ta guruhda daraja belgilanmagan
+                        {{ r.w.sg_tier_unset }} ta guruhda daraja belgilanmagan —
+                        to'liq guruh deb sanaldi
                      </p>
                      <p v-if="r.w.sg_over_ceiling"
                         class="text-[12.5px] text-[color:var(--n-muted)]">
-                        2,0 SG dan ortiq · CEO ruxsati kerak
+                        2 guruhdan ortiq yuklama · rahbar ruxsati kerak
                      </p>
                      <!-- Tied to the CATEGORY, not chained to the line above it: this
                           `v-else` used to hang off `sg_over_ceiling`, so every leader
@@ -332,19 +352,24 @@ function cityLoad(w: Worker): string {
    return `${parts.join(' · ')} — ${Number(w.weighted_load.toFixed(2))} ish birligi`
 }
 
-/** The month's SG. K is printed beside it in the arithmetic row, so this is the load
- *  itself and nothing else. */
-function sgText(sal: NonNullable<Worker['salary']>): string {
-   return dec(sal.sg ?? 0)
-}
-
-/** What K was taken OF. When every segment is reward-assigned this is just the SG;
- *  when only part of it is, both numbers are named — «K · SG 1,6» next to a K of 1,0
- *  reads as a bug rather than as §4.2 working. */
+/** How much of the month's load the BONUS was multiplied by, in words.
+ *
+ *  Named by what it measures — groups — and never by its letter (owner, 2026-08-20:
+ *  «не пиши как SG, K … не знающий человек не поймет вообще»). When every group was
+ *  assigned as a reward this is simply the load; when only part of it was, both numbers
+ *  are said out loud, because a 1,0 multiplier printed beside a 1,6 load reads as a bug
+ *  rather than as the rule working. */
 function kBasis(sal: NonNullable<Worker['salary']>): string {
    const sg = dec(sal.sg ?? 0)
    const k = dec(sal.k_sg ?? sal.sg ?? 0)
-   return k === sg ? `SG ${sg}` : `SG ${sg} dan ${k} natija bo'yicha`
+   return k === sg ? `${sg} guruh yuklama`
+      : `${sg} guruhdan ${k} tasi natija bo'yicha`
+}
+
+/** «0,4 guruh» — what was carried BEYOND the first one, which is what this line pays
+ *  for. The whole load gets its own line below it. */
+function extraText(sal: NonNullable<Worker['salary']>): string {
+   return `${dec(Math.max(0, (sal.sg ?? 0) - 1))} guruh`
 }
 
 /** «1,2» — a coefficient with the decimal comma this panel writes numbers in. */

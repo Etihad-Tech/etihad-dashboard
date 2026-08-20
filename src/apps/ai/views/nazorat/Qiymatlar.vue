@@ -5,7 +5,8 @@
            to READ a month — and a fund field beside somebody's payslip invites editing
            the scheme while looking at one person it affects. -->
       <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
-         Reglament nisbatlarni belgilaydi, summalarni ofis belgilaydi.
+         Bu yerdagi har bir son oylikka ta'sir qiladi. O'zgartirish darhol kuchga
+         kiradi — hali yopilmagan oyning hisobi qaytadan sanaladi.
       </p>
 
       <section v-for="grp in GROUPS" :key="grp.title" class="card p-5 n-enter">
@@ -34,7 +35,7 @@
            and it moves everyone on a rung at once. -->
       <section v-if="s.categories.length" class="card p-5 n-enter">
          <div class="flex items-baseline gap-2.5">
-            <h3 class="n-h">Toifalar va fiks</h3>
+            <h3 class="n-h">Toifalar va asosiy oylik</h3>
          </div>
          <div class="mt-3 space-y-0.5">
             <div v-for="c in s.categories" :key="c.code"
@@ -89,65 +90,64 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
            hint: "Shu balldan pastda mukofot to'lanmaydi",
            min: 0, max: 100, step: 1, scale: 1 },
          { key: 'bonus_base_sum', label: 'Quyi pog‘ona — summa', unit: "so'm",
-           hint: 'K ga ko‘paytiriladi', min: 0, max: 1_000_000_000,
+           hint: 'Yuklama koeffitsientiga ko‘paytiriladi', min: 0, max: 1_000_000_000,
            step: 100_000, scale: 1 },
          { key: 'bonus_high_ball', label: 'Yuqori pog‘ona — balldan', unit: 'ball',
            hint: 'Quyi pog‘onadan past bo‘lmasin',
            min: 0, max: 100, step: 1, scale: 1 },
          { key: 'bonus_high_sum', label: 'Yuqori pog‘ona — summa', unit: "so'm",
-           hint: 'K ga ko‘paytiriladi', min: 0, max: 1_000_000_000,
+           hint: 'Yuklama koeffitsientiga ko‘paytiriladi', min: 0, max: 1_000_000_000,
            step: 100_000, scale: 1 },
          { key: 'sovrin_sum', label: '«Oyning ellikboshisi»', unit: "so'm",
            hint: 'Oyning eng yuqori reytingi uchun sovrin',
            min: 0, max: 1_000_000_000, step: 100_000, scale: 1 },
          { key: 'max_deduction_pct', label: 'Maksimal ushlab qolish', unit: '%',
-           hint: 'KPI fiksning shuncha qismidan ortiq manfiyga ketmaydi',
+           hint: 'KPI asosiy oylikning shuncha qismidan ortiq minusga ketmaydi',
            min: 0, max: 100, step: 5, scale: 1 },
       ],
-      note: "Ikki pog‘ona — §5 ning o‘z jadvali. Pog‘ona ochilgan joyda sakrash bor: "
-          + "bir ball pastda mukofot yo‘q, bir ball yuqorida to‘liq summa. Sonlarni "
-          + "o‘zgartirish mumkin, sakrashning o‘zi esa reglament qaroridir. Sovrin "
-          + "ushlab qolish chegarasidan tashqarida to‘lanadi.",
+      note: "Pog‘ona ochilgan joyda sakrash bor: bir ball pastda mukofot yo‘q, bir "
+          + "ball yuqorida to‘liq summa. Sonlarni o‘zgartirsa bo‘ladi; sakrashning "
+          + "o‘zi — reglament qarori. Sovrindan jarima ushlanmaydi.",
    },
    {
       title: 'Yuklama',
       rows: [
-         { key: 'load_rate', label: "Yuklama to'lovi", unit: "so'm",
-           hint: "1,0 SG dan ortiq har bir SG uchun",
+         { key: 'load_rate', label: "Ortiqcha guruh uchun to'lov", unit: "so'm",
+           hint: "Bitta guruhdan ortiq har bir guruh uchun",
            min: 0, max: 100_000_000, step: 100_000, scale: 1 },
-         { key: 'k_min_units', label: 'K — eng past', unit: '',
-           hint: 'Mukofot koeffitsientining quyi chegarasi',
+         { key: 'k_min_units', label: 'Koeffitsient — eng past', unit: '',
+           hint: 'Mukofot shundan kam ko‘paytirilmaydi',
            min: 0.01, max: 10, step: 0.1, scale: 100 },
-         { key: 'k_max_units', label: 'K — eng yuqori', unit: '',
-           hint: 'Mukofot koeffitsientining yuqori chegarasi',
+         { key: 'k_max_units', label: 'Koeffitsient — eng yuqori', unit: '',
+           hint: 'Mukofot shundan ko‘p ko‘paytirilmaydi',
            min: 0.01, max: 10, step: 0.1, scale: 100 },
       ],
-      note: "Yuklama to'lovi biriktirish turidan va balldan qat'i nazar to'lanadi; "
-          + "K esa faqat «Natija bo'yicha» biriktirilgan segmentlarga tegishli.",
+      note: "Ortiqcha guruh uchun to'lov ball qanday bo'lishidan qat'i nazar "
+          + "beriladi — soatlar ishlangan. Koeffitsient esa faqat «Natija bo'yicha» "
+          + "biriktirilgan guruhlarga tegishli.",
    },
    {
-      title: 'Shahar koeffitsienti',
+      title: 'Shahar og‘irligi',
       rows: [
          { key: 'city_makka_units', label: 'Makka', unit: '',
-           hint: "Ziyorat dasturi zich, murojaatlar ko'p",
+           hint: "Dastur zich, murojaat ko'p",
            min: 0.01, max: 10, step: 0.05, scale: 100 },
          { key: 'city_madina_units', label: 'Madina', unit: '',
            hint: 'Dastur yengilroq', min: 0.01, max: 10, step: 0.05, scale: 100 },
       ],
-      note: "Ikkalasining yig'indisi 1,0 bo'lishi kerak — butun safarni bitta "
-          + "ellikboshi olib borsa, uning yuklamasi aynan bitta guruhga teng bo'ladi. "
-          + "Jidda Makka segmentiga kiradi.",
+      note: "Ikkovi qo'shilganda 1,0 chiqsin: butun safarni bitta ellikboshi olib "
+          + "borsa, yuklamasi aynan bitta guruh bo'ladi. Jidda — Makka hisobida.",
    },
    {
-      title: 'Guruh turi koeffitsienti',
+      title: 'Guruh og‘irligi',
       rows: [
          { key: 'pkg_comfort_units', label: 'Comfort', unit: '',
            hint: "To'liq guruh", min: 0.01, max: 10, step: 0.05, scale: 100 },
          { key: 'pkg_premium_units', label: 'Premium / Lux', unit: '',
            hint: 'Kichik tarkibli guruh', min: 0.01, max: 10, step: 0.05, scale: 100 },
       ],
-      note: "Daraja belgilanmagan guruh to'liq guruh sifatida hisoblanadi — nomidan "
-          + "taxmin qilish yarim yuklamani jimgina to'lab qo'yishi mumkin edi.",
+      note: "Darajasi belgilanmagan guruh to'liq guruh sanaladi. Nomiga qarab "
+          + "taxmin qilish yarim yuklamani jimgina to'lab qo'yardi.",
    },
 ]
 
