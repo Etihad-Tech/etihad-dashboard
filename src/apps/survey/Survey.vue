@@ -5,10 +5,11 @@
       <header class="sn-top">
          <div class="sn-brand">ETIHAD · <span>Sifat nazorati</span></div>
          <div class="sn-sub">Qaytgan ziyoratchilar so'rovnomasi</div>
+         <!-- No import button up here any more. Ziyoratchilar enter through a GROUP
+              and only through a group (owner, 2026-08-20), so the way in lives inside
+              the group it belongs to — see «+ Ziyoratchilar qo'shish» below. -->
          <div class="sn-topright">
             <span v-if="doneToday">{{ doneToday }} ta saqlangan</span>
-            <button class="sn-btn sn-ghost" @click="fileEl?.click()">CSV import</button>
-            <input ref="fileEl" type="file" accept=".csv,.txt" class="hidden" @change="importCsv" />
             <button class="sn-btn sn-ghost" @click="logout">Chiqish</button>
          </div>
       </header>
@@ -47,71 +48,74 @@
                   </button>
 
                   <div v-if="openGroup === g.chat_id" class="sn-gbody">
-                     <button class="sn-btn sn-ghost sn-add" @click="togglePaste(g.chat_id)">
+                     <button class="sn-btn sn-ghost sn-add" @click="toggleImport(g.chat_id)">
                         + Ziyoratchilar qo'shish
                      </button>
 
-                     <!-- The paste box. One textarea, because that is the whole
-                          interaction: select the rows in the sheet, Ctrl+C, Ctrl+V. -->
-                     <div v-if="pasteFor === g.chat_id" class="sn-paste">
-                        <textarea v-model="pasteText" class="sn-input sn-ta"
-                           placeholder="Jadvaldan qatorlarni nusxalab shu yerga qo'ying (Ctrl+V)"
-                           @paste="onPaste"></textarea>
-                        <p class="sn-note">
-                           Faqat <b>C</b> (Ф.И.Ш.) va <b>R</b> (тел.ракам) ustunlari
-                           o'qiladi. Sarlavha qatori bo'lsa ham bo'ladi.
+                     <!-- The whole interaction: pick the group, pick the .xlsx. No
+                          selecting, no copying — a selection is the thing that used to
+                          arrive one column out and import the booking date as a name. -->
+                     <div v-if="importFor === g.chat_id" class="sn-paste">
+                        <input ref="fileEl" type="file" accept=".xlsx,.xlsm" class="hidden"
+                           @change="onFile" />
+                        <button class="sn-btn sn-primary" :disabled="importing"
+                           @click="pickFile">
+                           {{ importing ? 'O\'qilyapti…' : 'Excel faylni tanlash' }}
+                        </button>
+                        <p v-if="fileName" class="sn-note">
+                           <b>{{ fileName }}</b>
+                           <template v-if="filePreview?.sheet"> · «{{ filePreview.sheet }}» varag'i</template>
                         </p>
-                        <div class="sn-prow">
-                           <button class="sn-btn" :disabled="!pasteText.trim() || pasting"
-                              @click="previewPaste(g.chat_id)">Tekshirish</button>
-                           <button v-if="pastePreview" class="sn-btn sn-primary"
-                              :disabled="pasting || !pastePreview.parsed"
-                              @click="commitPaste(g.chat_id)">
-                              {{ pastePreview.parsed }} ta ziyoratchini qo'shish
-                           </button>
-                           <button class="sn-btn sn-ghost" @click="closePaste">Bekor</button>
-                        </div>
+                        <p class="sn-note">
+                           Jadvaldan faqat <b>Ф.И.Ш.</b> va <b>тел.ракам</b> ustunlari
+                           o'qiladi — ustunlar sarlavha bo'yicha topiladi.
+                        </p>
 
-                        <!-- The report BEFORE anything is written. A spreadsheet
-                             selection is easy to get subtly wrong — one column short,
-                             a filtered view — and every one of those looks like a
-                             successful import until somebody counts the queue. -->
-                        <div v-if="pastePreview" class="sn-report">
+                        <!-- The report BEFORE anything is written. A workbook is easy
+                             to get subtly wrong — the wrong tab, last month's file —
+                             and every one of those looks like a successful import
+                             until somebody counts the queue. -->
+                        <div v-if="filePreview" class="sn-report">
                            <p>
-                              <b>{{ pastePreview.counts.ok || 0 }}</b> ta telefon bilan
-                              <template v-if="pastePreview.counts.no_phone">
-                                 · <b>{{ pastePreview.counts.no_phone }}</b> ta telefonsiz
+                              <b>{{ filePreview.counts.ok || 0 }}</b> ta telefon bilan
+                              <template v-if="filePreview.counts.no_phone">
+                                 · <b>{{ filePreview.counts.no_phone }}</b> ta telefonsiz
                               </template>
-                              <template v-if="pastePreview.counts.bad_phone">
-                                 · <b>{{ pastePreview.counts.bad_phone }}</b> ta raqam o'qilmadi
+                              <template v-if="filePreview.counts.bad_phone">
+                                 · <b>{{ filePreview.counts.bad_phone }}</b> ta raqam o'qilmadi
                               </template>
-                              <template v-if="pastePreview.counts.no_name">
-                                 · <b>{{ pastePreview.counts.no_name }}</b> ta ismsiz
+                              <template v-if="filePreview.counts.no_name">
+                                 · <b>{{ filePreview.counts.no_name }}</b> ta ismsiz
                               </template>
-                              <template v-if="pastePreview.counts.short_row">
-                                 · <b>{{ pastePreview.counts.short_row }}</b> ta qator kalta
+                              <template v-if="filePreview.counts.short_row">
+                                 · <b>{{ filePreview.counts.short_row }}</b> ta qator kalta
                               </template>
                            </p>
-                           <p v-if="pastePreview.counts.short_row" class="sn-warn">
-                              Kalta qatorlar bor — jadvalning butun kengligini (A–S)
-                              belgilab nusxalang.
-                           </p>
-                           <p v-if="pastePreview.counts.no_phone" class="sn-note">
+                           <p v-if="filePreview.counts.no_phone" class="sn-note">
                               Telefonsizlar ham qo'shiladi — qamrov hisobiga kiradi,
                               raqamini keyin shu panelda yozib qo'ysa bo'ladi.
                            </p>
                            <div class="sn-plist">
-                              <div v-for="r in pastePreview.preview" :key="r.line"
+                              <div v-for="r in filePreview.preview" :key="r.line"
                                  class="sn-prow2" :class="'st-' + r.status">
                                  <small>{{ r.line }}</small>
                                  <span>{{ r.name || '—' }}</span>
                                  <small>{{ r.phone || r.phone_cell || '—' }}</small>
                               </div>
                            </div>
-                           <p v-if="pastePreview.preview_truncated" class="sn-note">
-                              …va yana {{ pastePreview.preview_truncated }} ta qator
+                           <p v-if="filePreview.preview_truncated" class="sn-note">
+                              …va yana {{ filePreview.preview_truncated }} ta qator
                               (ro'yxat qisqartirildi, hammasi qo'shiladi).
                            </p>
+                        </div>
+
+                        <div class="sn-prow">
+                           <button v-if="filePreview" class="sn-btn sn-primary"
+                              :disabled="importing || !filePreview.parsed"
+                              @click="commitFile(g.chat_id)">
+                              {{ filePreview.parsed }} ta ziyoratchini qo'shish
+                           </button>
+                           <button class="sn-btn sn-ghost" @click="closeImport">Bekor</button>
                         </div>
                      </div>
 
@@ -127,27 +131,17 @@
                         <small class="sn-qst">{{ CALL_LABELS[p.call_status] || p.call_status }}</small>
                      </button>
                      <p v-if="!pilgrimsOf(g.chat_id).length" class="sn-note">
-                        Bu guruhda ziyoratchi yo'q — «+» orqali jadvalni qo'ying.
+                        Bu guruhda ziyoratchi yo'q — «+» orqali Excel faylni yuklang.
                      </p>
                   </div>
                </div>
                <p v-if="!filteredGroups.length" class="sn-note">Guruh topilmadi.</p>
             </div>
 
-            <!-- Anyone imported before the group flow existed, or unassigned by hand. -->
-            <div v-if="unassigned.length" class="sn-gwrap">
-               <button class="sn-gitem" :class="{ on: openGroup === 0 }" @click="toggleGroup(0)">
-                  <span class="sn-qmain"><b>Guruhsiz</b><small>guruh tayinlanmagan</small></span>
-                  <small class="sn-qst">{{ unassigned.length }}</small>
-               </button>
-               <div v-if="openGroup === 0" class="sn-gbody">
-                  <button v-for="p in unassigned" :key="p.id" class="sn-qitem"
-                     :class="{ on: current && current.id === p.id }" @click="open(p)">
-                     <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
-                     <span class="sn-qmain"><b>{{ p.full_name }}</b><small>{{ p.phone || 'telefon yo\'q' }}</small></span>
-                  </button>
-               </div>
-            </div>
+            <!-- No «Guruhsiz» bucket (owner, 2026-08-20). Every pilgrim now enters
+                 through a group, so the state it used to hold cannot be reached — and
+                 a bucket that can never fill is a bucket that teaches the specialist
+                 to look somewhere that is always empty. -->
 
             <p class="sn-note">Guruh, sanalar va ellikboshi — dashboarddan. Jadvaldan
                faqat ism va telefon olinadi.</p>
@@ -169,10 +163,11 @@
                <div class="sn-facts">
                   <span class="sn-fact"><b>Guruh:</b>
                      <!-- The one pick everything cascades from. Dashboard groups only,
-                          recently returned first; Bitrix is never asked about trips. -->
+                          recently returned first; Bitrix is never asked about trips.
+                          A MOVE, not an assignment: the pilgrim already arrived with a
+                          group and there is no «— tanlang —» to take it away again. -->
                      <select v-model="pickedGroup" class="sn-inline" :disabled="isSaved"
                         @change="assignGroup">
-                        <option :value="null">— tanlang —</option>
                         <!-- The full trip range in the label: two groups can share a
                              name, but never a name AND its dates — the specialist
                              picks the TRIP, not just the title. -->
@@ -335,7 +330,8 @@
             </div>
          </main>
          <main v-else class="sn-panel sn-empty">
-            Chapdan ziyoratchini tanlang — yoki CSV import qiling.
+            Chapdan guruhni oching va ziyoratchini tanlang — ro'yxat bo'lmasa,
+            «+» orqali Excel faylni yuklang.
          </main>
 
          <!-- ─────────── LIVE IMPACT (preview; the SAVED score is the server's) ── -->
@@ -434,7 +430,9 @@ const savedScore = ref<number | null>(null)
 const saving = ref(false)
 const draftState = ref('')
 const focusKey = ref<string | null>(null)
-const fileEl = ref<HTMLInputElement | null>(null)
+// The file input lives inside the group list's v-for, so Vue collects the refs into
+// an array. Typed as both because only one group is ever open.
+const fileEl = ref<HTMLInputElement | HTMLInputElement[] | null>(null)
 
 const filteredQueue = computed(() => {
    const n = search.value.trim().toLowerCase()
@@ -445,15 +443,15 @@ const filteredQueue = computed(() => {
 
 // ── the group-first list ────────────────────────────────────────────────────────────
 const openGroup = ref<number | null>(null)
-const pasteFor = ref<number | null>(null)
-const pasteText = ref('')
-const pastePreview = ref<any>(null)
-const pasting = ref(false)
+const importFor = ref<number | null>(null)
+const filePreview = ref<any>(null)
+const fileName = ref('')
+const fileB64 = ref('')
+const importing = ref(false)
 
 function pilgrimsOf(chatId: number) {
    return filteredQueue.value.filter((p) => p.chat_id === chatId)
 }
-const unassigned = computed(() => filteredQueue.value.filter((p) => !p.chat_id))
 
 /** Groups the search still matches — by their OWN name, or by a pilgrim inside them,
  *  so typing a pilgrim's name finds the group holding them rather than emptying the
@@ -473,58 +471,85 @@ function coverPct(g: any) {
 
 function toggleGroup(chatId: number) {
    openGroup.value = openGroup.value === chatId ? null : chatId
-   if (openGroup.value !== chatId) closePaste()
+   if (openGroup.value !== chatId) closeImport()
 }
 
-function togglePaste(chatId: number) {
-   if (pasteFor.value === chatId) return closePaste()
-   pasteFor.value = chatId
-   pasteText.value = ''
-   pastePreview.value = null
+function toggleImport(chatId: number) {
+   if (importFor.value === chatId) return closeImport()
+   closeImport()
+   importFor.value = chatId
 }
 
-function closePaste() {
-   pasteFor.value = null
-   pasteText.value = ''
-   pastePreview.value = null
+function closeImport() {
+   importFor.value = null
+   filePreview.value = null
+   fileName.value = ''
+   fileB64.value = ''
 }
 
-/** A fresh paste invalidates the report shown next to it — otherwise the specialist
- *  reads counts for the PREVIOUS clipboard and presses «add» on them. */
-function onPaste() {
-   pastePreview.value = null
+function pickFile() {
+   // The input is inside a v-for, so Vue hands back an ARRAY of refs; there is only
+   // ever one open at a time because the box lives in the open group.
+   const el = Array.isArray(fileEl.value) ? fileEl.value[0] : fileEl.value
+   el?.click()
 }
 
-/** Parse-only: the server reads C and R and says what it found, writing nothing.
- *  Parsing lives on the server so the column rules exist once, in the module the
- *  probe exercises — a TypeScript copy of them is a second set of rules to drift. */
-async function previewPaste(chatId: number) {
-   pasting.value = true
+/** The file → base64 → the server, which reads it and says what it found, writing
+ *  nothing. The parsing lives on the server so the column rules exist once, in the
+ *  module the probe exercises — a TypeScript copy of them is a second set of rules to
+ *  drift, and «who ends up in the call queue» must have one answer. */
+async function onFile(ev: Event) {
+   const input = ev.target as HTMLInputElement
+   const file = input.files?.[0]
+   input.value = ''   // so choosing the SAME file again still fires @change
+   if (!file) return
+   importing.value = true
+   filePreview.value = null
+   fileName.value = file.name
    try {
-      const { data } = await api.post('/survey/paste',
-         { chat_id: chatId, text: pasteText.value, commit: false })
-      pastePreview.value = data
-      if (!data.parsed) toast.error("Jadvaldan birorta ism o'qilmadi — C ustunini tekshiring")
+      fileB64.value = await toBase64(file)
+      const { data } = await api.post('/survey/file',
+         { chat_id: importFor.value, content_b64: fileB64.value,
+           filename: file.name, commit: false })
+      filePreview.value = data
+      if (!data.parsed) toast.error("Fayldan birorta ism o'qilmadi — varaqni tekshiring")
    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Xato')
-   } finally { pasting.value = false }
+      fileName.value = ''
+      fileB64.value = ''
+      toast.error(e?.response?.data?.detail || "Fayl o'qilmadi")
+   } finally { importing.value = false }
 }
 
-async function commitPaste(chatId: number) {
-   pasting.value = true
+/** Base64 without a data: prefix. FileReader rather than a hand-rolled loop over the
+ *  bytes: a 3000-row workbook is megabytes, and String.fromCharCode over that blows
+ *  the argument limit on some browsers. */
+function toBase64(file: File): Promise<string> {
+   return new Promise((resolve, reject) => {
+      const fr = new FileReader()
+      fr.onload = () => resolve(String(fr.result || '').split(',').pop() || '')
+      fr.onerror = () => reject(fr.error)
+      fr.readAsDataURL(file)
+   })
+}
+
+/** The SAME bytes the preview was computed from — never a re-read of the input, which
+ *  could by then be a different file. */
+async function commitFile(chatId: number) {
+   importing.value = true
    try {
-      const { data } = await api.post('/survey/paste',
-         { chat_id: chatId, text: pasteText.value, commit: true })
+      const { data } = await api.post('/survey/file',
+         { chat_id: chatId, content_b64: fileB64.value,
+           filename: fileName.value, commit: true })
       const parts = [`${data.added} qo'shildi`]
       if (data.duplicates) parts.push(`${data.duplicates} avvaldan bor`)
       if (data.no_phone) parts.push(`${data.no_phone} telefonsiz`)
       if (data.unnamed) parts.push(`${data.unnamed} ismsiz`)
       toast.success(`Import: ${parts.join(', ')}`)
-      closePaste()
+      closeImport()
       await Promise.all([loadQueue(), loadGroups()])
    } catch (e: any) {
       toast.error(e?.response?.data?.detail || 'Import xatosi')
-   } finally { pasting.value = false }
+   } finally { importing.value = false }
 }
 const doneToday = computed(() => queue.value.filter((p) => p.survey_status === 'saved').length)
 const groupInfo = computed(() => groups.value.find((g) => g.chat_id === pickedGroup.value) || null)
@@ -721,11 +746,19 @@ async function commitField(field: 'full_name' | 'phone', value: string | null,
 const commitName = () => commitField('full_name', editingName.value, () => { editingName.value = null })
 const commitPhone = () => commitField('phone', editingPhone.value, () => { editingPhone.value = null })
 
+/** Move this pilgrim to another group. Never to NO group — the server refuses a null
+ *  and there is no option that sends one, because a pilgrim outside a group has no
+ *  trip, no ellikboshi and nowhere in this panel to be seen. */
 async function assignGroup() {
-   if (!current.value) return
-   await api.put(`/survey/pilgrims/${current.value.id}`, { chat_id: pickedGroup.value })
-   current.value.chat_id = pickedGroup.value
-   await loadQueue()
+   if (!current.value || !pickedGroup.value) return
+   try {
+      await api.put(`/survey/pilgrims/${current.value.id}`, { chat_id: pickedGroup.value })
+      current.value.chat_id = pickedGroup.value
+      await loadQueue()
+   } catch (e: any) {
+      pickedGroup.value = current.value.chat_id ?? null
+      toast.error(e?.response?.data?.detail || "Guruh o'zgartirilmadi")
+   }
 }
 
 async function setStatus(k: string) {
@@ -749,39 +782,6 @@ async function save() {
    } catch (e: any) {
       toast.error(e?.response?.data?.detail || 'Saqlanmadi')
    } finally { saving.value = false }
-}
-
-async function importCsv(ev: Event) {
-   const file = (ev.target as HTMLInputElement).files?.[0]
-   if (!file) return
-   const text = await file.text()
-   const sep = text.includes(';') ? ';' : text.includes('\t') ? '\t' : ','
-   const rows = text.split(/\r?\n/).map((l) => l.split(sep).map((c) => c.trim().replace(/^"|"$/g, '')))
-      .filter((r) => r.length >= 2 && (r[0] || r[1]))
-   // A header row names its columns instead of a person — drop it. Cyrillic included:
-   // the real Bitrix export heads its columns «Контакт: Имя» / «Контакт: Рабочий
-   // телефон», which a Latin-only test walks straight past.
-   if (rows.length && /ism|name|telefon|phone|имя|телефон|контакт/i.test(rows[0].join(' '))) rows.shift()
-   try {
-      const { data } = await api.post('/survey/import', { rows })
-      const parts = [`${data.added} qo'shildi`]
-      if (data.duplicates) parts.push(`${data.duplicates} takroriy`)
-      if (data.unnamed) parts.push(`${data.unnamed} ismsiz qo'ng'iroq`)
-      if (data.bad.length) parts.push(`${data.bad.length} o'qilmadi`)
-      // When most of the file was call-log rows, the file itself was the wrong export
-      // — a green "12 added" on a 119-row upload reads as success and is how a
-      // half-empty call list gets worked through without anybody asking why.
-      if (data.unnamed > data.added) {
-         toast.error(`Import: ${parts.join(', ')}. Bu fayl qo'ng'iroqlar tarixiga `
-            + `o'xshaydi — Bitrixdan aniq bir reys ziyoratchilarini yuklang.`)
-      } else {
-         toast.success(`Import: ${parts.join(', ')}`)
-      }
-      await loadQueue()
-   } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Import xatosi')
-   }
-   ;(ev.target as HTMLInputElement).value = ''
 }
 
 function logout() {
@@ -839,8 +839,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .sn-add { width: 100%; margin-bottom: 6px; }
 .sn-paste { background: #fbfaf7; border: 1px solid #e2ddd0; border-radius: 10px;
    padding: 8px; margin-bottom: 8px; }
-.sn-ta { min-height: 92px; font-family: ui-monospace, monospace; font-size: 12px;
-   white-space: pre; overflow-x: auto; }
 .sn-prow { display: flex; gap: 6px; flex-wrap: wrap; }
 .sn-btn.sn-primary { background: #0f3d2e; color: #fff; border-color: #0f3d2e; }
 .sn-report { margin-top: 8px; font-size: 12.5px; }
