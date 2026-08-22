@@ -240,6 +240,11 @@
                   </div>
                 </div>
                 <p class="text-[11px] text-gray-400">Har ikki vaqt ham o'z shahrining mahalliy vaqti bilan. Yetib borish vaqti ziyoratchilar ko'p so'raydigan ma'lumot.</p>
+                <div>
+                  <label class="block text-[11px] text-gray-400 mb-1">Yangi reys raqami (ixtiyoriy)</label>
+                  <input v-model="excForm[s.id].newFlightNo" type="text" maxlength="16" placeholder="masalan, C8 501" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  <p class="text-[11px] text-gray-400 mt-1">Faqat samolyot/reys raqami ham o'zgargan bo'lsa to'ldiring — bo'sh qolsa, reysning odatdagi raqami ishlatiladi.</p>
+                </div>
                 <div class="flex justify-end">
                   <button @click="excEditId[s.id] ? saveEditExc(s) : addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
                     {{ excSavingId === s.id ? '...' : (excEditId[s.id] ? 'Saqlash' : "Qo'shish") }}
@@ -309,6 +314,7 @@ interface Exc {
   new_date: string | null
   new_dep: string | null
   new_arr: string | null
+  new_flight_no: string | null
   is_active: boolean
 }
 
@@ -397,7 +403,7 @@ async function deleteDay(s: Flight) {
 // --- One-off date changes (delays / moved days) ---
 const excs = ref<Record<number, Exc[]>>({})
 const excOpen = ref<Record<number, boolean>>({})
-const excForm = ref<Record<number, { leg: string; date: string; newDep: string; newDate: string; newArr: string; more: boolean }>>({})
+const excForm = ref<Record<number, { leg: string; date: string; newDep: string; newDate: string; newArr: string; newFlightNo: string; more: boolean }>>({})
 const excError = ref<Record<number, string>>({})
 const excNotice = ref<Record<number, string>>({})
 const excSavingId = ref<number | null>(null)
@@ -416,6 +422,7 @@ function changeSummary(e: Exc) {
   if (e.new_date) parts.push(dmy(e.new_date))
   if (e.new_dep) parts.push(e.new_dep)
   if (e.new_arr) parts.push('→ ' + e.new_arr)
+  if (e.new_flight_no) parts.push('✈ ' + e.new_flight_no)
   return parts.join(' ') || '—'
 }
 function upcomingOccurrences(s: Flight) {
@@ -438,7 +445,7 @@ function availableOccurrences(s: Flight) {
 }
 function defaultExcDate(s: Flight, leg: string) { return availableOccurrences(s).find(o => o.leg === leg)?.iso || '' }
 function availableForLeg(s: Flight) { return availableOccurrences(s).filter(o => o.leg === (excForm.value[s.id]?.leg || 'Borish')) }
-function resetExcForm(s: Flight) { excForm.value[s.id] = { leg: 'Borish', date: defaultExcDate(s, 'Borish'), newDep: '', newDate: '', newArr: '', more: false } }
+function resetExcForm(s: Flight) { excForm.value[s.id] = { leg: 'Borish', date: defaultExcDate(s, 'Borish'), newDep: '', newDate: '', newArr: '', newFlightNo: '', more: false } }
 function setExcLeg(s: Flight, leg: string) { excForm.value[s.id].leg = leg; excForm.value[s.id].date = defaultExcDate(s, leg) }
 function occCurrentTime(s: Flight, iso: string) {
   const leg = legForDate(s, iso)
@@ -467,10 +474,11 @@ async function addExc(s: Flight) {
   excError.value[s.id] = ''
   excNotice.value[s.id] = ''
   if (!f.date) { excError.value[s.id] = 'Reys sanasini tanlang.'; return }
-  if (!f.newDep && !f.newDate) { excError.value[s.id] = 'Yangi vaqt yoki yangi sanani kiriting.'; return }
+  if (!f.newDep && !f.newDate && !f.newFlightNo.trim()) { excError.value[s.id] = 'Yangi vaqt, sana yoki reys raqamini kiriting.'; return }
   // Return leg lands in the home city — pilgrims always ask "when do we arrive?",
-  // so the bot needs it. Require arrival for any return-leg change.
-  if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  // so the bot needs it. Require arrival whenever the TIME/DAY moved (a pure
+  // reys-number swap keeps the schedule's own times, nothing to re-enter).
+  if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
   // Saving a one-off change immediately NOTIFIES every group flying that day on
   // Telegram — an outward, hard-to-undo action — so confirm first (mirrors removeExc).
   if (!(await confirm({
@@ -482,6 +490,7 @@ async function addExc(s: Flight) {
   try {
     const { data } = await api.post(`/flights/${s.id}/exceptions`, {
       flight_date: f.date, new_dep: f.newDep || null, new_date: f.newDate || null, new_arr: f.newArr || null,
+      new_flight_no: f.newFlightNo.trim() || null,
     })
     if (!excs.value[s.id]) excs.value[s.id] = []
     excs.value[s.id].push(data)
@@ -527,6 +536,7 @@ function startEditExc(s: Flight, e: Exc) {
     newDep: e.new_dep || '',
     newDate: e.new_date || '',
     newArr: e.new_arr || '',
+    newFlightNo: e.new_flight_no || '',
     more: !!e.new_date,
   }
 }
@@ -543,8 +553,8 @@ async function saveEditExc(s: Flight) {
   if (!id) return
   excError.value[s.id] = ''
   excNotice.value[s.id] = ''
-  if (!f.newDep && !f.newDate) { excError.value[s.id] = 'Yangi vaqt yoki yangi sanani kiriting.'; return }
-  if (f.leg === 'Qaytish' && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  if (!f.newDep && !f.newDate && !f.newFlightNo.trim()) { excError.value[s.id] = 'Yangi vaqt, sana yoki reys raqamini kiriting.'; return }
+  if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
   // Editing a one-off change re-NOTIFIES the affected groups on Telegram (same
   // outward side-effect as adding one) — confirm before re-blasting the update.
   if (!(await confirm({
@@ -556,6 +566,7 @@ async function saveEditExc(s: Flight) {
   try {
     const { data } = await api.patch(`/flights/exceptions/${id}`, {
       new_dep: f.newDep || null, new_date: f.newDate || null, new_arr: f.newArr || null,
+      new_flight_no: f.newFlightNo.trim() || null,
     })
     const arr = excs.value[s.id] || []
     const idx = arr.findIndex(x => x.id === id)
