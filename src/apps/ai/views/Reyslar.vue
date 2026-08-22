@@ -245,6 +245,11 @@
                   <input v-model="excForm[s.id].newFlightNo" type="text" maxlength="16" placeholder="masalan, C8 501" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
                   <p class="text-[11px] text-gray-400 mt-1">Faqat samolyot/reys raqami ham o'zgargan bo'lsa to'ldiring — bo'sh qolsa, reysning odatdagi raqami ishlatiladi.</p>
                 </div>
+                <label class="flex items-center gap-2 text-[11px] text-gray-600 cursor-pointer">
+                  <input v-model="excForm[s.id].notifyGroups" type="checkbox" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+                  Saqlanganda shu kuni uchadigan guruhlarga avtomatik xabar yuborilsin
+                </label>
+                <p v-if="!excForm[s.id].notifyGroups" class="text-[11px] text-amber-600">Xabar yuborilmaydi — o'zgarish faqat saqlanadi; ziyoratchi so'raganda bot yangi ma'lumot bilan javob beradi.</p>
                 <div class="flex justify-end">
                   <button @click="excEditId[s.id] ? saveEditExc(s) : addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
                     {{ excSavingId === s.id ? '...' : (excEditId[s.id] ? 'Saqlash' : "Qo'shish") }}
@@ -258,7 +263,6 @@
                   <label class="block text-[11px] text-gray-400 mb-1">Boshqa kunga ko'chdi (sana)</label>
                   <input v-model="excForm[s.id].newDate" type="date" :min="excForm[s.id].date || todayISO" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
                 </div>
-                <p class="text-[11px] text-gray-400">Qo'shilganda, o'sha sanada uchadigan guruhga avtomatik xabar yuboriladi.</p>
                 <p v-if="excNotice[s.id]" class="text-xs text-emerald-600">{{ excNotice[s.id] }}</p>
                 <p v-if="excError[s.id]" class="text-xs text-rose-600">{{ excError[s.id] }}</p>
               </div>
@@ -403,7 +407,7 @@ async function deleteDay(s: Flight) {
 // --- One-off date changes (delays / moved days) ---
 const excs = ref<Record<number, Exc[]>>({})
 const excOpen = ref<Record<number, boolean>>({})
-const excForm = ref<Record<number, { leg: string; date: string; newDep: string; newDate: string; newArr: string; newFlightNo: string; more: boolean }>>({})
+const excForm = ref<Record<number, { leg: string; date: string; newDep: string; newDate: string; newArr: string; newFlightNo: string; notifyGroups: boolean; more: boolean }>>({})
 const excError = ref<Record<number, string>>({})
 const excNotice = ref<Record<number, string>>({})
 const excSavingId = ref<number | null>(null)
@@ -445,7 +449,7 @@ function availableOccurrences(s: Flight) {
 }
 function defaultExcDate(s: Flight, leg: string) { return availableOccurrences(s).find(o => o.leg === leg)?.iso || '' }
 function availableForLeg(s: Flight) { return availableOccurrences(s).filter(o => o.leg === (excForm.value[s.id]?.leg || 'Borish')) }
-function resetExcForm(s: Flight) { excForm.value[s.id] = { leg: 'Borish', date: defaultExcDate(s, 'Borish'), newDep: '', newDate: '', newArr: '', newFlightNo: '', more: false } }
+function resetExcForm(s: Flight) { excForm.value[s.id] = { leg: 'Borish', date: defaultExcDate(s, 'Borish'), newDep: '', newDate: '', newArr: '', newFlightNo: '', notifyGroups: true, more: false } }
 function setExcLeg(s: Flight, leg: string) { excForm.value[s.id].leg = leg; excForm.value[s.id].date = defaultExcDate(s, leg) }
 function occCurrentTime(s: Flight, iso: string) {
   const leg = legForDate(s, iso)
@@ -479,24 +483,29 @@ async function addExc(s: Flight) {
   // so the bot needs it. Require arrival whenever the TIME/DAY moved (a pure
   // reys-number swap keeps the schedule's own times, nothing to re-enter).
   if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
-  // Saving a one-off change immediately NOTIFIES every group flying that day on
-  // Telegram — an outward, hard-to-undo action — so confirm first (mirrors removeExc).
+  // Saving a one-off change (with the toggle ON) immediately NOTIFIES every group
+  // flying that day on Telegram — an outward, hard-to-undo action — so confirm
+  // first (mirrors removeExc). With the toggle OFF it saves silently; the confirm
+  // says so, so the admin knows nobody will be told.
   if (!(await confirm({
     title: "O'zgarishni saqlash",
-    message: "Bu o'zgarish saqlanadi va shu kuni uchadigan guruhlarga yangi reys vaqti haqida darhol xabar yuboriladi. Davom etamizmi?",
-    confirmText: "Saqlash va xabar berish",
+    message: f.notifyGroups
+      ? "Bu o'zgarish saqlanadi va shu kuni uchadigan guruhlarga yangi reys vaqti haqida darhol xabar yuboriladi. Davom etamizmi?"
+      : "Bu o'zgarish saqlanadi, lekin guruhlarga xabar YUBORILMAYDI — bot faqat so'ralganda yangi ma'lumot bilan javob beradi. Davom etamizmi?",
+    confirmText: f.notifyGroups ? "Saqlash va xabar berish" : "Xabarsiz saqlash",
   }))) return
   excSavingId.value = s.id
   try {
     const { data } = await api.post(`/flights/${s.id}/exceptions`, {
       flight_date: f.date, new_dep: f.newDep || null, new_date: f.newDate || null, new_arr: f.newArr || null,
-      new_flight_no: f.newFlightNo.trim() || null,
+      new_flight_no: f.newFlightNo.trim() || null, notify: f.notifyGroups,
     })
     if (!excs.value[s.id]) excs.value[s.id] = []
     excs.value[s.id].push(data)
     excs.value[s.id].sort((a, b) => (a.flight_date < b.flight_date ? -1 : 1))
     const n = data.notified ?? 0
-    excNotice.value[s.id] = n > 0 ? `✓ ${n} ta guruhga xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
+    excNotice.value[s.id] = !f.notifyGroups ? "✓ Saqlandi — xabar yuborilmadi (siz o'chirib qo'ygansiz)."
+      : n > 0 ? `✓ ${n} ta guruhga xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
     resetExcForm(s)
   } catch (e: any) {
@@ -537,6 +546,7 @@ function startEditExc(s: Flight, e: Exc) {
     newDate: e.new_date || '',
     newArr: e.new_arr || '',
     newFlightNo: e.new_flight_no || '',
+    notifyGroups: true,
     more: !!e.new_date,
   }
 }
@@ -557,22 +567,26 @@ async function saveEditExc(s: Flight) {
   if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
   // Editing a one-off change re-NOTIFIES the affected groups on Telegram (same
   // outward side-effect as adding one) — confirm before re-blasting the update.
+  // Toggle OFF = correct the record silently (e.g. a typo fix not worth a re-blast).
   if (!(await confirm({
     title: "O'zgarishni yangilash",
-    message: "Yangilangan reys vaqti shu kuni uchadigan guruhlarga darhol qayta yuboriladi. Davom etamizmi?",
-    confirmText: "Yangilash va xabar berish",
+    message: f.notifyGroups
+      ? "Yangilangan reys vaqti shu kuni uchadigan guruhlarga darhol qayta yuboriladi. Davom etamizmi?"
+      : "O'zgarish yangilanadi, lekin guruhlarga xabar YUBORILMAYDI. Davom etamizmi?",
+    confirmText: f.notifyGroups ? "Yangilash va xabar berish" : "Xabarsiz yangilash",
   }))) return
   excSavingId.value = s.id
   try {
     const { data } = await api.patch(`/flights/exceptions/${id}`, {
       new_dep: f.newDep || null, new_date: f.newDate || null, new_arr: f.newArr || null,
-      new_flight_no: f.newFlightNo.trim() || null,
+      new_flight_no: f.newFlightNo.trim() || null, notify: f.notifyGroups,
     })
     const arr = excs.value[s.id] || []
     const idx = arr.findIndex(x => x.id === id)
     if (idx >= 0) arr[idx] = data
     const n = data.notified ?? 0
-    excNotice.value[s.id] = n > 0 ? `✓ ${n} ta guruhga yangilangan xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
+    excNotice.value[s.id] = !f.notifyGroups ? "✓ Yangilandi — xabar yuborilmadi (siz o'chirib qo'ygansiz)."
+      : n > 0 ? `✓ ${n} ta guruhga yangilangan xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
     excEditId.value[s.id] = null
     resetExcForm(s)
