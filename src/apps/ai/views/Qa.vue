@@ -25,13 +25,33 @@
         </p>
       </div>
 
+      <!-- Scope filters mirror the BOT's own rule: picking a city / hotel shows the
+           entries a group THERE can receive (umumiy qatorlar + shu scope'ga
+           biriktirilganlari) — i.e. exactly the bot's candidate pool. -->
+      <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-2 animate-fade-up">
+        <span class="text-xs font-medium text-gray-400 mr-1">Shahar:</span>
+        <button
+          v-for="c in [{ v: '', label: 'Barchasi' }, { v: 'makka', label: 'Makka' }, { v: 'madina', label: 'Madina' }]"
+          :key="c.v"
+          @click="cityFilter = c.v"
+          class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
+          :class="cityFilter === c.v ? 'bg-teal-50 text-teal-700 border-teal-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
+        >{{ c.label }}</button>
+        <span class="text-xs font-medium text-gray-400 ml-3 mr-1">Mehmonxona:</span>
+        <select v-model="hotelFilter"
+          class="bg-white border border-gray-200 rounded-2xl px-3 py-1.5 text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <option value="">Barchasi</option>
+          <option v-for="h in hotelOptions()" :key="h" :value="h">{{ h }}</option>
+        </select>
+      </div>
+
       <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-2 animate-fade-up">
         <span class="text-xs font-medium text-gray-400 mr-1">Kategoriya:</span>
         <button
           @click="categoryFilter = ''"
           class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
           :class="categoryFilter === '' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
-        >Barchasi ({{ entries.length }})</button>
+        >Barchasi ({{ scoped.length }})</button>
         <button
           v-for="c in categories"
           :key="c.name"
@@ -146,6 +166,16 @@
               <p class="text-[11px] text-gray-400 mt-1">Faqat shu mehmonxonadagi guruhlarga ko'rsatiladi (WiFi, qavatlar, ovqat vaqtlari kabi mehmonxonaga xos javoblar uchun). Bo'sh = barcha mehmonxonalar.</p>
             </div>
             <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">Shahar (ixtiyoriy)</label>
+              <select v-model="form.city"
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                <option value="">Barcha shaharlar</option>
+                <option value="makka">Makka</option>
+                <option value="madina">Madina</option>
+              </select>
+              <p class="text-[11px] text-gray-400 mt-1">Guruh hozir shu shaharda bo'lgandagina ko'rsatiladi (yig'ilish joyi, shahar transporti kabi butun shaharga tegishli javoblar uchun). Mehmonxona tanlangan bo'lsa, shahar odatda kerak emas.</p>
+            </div>
+            <div>
               <label class="block text-xs font-medium text-gray-500 mb-1.5">Savol</label>
               <textarea v-model="form.question" rows="2" placeholder="Masalan: Viza qancha vaqtda chiqadi?"
                 class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"></textarea>
@@ -203,6 +233,7 @@ interface Qa {
   tier: string | null
   staff_username: string | null
   hotel: string | null
+  city: string | null
   is_active: boolean
 }
 
@@ -215,11 +246,21 @@ const entries = ref<Qa[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const categoryFilter = ref('')
+const cityFilter = ref('')
+const hotelFilter = ref('')
+
+// The entries a group in the picked city / hotel CAN receive — generic (NULL-scope)
+// rows plus the rows scoped to that city/hotel. Same rule the bot's find_qa applies,
+// so this view answers "what does a Saja group actually see".
+const scoped = computed(() => entries.value.filter(q =>
+  (!cityFilter.value || !q.city || q.city === cityFilter.value)
+  && (!hotelFilter.value || !q.hotel || q.hotel === hotelFilter.value)
+))
 
 // Distinct categories with counts, for the filter chips ('Boshqa' = no category).
 const categories = computed(() => {
   const map: Record<string, number> = {}
-  for (const q of entries.value) {
+  for (const q of scoped.value) {
     const key = q.category || 'Boshqa'
     map[key] = (map[key] || 0) + 1
   }
@@ -229,7 +270,7 @@ const categories = computed(() => {
 // Two-level tree: category -> [ {name:null = loose entries}, {name:sub, items}, ... ].
 const grouped = computed(() => {
   const cats: Record<string, { subs: Record<string, Qa[]>; loose: Qa[] }> = {}
-  for (const q of entries.value) {
+  for (const q of scoped.value) {
     const cat = q.category || 'Boshqa'
     if (categoryFilter.value && cat !== categoryFilter.value) continue
     const c = (cats[cat] ||= { subs: {}, loose: [] })
@@ -272,19 +313,19 @@ watch(categoryFilter, v => { if (v) openCat[v] = true })
 const modalOpen = ref(false)
 const modalEditId = ref<number | null>(null)
 const formError = ref('')
-const form = ref({ category: '', subcategory: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '' })
+const form = ref({ category: '', subcategory: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '', city: '' })
 
 function openAdd() {
   modalEditId.value = null
   formError.value = ''
-  form.value = { category: '', subcategory: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '' }
+  form.value = { category: '', subcategory: '', question: '', answer: '', keywords: '', tier: '', staff_username: '', hotel: '', city: '' }
   modalOpen.value = true
 }
 
 function openEdit(q: Qa) {
   modalEditId.value = q.id
   formError.value = ''
-  form.value = { category: q.category || '', subcategory: q.subcategory || '', question: q.question, answer: q.answer, keywords: q.keywords || '', tier: q.tier || '', staff_username: q.staff_username || '', hotel: q.hotel || '' }
+  form.value = { category: q.category || '', subcategory: q.subcategory || '', question: q.question, answer: q.answer, keywords: q.keywords || '', tier: q.tier || '', staff_username: q.staff_username || '', hotel: q.hotel || '', city: q.city || '' }
   modalOpen.value = true
 }
 
@@ -297,15 +338,19 @@ async function saveModal() {
   if (!form.value.question.trim() || !form.value.answer.trim()) return
   saving.value = true
   formError.value = ''
+  // Optional fields go as "" (not null): on PUT the server reads null as "field
+  // not sent — don't touch", so `|| null` made CLEARING a scope (hotel/tier/...)
+  // silently not save. The server maps "" -> NULL itself.
   const payload = {
-    category: form.value.category.trim() || null,
-    subcategory: form.value.subcategory.trim() || null,
+    category: form.value.category.trim(),
+    subcategory: form.value.subcategory.trim(),
     question: form.value.question.trim(),
     answer: form.value.answer.trim(),
-    keywords: form.value.keywords.trim() || null,
-    tier: form.value.tier || null,
-    staff_username: form.value.staff_username.trim() || null,
-    hotel: form.value.hotel || null,
+    keywords: form.value.keywords.trim(),
+    tier: form.value.tier,
+    staff_username: form.value.staff_username.trim(),
+    hotel: form.value.hotel,
+    city: form.value.city,
   }
   try {
     if (modalEditId.value) {
