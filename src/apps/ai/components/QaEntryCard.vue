@@ -15,6 +15,10 @@
           class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
           🏨 {{ q.hotel }}
         </span>
+        <span v-if="q.city"
+          class="ml-1.5 align-middle inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 text-teal-700">
+          🕌 {{ q.city === 'makka' ? 'Makka' : q.city === 'madina' ? 'Madina' : q.city }}
+        </span>
       </p>
       <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ q.answer }}</p>
       <p v-if="q.keywords" class="text-[11px] text-gray-400 mt-1.5 truncate">
@@ -62,6 +66,7 @@ interface Qa {
   tier: string | null
   staff_username: string | null
   hotel: string | null
+  city: string | null
   is_active: boolean
 }
 defineProps<{ q: Qa }>()
