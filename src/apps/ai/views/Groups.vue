@@ -39,6 +39,17 @@
                 <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
                 <p class="text-[11px] text-gray-400">{{ g.id }}</p>
               </div>
+              <!-- Fully-silent switch (admin here; the main nazoratchi has the same
+                   toggle in the Nazorat panel). Saves IMMEDIATELY via its own
+                   endpoint — deliberately independent of the Saqlash button, so
+                   silencing a group never rides along with unrelated form edits. -->
+              <button v-if="isAdmin" @click="toggleSilent(g)" :disabled="silentSavingId === g.id"
+                class="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-colors"
+                :class="g.bot_silent ? 'bg-rose-50 text-rose-600 border-rose-200' : 'border-gray-200 text-gray-400 hover:text-gray-600'"
+                :title="g.bot_silent ? 'Bot bu guruhda javob yozmaydi (kartochkalar baribir boradi)' : 'Bot bu guruhda javob beradi'">
+                <font-awesome-icon :icon="g.bot_silent ? 'toggle-off' : 'toggle-on'" class="w-3.5 h-3.5" />
+                {{ g.bot_silent ? 'Bot JIM' : 'Bot faol' }}
+              </button>
               <span v-if="!hasLocation(g)" class="text-[11px] text-rose-600 shrink-0">Kechalar kiritilmagan — bot shaharni bilmaydi</span>
               <span v-if="savedId === g.id" class="text-emerald-600 text-xs flex items-center gap-1 shrink-0">
                 <font-awesome-icon icon="circle" class="w-2 h-2" /> Saqlandi
@@ -123,6 +134,7 @@ import AppLayout from '../components/AppLayout.vue'
 import api, { teamApi } from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
 import { useHotelsStore } from '../../../stores/hotels'
+import { useToast } from '../../../composables/useToast'
 import { byGroupNumber } from '../../../utils/groupOrder'
 
 // Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
@@ -153,6 +165,29 @@ interface Grp {
   hotel_makka: string
   hotel_madina: string
   hotel_jidda: string
+  bot_silent: boolean
+}
+
+const authStore = useAuthStore()
+const toast = useToast()
+// The fully-silent switch is admin + main-nazoratchi only (the API enforces it);
+// this page is also served to the qa role, which must not even see the button.
+const isAdmin = computed(() => authStore.role === 'admin')
+const silentSavingId = ref<number | null>(null)
+
+async function toggleSilent(g: Grp) {
+  silentSavingId.value = g.id
+  try {
+    const { data } = await api.put(`/groups/${g.id}/bot-silent`, { silent: !g.bot_silent })
+    g.bot_silent = !!data.bot_silent
+    toast.success(g.bot_silent
+      ? 'Bot bu guruhda JIM — kartochkalar va DMlar baribir boradi'
+      : 'Bot bu guruhda yana javob beradi')
+  } catch {
+    toast.error('Saqlashda xatolik yuz berdi')
+  } finally {
+    silentSavingId.value = null
+  }
 }
 
 const loading = ref(false)
@@ -433,6 +468,7 @@ async function load() {
         hotel_makka: g.hotel_makka || '',
         hotel_madina: g.hotel_madina || '',
         hotel_jidda: g.hotel_jidda || '',
+        bot_silent: !!g.bot_silent,
       }
     })
   } catch {
