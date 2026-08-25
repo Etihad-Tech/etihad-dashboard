@@ -1,18 +1,13 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-
-  "//": "Vercel ignores public/_redirects (a Netlify file). These rewrites are the Vercel equivalent: the edge calls the plain-HTTP APIs server-side, so the browser never makes an https -> http request (no mixed content) and there is no CORS preflight at all.",
-
   "build": {
     "env": {
       "VITE_AI_API_URL": "/proxy/ai",
       "VITE_TEAM_API_URL": "/proxy/team"
     }
   },
-
   "rewrites": [
     { "source": "/proxy/ai/:path*", "destination": "http://46.101.252.166:8000/:path*" },
     { "source": "/proxy/team/:path*", "destination": "http://46.101.252.166:8001/:path*" },
