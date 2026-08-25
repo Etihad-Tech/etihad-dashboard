@@ -199,6 +199,52 @@
             </li>
          </ul>
       </div>
+
+      <!-- ──────────────── BOT ANSWERS PER GROUP ────────────────
+           Owner rule 2026-08-25: only the ADMIN and the MAIN nazoratchi may silence
+           the bot in a group. The two scoped controller logins (staff / ellikboshi)
+           see this panel too, so the section is gated by EXACT role — and the API
+           enforces the same rule regardless of what renders here. "JIM" means the
+           bot posts nothing in that group while staff DM cards, Nazorat records and
+           worker-group forwards keep flowing. -->
+      <div v-if="canSilence" class="card n-enter overflow-hidden" style="--i: 3">
+         <div class="flex items-start gap-3.5 p-5 border-b border-gray-100">
+            <span class="n-ico n-ico-sm" style="--c: #e0534f">
+               <!-- 'gear', because it is already in the icon library (same rule as the
+                    chevron above: an unregistered glyph renders NOTHING). -->
+               <font-awesome-icon icon="gear" class="w-4 h-4" />
+            </span>
+            <div>
+               <h3 class="n-h">Bot javoblari</h3>
+               <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1.5 leading-snug">
+                  JIM rejimda bot guruhga hech narsa yozmaydi — lekin murojaat
+                  kartochkalari, DMlar va Nazorat yozuvlari baribir boradi.
+               </p>
+            </div>
+         </div>
+         <div v-if="botGroupsLoading" class="p-5">
+            <div class="h-24 rounded-2xl bg-gray-100 animate-pulse"></div>
+         </div>
+         <div v-else-if="botGroupsError" class="p-5 text-center">
+            <p class="text-[14.5px] text-[color:var(--n-muted)] mb-3">Guruhlar yuklanmadi.</p>
+            <button @click="loadBotGroups" class="btn-primary">Qayta urinish</button>
+         </div>
+         <ul v-else class="divide-y divide-gray-100">
+            <li v-for="g in botGroups" :key="g.id"
+                class="px-5 py-3 flex items-center gap-3.5">
+               <span class="min-w-0 flex-1 text-[14.5px] font-medium truncate">
+                  {{ g.title || ('Guruh ' + g.id) }}
+               </span>
+               <button @click="toggleBotSilent(g)" :disabled="botSavingId === g.id"
+                  class="shrink-0 px-3 py-1.5 rounded-2xl text-[12.5px] font-semibold border transition-colors"
+                  :class="g.bot_silent
+                     ? 'bg-rose-50 text-rose-600 border-rose-200'
+                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                  {{ botSavingId === g.id ? '...' : (g.bot_silent ? 'JIM' : 'Faol') }}
+               </button>
+            </li>
+         </ul>
+      </div>
    </div>
 </template>
 
@@ -206,8 +252,51 @@
 import { computed, onMounted, ref } from 'vue'
 import { useNazoratStore } from '../../stores/nazorat'
 import { initials, PIE_COLORS } from './shared'
+import api from '../../../../api'
+import { useAuthStore } from '../../../../stores/auth'
+import { byGroupNumber } from '../../../../utils/groupOrder'
 
 const s = useNazoratStore()
+
+// ── Bot-answers switch (admin + MAIN nazoratchi only) ─────────────────────────
+// Exact-role match on purpose: the scoped controller logins also start with
+// "nazoratchi" and must not see (or be able to use) the switch.
+const auth = useAuthStore()
+const canSilence = computed(() => auth.role === 'admin' || auth.role === 'nazoratchi')
+
+interface BotGroup { id: number; title: string | null; bot_silent: boolean }
+const botGroups = ref<BotGroup[]>([])
+const botGroupsLoading = ref(false)
+const botGroupsError = ref(false)
+const botSavingId = ref<number | null>(null)
+
+async function loadBotGroups() {
+  botGroupsLoading.value = true
+  botGroupsError.value = false
+  try {
+    const { data } = await api.get('/groups')
+    botGroups.value = data
+      .map((g: any): BotGroup => ({ id: g.id, title: g.title, bot_silent: !!g.bot_silent }))
+      .sort(byGroupNumber)
+  } catch {
+    botGroupsError.value = true
+    botGroups.value = []
+  } finally {
+    botGroupsLoading.value = false
+  }
+}
+
+async function toggleBotSilent(g: BotGroup) {
+  botSavingId.value = g.id
+  try {
+    const { data } = await api.put(`/groups/${g.id}/bot-silent`, { silent: !g.bot_silent })
+    g.bot_silent = !!data.bot_silent
+  } catch {
+    /* the button simply stays as it was — no state was changed on the server */
+  } finally {
+    botSavingId.value = null
+  }
+}
 const open = ref('')
 // Separate from `open` on purpose: the chart's drill-down lists the groups that ran in
 // THIS WINDOW, the roster's lists everything ever assigned. One ref would make tapping a
@@ -273,5 +362,6 @@ const openName = computed(() => openRow.value ? (openRow.value.name || openRow.v
 onMounted(() => {
    if (!s.leaderGroups.length) s.loadLeaderGroups()
    if (!s.periodCounts.length) s.loadPeriodCounts()
+   if (canSilence.value) loadBotGroups()
 })
 </script>
