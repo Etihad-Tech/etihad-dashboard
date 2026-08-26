@@ -107,6 +107,53 @@
                            <a v-if="e.message_link" :href="e.message_link" target="_blank"
                               rel="noopener" class="text-[color:var(--n-accent)] ml-1">Telegram</a>
                         </p>
+
+                        <!-- CURATING THE BASE FROM THE PERSON'S OWN MONTH (owner,
+                             2026-08-26). The control existed only in the feed, so the one
+                             screen a nazoratchi actually reads a leader's month on could
+                             show the cards and not correct them — and an already-excluded
+                             card was not even marked here, which is worse: the month read
+                             as if every card counted.
+
+                             Same call as the feed's, deliberately: it takes the WHOLE
+                             murojaat out, not this person's card, because «bu murojaat
+                             xato edi» cannot be true of one recipient and false of the
+                             colleague who got the same card. The line below says so, so
+                             nobody reads it as a private edit to one leader's score. -->
+                        <p v-if="entryExcluded(e)"
+                           class="text-[12px] text-[color:var(--n-muted)] mt-0.5">
+                           Xatolik — KPI dan chiqarilgan ·
+                           {{ reasonTitle(entryExcluded(e)?.reason) }}
+                           <span v-if="entryExcluded(e)?.note">— {{ entryExcluded(e)?.note }}</span>
+                        </p>
+                        <button v-if="requestById(e.id)" type="button"
+                           class="text-[12px] text-[color:var(--n-accent)] mt-0.5 underline underline-offset-2"
+                           @click="toggleExclude(e.id)">
+                           {{ openExclude === e.id ? 'Yopish'
+                              : entryExcluded(e) ? 'Sababni o\'zgartirish' : 'KPI dan chiqarish' }}
+                        </button>
+                        <div v-if="openExclude === e.id && requestById(e.id)" class="mt-1.5 space-y-1.5">
+                           <div class="flex flex-wrap items-center gap-2 text-[12.5px]">
+                              <span class="text-[color:var(--n-faint)]">
+                                 Butun murojaat · {{ requestById(e.id)?.graded?.length || 0 }} kartochka
+                              </span>
+                              <select class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[12.5px]"
+                                 :value="entryExcluded(e)?.reason || ''"
+                                 @change="pick(requestById(e.id), $event)">
+                                 <option value="">Hisobda</option>
+                                 <option v-for="o in s.exclusionReasons" :key="o.code" :value="o.code">
+                                    {{ o.title }}
+                                 </option>
+                              </select>
+                           </div>
+                           <input v-if="noteFor" v-model="noteText" type="text" maxlength="200"
+                              placeholder="Sabab izohi — majburiy"
+                              class="w-full px-2.5 py-1.5 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[12.5px]"
+                              @keyup.enter="commitNote()" />
+                           <button v-if="noteFor" class="btn-ghost text-[12.5px]" @click="commitNote()">
+                              Saqlash
+                           </button>
+                        </div>
                      </li>
                   </ul>
                   <button type="button" class="btn-ghost mt-3 text-[13px]"
@@ -287,6 +334,30 @@ function excludedInfo(r: any) {
 function gradedNames(r: any): string {
    const names = (r.graded || []).map(cardName)
    return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3}` : names.join(', ')
+}
+
+/** The whole murojaat behind a per-person log entry.
+ *
+ *  The per-person log is built from one RECIPIENT row each (entriesFor), but an
+ *  exclusion is a fact about the MESSAGE and is written for every graded recipient at
+ *  once (owner, 2026-08-20). Looking the murojaat back up lets the person log reuse
+ *  `pick` / `commitNote` / `excludedInfo` exactly as the feed calls them, so the two
+ *  modes cannot end up with two different scopes for the same button.
+ *
+ *  Read off `feed`, NOT `s.requests`: `graded` (the cards this murojaat actually puts
+ *  into somebody's base) is computed in the feed mapping and does not exist on the raw
+ *  store rows. Looking it up there would have returned a murojaat whose `graded` was
+ *  undefined, so `excludedInfo` would have found nothing and an already-excluded card
+ *  would have silently rendered as counting — the button would have looked wired and
+ *  the marker would never once have appeared. */
+function requestById(id: number) {
+   return feed.value.find((r: any) => r.id === id) || null
+}
+
+/** `excludedInfo` for a log entry, safe when the murojaat is not in the loaded page. */
+function entryExcluded(e: any) {
+   const r = requestById(e.id)
+   return r ? excludedInfo(r) : null
 }
 
 /** A reason picked from the select. «boshqa» waits for its note; everything else

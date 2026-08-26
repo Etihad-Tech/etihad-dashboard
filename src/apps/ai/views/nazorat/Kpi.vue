@@ -274,12 +274,40 @@
                              where it multiplied something. «Why is my bonus 1,2 times» and
                              «how much did I carry» are the same question, and a line that
                              appears only in good months answers it only in good months. -->
+                        <!-- COUNT and LOAD as two different words (owner, 2026-08-26).
+                             This line used to read «1,0 guruh» and mean the load, so a
+                             leader who ran two Premium groups was shown a number saying
+                             one. «guruh» now only ever counts groups; «yuklama» is the
+                             daraja-weighted figure the money is calculated from. -->
                         <template v-if="r.w.sg !== null">
                            <span></span>
                            <span>Oylik yuklama</span>
-                           <span class="text-right">{{ dec(r.w.sg) }} guruh</span>
+                           <span class="text-right">
+                              {{ sgGroups(r.w).length }} guruh · {{ dec(r.w.sg) }} yuklama
+                           </span>
                         </template>
                      </div>
+                     <!-- WHICH groups made that load, one line each. «Why is my yuklama
+                          1,0 when I had two groups» is the question this line pays for,
+                          and until 26.08 the payslip printed the total and nothing else,
+                          so the Daraja halving was invisible arithmetic. Cities are
+                          merged back onto their group: the server sends one entry per
+                          city-LEG, and listing legs would answer the question with the
+                          same confusion in a different unit. -->
+                     <ul v-if="sgGroups(r.w).length"
+                        class="mt-1 space-y-0.5 text-[12.5px] text-[color:var(--n-muted)]">
+                        <li v-for="g in sgGroups(r.w)" :key="g.chat_id"
+                           class="flex items-baseline gap-2">
+                           <span class="min-w-0 flex-1 truncate">
+                              {{ g.title || ('Guruh ' + g.chat_id) }}
+                              <span class="text-[color:var(--n-faint)]">
+                                 · {{ g.cities.map(cityShort).join('+') || '—' }}
+                                 · {{ g.tier ? tierName(g.tier) : 'daraja yo\'q' }}
+                              </span>
+                           </span>
+                           <span class="tabular-nums shrink-0">{{ dec(g.sg) }}</span>
+                        </li>
+                     </ul>
                      <!-- A group with no Daraja is an unanswered question, not a premium
                           group: SG counts it as a WHOLE group and says so here rather
                           than quietly paying half a load. -->
@@ -402,18 +430,54 @@ function cityLoad(w: Worker): string {
    return `${parts.join(' · ')} — ${Number(w.weighted_load.toFixed(2))} ish birligi`
 }
 
+const TIER_NAMES: Record<string, string> = {
+   comfort: 'Komfort', premium: 'Premium / Lux',
+}
+function tierName(t?: string | null) {
+   return t ? (TIER_NAMES[t] || t) : ''
+}
+function cityShort(c?: string) {
+   return c ? (CITY_NAMES[c] || c) : ''
+}
+
+/** The month's segments folded back into GROUPS — one row per group, its cities merged
+ *  and its SG summed.
+ *
+ *  The server sends one entry per city-LEG (a whole trip under one leader is two), which
+ *  is right for the arithmetic and wrong for the reader: counting entries would report
+ *  two groups for one, which is the exact confusion this breakdown exists to end. Sorted
+ *  heaviest first, so the group that moved the number most is the one read first. */
+function sgGroups(w: Worker) {
+   const by = new Map<number, { chat_id: number; title: string | null
+                                cities: string[]; tier: string | null; sg: number }>()
+   for (const s of w.sg_segments || []) {
+      const row = by.get(s.chat_id) || {
+         chat_id: s.chat_id, title: s.title, cities: [],
+         tier: s.hotel_tier, sg: 0,
+      }
+      if (s.city && !row.cities.includes(s.city)) row.cities.push(s.city)
+      row.sg += s.sg ?? 0
+      by.set(s.chat_id, row)
+   }
+   return [...by.values()]
+      .map((r) => ({ ...r, sg: Number(r.sg.toFixed(2)) }))
+      .sort((a, b) => b.sg - a.sg || (a.title || '').localeCompare(b.title || ''))
+}
+
 /** How much of the month's load the BONUS was multiplied by, in words.
  *
- *  Named by what it measures — groups — and never by its letter (owner, 2026-08-20:
- *  «не пиши как SG, K … не знающий человек не поймет вообще»). When every group was
- *  assigned as a reward this is simply the load; when only part of it was, both numbers
- *  are said out loud, because a 1,0 multiplier printed beside a 1,6 load reads as a bug
- *  rather than as the rule working. */
+ *  Never named by its letter (owner, 2026-08-20: «не пиши как SG, K … не знающий человек
+ *  не поймет вообще»). It says «yuklama» and not «guruh» (owner, 2026-08-26): the count
+ *  and the daraja-weighted load are different numbers — two Premium groups are 2 guruh
+ *  and 1,0 yuklama — and one word for both was what made the payslip and the Guruhlar
+ *  tab look like they disagreed. When every group was assigned as a reward this is simply
+ *  the load; when only part of it was, both numbers are said out loud, because a 1,0
+ *  multiplier printed beside a 1,6 load reads as a bug rather than as the rule working. */
 function kBasis(sal: NonNullable<Worker['salary']>): string {
    const sg = dec(sal.sg ?? 0)
    const k = dec(sal.k_sg ?? sal.sg ?? 0)
-   return k === sg ? `${sg} guruh yuklama`
-      : `${sg} guruhdan ${k} tasi natija bo'yicha`
+   return k === sg ? `${sg} yuklama`
+      : `${sg} yuklamadan ${k} tasi natija bo'yicha`
 }
 
 /** «0,4 guruh» — what was carried BEYOND the first one, which is what this line pays

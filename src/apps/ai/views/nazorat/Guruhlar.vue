@@ -22,6 +22,15 @@
                   mumkin. Ish birligi: Makka {{ fmtUnits(CITY_WEIGHT_MAKKA) }} +
                   Madina {{ fmtUnits(CITY_WEIGHT_MADINA) }} = 1 to'liq guruh.
                </p>
+               <!-- The SECOND weight, said here for the same reason the city one is: it
+                    is the same rule everywhere on the screen. Until 26.08 this caption
+                    named only the city half, so «2 guruh» here and «1,0 yuklama» on the
+                    KPI payslip looked like a contradiction rather than two questions. -->
+               <p class="text-[12.5px] text-[color:var(--n-faint)] mt-1.5 leading-snug">
+                  Guruh SONI darajaga bog'liq emas. Oylikda hisoblanadigan
+                  <b>yuklama</b> esa darajani ham qo'shadi: Komfort 1,0 · Premium / Lux
+                  0,5 — ya'ni ikkita Premium guruh 2 guruh, lekin 1,0 yuklama.
+               </p>
             </div>
          </div>
       </div>
@@ -204,6 +213,16 @@
                            class="block text-[11.5px] tabular-nums text-[color:var(--n-faint)]">
                         {{ fmtUnits(l.weighted_units) }} birlik
                      </span>
+                     <!-- ...and the DARAJA-weighted figure, which is what the KPI payslip
+                          pays on (owner, 2026-08-26). Same rule as the line above: shown
+                          only when Daraja actually changed something, so a roster of
+                          comfort groups does not print one number three times. Two
+                          premium groups read «2 guruh» here and «1,0 yuklama» there —
+                          before this line the two tabs simply disagreed. -->
+                     <span v-if="l.sg !== l.weighted_units"
+                           class="block text-[11.5px] tabular-nums text-[color:var(--n-faint)]">
+                        {{ fmtUnits(l.sg) }} yuklama · daraja b-n
+                     </span>
                   </span>
                   <!-- chevron-RIGHT rotated, because that one is already in the icon
                        library; adding chevron-down for the same job would ship a second
@@ -224,6 +243,20 @@
                           phone. This is also what makes the weighted total checkable. -->
                      <span v-if="g.cities.length < 2" class="text-[color:var(--n-faint)]">
                         · faqat {{ cityName(g.cities[0]) }} ({{ fmtUnits(g.weight) }})
+                     </span>
+                     <!-- The Daraja and what this group is worth under it — the same
+                          reason the city is named: a total nobody can check by hand is
+                          not evidence. Only when Daraja moved the number, so a comfort
+                          group (which is worth exactly its city weight) stays a
+                          one-line entry. -->
+                     <span v-if="g.tier_set && g.sg !== g.weight" class="text-[color:var(--n-faint)]">
+                        · {{ tierName(g.tier) }} ({{ fmtUnits(g.sg) }})
+                     </span>
+                     <!-- An unset Daraja is an unanswered question, not a premium group.
+                          It was counted as a WHOLE group, and this says so here rather
+                          than leaving a reader to wonder why the totals do not divide. -->
+                     <span v-else-if="!g.tier_set" class="text-amber-700">
+                        · daraja belgilanmagan
                      </span>
                   </li>
                </ul>
@@ -275,6 +308,16 @@ const CITY_NAMES: Record<string, string> = {
 }
 function cityName(c?: string) {
    return c ? (CITY_NAMES[c] || c) : ''
+}
+
+// The Daraja names the Guruhlar SELECT already uses, so the roster calls a package what
+// the person who set it called it. Only the two real tiers appear here: an unset Daraja
+// is rendered by its own amber line, never as a tier name, because it is not one.
+const TIER_NAMES: Record<string, string> = {
+   comfort: 'Komfort', premium: 'Premium / Lux',
+}
+function tierName(t?: string | null) {
+   return t ? (TIER_NAMES[t] || t) : ''
 }
 
 const GROUP_PERIODS = [

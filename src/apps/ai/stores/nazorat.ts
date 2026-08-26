@@ -79,9 +79,15 @@ export interface Worker {
    // SG arithmetic in; the UI only ever displays `sg`.
    sg: number | null
    sg_units: number | null
+   // ONE ENTRY PER CITY-LEG, not per group: a leader holding a whole trip appears twice
+   // for the same chat_id, once for Makka and once for Madina. The field was typed
+   // `cities: string[]` here and has always been `city: string` on the wire — harmless
+   // while nothing rendered it, wrong the moment something counted it, so a reader
+   // counting entries would report two groups for one. Merge by `chat_id` to count
+   // GROUPS (Kpi.vue does).
    sg_segments: { chat_id: number; title: string | null; trip_start_date: string
-                  hotel_tier: string | null; cities: string[]; sg: number | null
-                  override: boolean }[]
+                  hotel_tier: string | null; city: string; sg: number | null
+                  assignment_type: string | null; override: boolean }[]
    // How many of those groups have NO Daraja set. Such a group is counted as a whole
    // group (neutral: K unaffected, no load payment) rather than guessed at from its
    // title — the screen asks somebody to set it instead of quietly paying half.
@@ -146,8 +152,19 @@ export interface LeaderGroups {
    // exactly 1.0 however it is split and a leader holding both legs is unchanged.
    group_count: number
    weighted_units: number
+   // §4.1 — the same figure the KPI payslip pays on: guruh turi × shahar koeffitsienti.
+   // `weighted_units` splits a group between its two city leaders and stops there; `sg`
+   // additionally applies the Daraja, so two PREMIUM groups are 2 · 2,0 · 1,0 across the
+   // three fields. Both are shown (owner, 2026-08-26): until then this screen sent only
+   // the first two and the payslip only the third, and the panel answered «how many
+   // groups does this ellikboshi have» two different ways depending on the tab.
+   sg: number
+   // How many of those groups have NO Daraja set. Counted as WHOLE groups, the same
+   // rule the payslip follows — an unanswered question is not a premium group.
+   tier_unset: number
    groups: { telegram_id: number; title: string | null
-             cities: string[]; weight: number }[]
+             cities: string[]; weight: number
+             tier: string | null; tier_set: boolean; sg: number }[]
 }
 
 /** One ellikboshi's WORKLOAD in an arbitrary window — how many of their groups were on
