@@ -217,7 +217,18 @@ const route = useRoute()
 const { personWordLower } = useNazoratView()
 
 const telegramId = computed(() => Number(route.params.id))
-const worker = computed(() => s.workers.find((w) => w.telegram_id === telegramId.value) || null)
+/** This screen is the person's MONEY (owner, 2026-08-15: «журнал там лишний»), so it
+ *  reads the same calendar month the KPI tab does — not the panel's rolling window.
+ *
+ *  Two lists existed for one person and they disagreed: the KPI tab moved to the
+ *  calendar month on 2026-08-27 and this page still read `workers`, the last 30 days, so
+ *  tapping a row from that board showed the same person a different salary. The rolling
+ *  row is kept only as a fallback, for the arrival paths that have no KPI month loaded
+ *  yet — better a number from the other window than an empty screen. */
+const worker = computed(() =>
+   s.kpiWorkers.find((w) => w.telegram_id === telegramId.value)
+   || s.workers.find((w) => w.telegram_id === telegramId.value)
+   || null)
 
 const soum = (v: number) => v.toLocaleString('ru-RU')
 const dec = (v: number) => v.toFixed(v % 1 === 0 ? 1 : 2).replace('.', ',')
@@ -361,5 +372,10 @@ const headTiles = computed(() => {
    ]
 })
 
-onMounted(() => { void s.loadKpiSettings() })
+onMounted(() => {
+   void s.loadKpiSettings()
+   // Arriving straight on this URL (a shared link, a refresh) leaves the calendar month
+   // unloaded, and the fallback above would quietly show the rolling figure instead.
+   if (!s.kpiWorkers.length) void s.loadKpiWorkers()
+})
 </script>

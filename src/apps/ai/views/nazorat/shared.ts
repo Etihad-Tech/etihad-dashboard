@@ -427,9 +427,20 @@ export function useNazoratView() {
       // still helps. Sits right after the angry pilgrim: both are about NOW.
       if (s.slaOverdue.length) out.push({
          key: 'sla', value: s.slaOverdue.length, label: 'SLA kutmoqda',
-         // The SET of overdue cards: cleared stays cleared while the same cards wait,
-         // and a different card going overdue raises it again.
-         sig: 'sla:' + fold([...s.slaOverdue].map((c) => String(c.recipient_id)).sort()),
+         // The NEWEST overdue card's id — the same rule the other notices use, and NOT
+         // the set (owner, 2026-08-27: «i cannot clear notifications… after some period
+         // occurring again»).
+         //
+         // The set churned for three reasons that carry NO new information, and the
+         // dismissal test is an equality on this string, so each of them un-cleared the
+         // notice: `get_sla_overdue` keeps only the last 24 HOURS, so a card ages out on
+         // a timer; it returns at most 50, sorted by `overdue_minutes`, which grows every
+         // minute and so reshuffles which 50; and a card being accepted leaves the list.
+         // None of those is a reason to ring a bell somebody has already read.
+         //
+         // Keyed on the newest id, clearing holds until a card NEWER than the one cleared
+         // goes overdue — which is the only event worth raising it for.
+         sig: 'sla:' + Math.max(0, ...s.slaOverdue.map((c) => c.recipient_id)),
          color: '#c2410c',
          hint: "Qabul qilinmagan murojaatlar — belgilangan vaqt o'tdi:",
          people: s.slaOverdue.map((c) =>
@@ -753,8 +764,14 @@ export function useNazoratView() {
       }
       // The API already sends roster members only (owner, 2026-08-15: a deleted
       // worker's row is useless info) — no second filter here, one authority.
-      const leaders = filteredWorkers.value.filter((w) => isLeaderLevel(w))
-      const crew = filteredWorkers.value.filter((w) => !isLeaderLevel(w))
+      //
+      // `kpiWorkers`, NOT `filteredWorkers`: this board is a PAYSLIP and runs on the
+      // CALENDAR month, while Reyting keeps the rolling 30-day window (owner,
+      // 2026-08-27). The lavozim filter still applies — it decides which board a person
+      // sits on, not which days count.
+      const people = s.kpiWorkers.filter((w) => matchesRoleFilter(w, s.filterRole))
+      const leaders = people.filter((w) => isLeaderLevel(w))
+      const crew = people.filter((w) => !isLeaderLevel(w))
       return [
          { key: 'ellikboshi', title: leaderGroupTitle(leaders), scored: true,
            rows: mk(leaders, true) },
