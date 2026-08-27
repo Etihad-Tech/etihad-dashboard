@@ -438,6 +438,48 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return parts.join('&')
    })
 
+   // ── THE KPI TAB RUNS ON A CALENDAR MONTH, NOT THE ROLLING WINDOW ────────────────
+   // Owner, 2026-08-27: «i freeze… then all statistics goes to 0 and new month starts
+   // fresh?» — it did not. The panel's «Oylik» is the last 30 DAYS, so on the 3rd of
+   // September the KPI tab still carried ~28 days of August: a salary made of two
+   // months, which could never agree with the August snapshot frozen days earlier.
+   //
+   // Its own state, and its own fetch, because `workers` is shared with Reyting — which
+   // KEEPS the rolling selector. A monitoring board that empties itself at midnight on
+   // the 1st is a worse board; a payslip that does not is a wrong payslip.
+   const thisMonth = () => {
+      const d = new Date()
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+   }
+   const kpiMonth = ref<string>(thisMonth())
+   const kpiWorkers = ref<Worker[]>([])
+   const kpiLoading = ref(false)
+   const kpiError = ref(false)
+
+   async function loadKpiWorkers() {
+      kpiLoading.value = true
+      kpiError.value = false
+      try {
+         // The group/city slice is deliberately NOT applied: §5.4's «Oyning ellikboshisi»
+         // is decided server-side on the UNSLICED month, and a board narrowed to one
+         // group would show a star its own rows cannot explain.
+         const { data } = await api.get(
+            `/control/workers?month=${encodeURIComponent(kpiMonth.value)}`)
+         kpiWorkers.value = data || []
+      } catch {
+         kpiWorkers.value = []
+         kpiError.value = true
+      } finally {
+         kpiLoading.value = false
+      }
+   }
+
+   function setKpiMonth(m: string) {
+      if (kpiMonth.value === m && kpiWorkers.value.length) return
+      kpiMonth.value = m
+      void loadKpiWorkers()
+   }
+
    async function load() {
       loading.value = true
       loadError.value = false
@@ -869,6 +911,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
       categories, loadCategories, setCategory, setCategoryFiks,
       kpiSettings, loadKpiSettings, setKpiSetting,
       report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
+      // The KPI tab's own calendar-month slice — see loadKpiWorkers.
+      kpiMonth, kpiWorkers, kpiLoading, kpiError, loadKpiWorkers, setKpiMonth,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
       periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupPeriod,

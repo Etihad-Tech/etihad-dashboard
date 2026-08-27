@@ -764,8 +764,14 @@ export function useNazoratView() {
       }
       // The API already sends roster members only (owner, 2026-08-15: a deleted
       // worker's row is useless info) — no second filter here, one authority.
-      const leaders = filteredWorkers.value.filter((w) => isLeaderLevel(w))
-      const crew = filteredWorkers.value.filter((w) => !isLeaderLevel(w))
+      //
+      // `kpiWorkers`, NOT `filteredWorkers`: this board is a PAYSLIP and runs on the
+      // CALENDAR month, while Reyting keeps the rolling 30-day window (owner,
+      // 2026-08-27). The lavozim filter still applies — it decides which board a person
+      // sits on, not which days count.
+      const people = s.kpiWorkers.filter((w) => matchesRoleFilter(w, s.filterRole))
+      const leaders = people.filter((w) => isLeaderLevel(w))
+      const crew = people.filter((w) => !isLeaderLevel(w))
       return [
          { key: 'ellikboshi', title: leaderGroupTitle(leaders), scored: true,
            rows: mk(leaders, true) },
