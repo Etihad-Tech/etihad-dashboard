@@ -87,67 +87,58 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
       title: 'Sifat mukofoti',
       rows: [
          { key: 'bonus_base_ball', label: 'Quyi pog‘ona — balldan', unit: 'ball',
-           hint: "Shu balldan pastda mukofot to'lanmaydi",
-           min: 0, max: 100, step: 1, scale: 1 },
+           hint: 'Odatda 90', min: 0, max: 100, step: 1, scale: 1 },
          { key: 'bonus_base_sum', label: 'Quyi pog‘ona — summa', unit: "so'm",
-           hint: 'Yuklama koeffitsientiga ko‘paytiriladi', min: 0, max: 1_000_000_000,
+           hint: '90–94 ball uchun', min: 0, max: 1_000_000_000,
            step: 100_000, scale: 1 },
          { key: 'bonus_high_ball', label: 'Yuqori pog‘ona — balldan', unit: 'ball',
-           hint: 'Quyi pog‘onadan past bo‘lmasin',
-           min: 0, max: 100, step: 1, scale: 1 },
+           hint: 'Odatda 95', min: 0, max: 100, step: 1, scale: 1 },
          { key: 'bonus_high_sum', label: 'Yuqori pog‘ona — summa', unit: "so'm",
-           hint: 'Yuklama koeffitsientiga ko‘paytiriladi', min: 0, max: 1_000_000_000,
+           hint: '95–100 ball uchun', min: 0, max: 1_000_000_000,
            step: 100_000, scale: 1 },
          { key: 'sovrin_sum', label: '«Oyning ellikboshisi»', unit: "so'm",
-           hint: 'Oyning eng yuqori reytingi uchun sovrin',
-           min: 0, max: 1_000_000_000, step: 100_000, scale: 1 },
+           hint: 'Oylik sovrin', min: 0, max: 1_000_000_000, step: 100_000, scale: 1 },
          { key: 'max_deduction_pct', label: 'Maksimal ushlab qolish', unit: '%',
-           hint: 'KPI asosiy oylikning shuncha qismidan ortiq minusga ketmaydi',
+           hint: 'Fiksdan ko‘pi bilan shuncha ushlanadi',
            min: 0, max: 100, step: 5, scale: 1 },
       ],
-      note: "Pog‘ona ochilgan joyda sakrash bor: bir ball pastda mukofot yo‘q, bir "
-          + "ball yuqorida to‘liq summa. Sonlarni o‘zgartirsa bo‘ladi; sakrashning "
-          + "o‘zi — reglament qarori. Sovrindan jarima ushlanmaydi.",
+      note: '89 ball — mukofot yo‘q, 90 ball — to‘liq summa. Oraliq yo‘q.',
    },
    {
       title: 'Yuklama',
       rows: [
          { key: 'load_rate', label: "Ortiqcha guruh uchun to'lov", unit: "so'm",
-           hint: "Bitta guruhdan ortiq har bir guruh uchun",
+           hint: 'Har bir qo‘shimcha guruh uchun. Cheklanmagan',
            min: 0, max: 100_000_000, step: 100_000, scale: 1 },
-         { key: 'k_min_units', label: 'Koeffitsient — eng past', unit: '',
-           hint: 'Mukofot shundan kam ko‘paytirilmaydi',
-           min: 0.01, max: 10, step: 0.1, scale: 100 },
-         { key: 'k_max_units', label: 'Koeffitsient — eng yuqori', unit: '',
-           hint: 'Mukofot shundan ko‘p ko‘paytirilmaydi',
-           min: 0.01, max: 10, step: 0.1, scale: 100 },
+         // The old labels said «Koeffitsient — eng past / eng yuqori» and never said
+         // OF WHAT. The owner read them as a limit on the NUMBER OF GROUPS and set them
+         // to 4 and 5, which would have multiplied every bonus by four (2026-08-27).
+         { key: 'k_min_units', label: 'Mukofot ko‘paytiruvchisi — eng past', unit: 'marta',
+           hint: 'Odatda 1', min: 0.01, max: 10, step: 0.1, scale: 100 },
+         { key: 'k_max_units', label: 'Mukofot ko‘paytiruvchisi — eng yuqori', unit: 'marta',
+           hint: 'Odatda 1,6', min: 0.01, max: 10, step: 0.1, scale: 100 },
       ],
-      note: "Ortiqcha guruh uchun to'lov ball qanday bo'lishidan qat'i nazar "
-          + "beriladi — soatlar ishlangan. Koeffitsient esa faqat «Natija bo'yicha» "
-          + "biriktirilgan guruhlarga tegishli.",
+      note: 'Ko‘paytiruvchi faqat mukofotga tegishli. Guruhlar soniga cheklov emas.',
    },
    {
       title: 'Shahar og‘irligi',
       rows: [
          { key: 'city_makka_units', label: 'Makka', unit: '',
-           hint: "Dastur zich, murojaat ko'p",
-           min: 0.01, max: 10, step: 0.05, scale: 100 },
+           hint: 'Odatda 0,6', min: 0.01, max: 10, step: 0.05, scale: 100 },
          { key: 'city_madina_units', label: 'Madina', unit: '',
-           hint: 'Dastur yengilroq', min: 0.01, max: 10, step: 0.05, scale: 100 },
+           hint: 'Odatda 0,4', min: 0.01, max: 10, step: 0.05, scale: 100 },
       ],
-      note: "Ikkovi qo'shilganda 1,0 chiqsin: butun safarni bitta ellikboshi olib "
-          + "borsa, yuklamasi aynan bitta guruh bo'ladi. Jidda — Makka hisobida.",
+      note: 'Ikkovi qo‘shilganda 1,0 chiqsin — bu bitta to‘liq guruh.',
    },
    {
       title: 'Guruh og‘irligi',
       rows: [
          { key: 'pkg_comfort_units', label: 'Comfort', unit: '',
-           hint: "To'liq guruh", min: 0.01, max: 10, step: 0.05, scale: 100 },
+           hint: 'To‘liq guruh — 1,0', min: 0.01, max: 10, step: 0.05, scale: 100 },
          { key: 'pkg_premium_units', label: 'Premium / Lux', unit: '',
-           hint: 'Kichik tarkibli guruh', min: 0.01, max: 10, step: 0.05, scale: 100 },
+           hint: 'Yarim guruh — 0,5', min: 0.01, max: 10, step: 0.05, scale: 100 },
       ],
-      note: "Darajasi belgilanmagan guruh to'liq guruh sanaladi. Nomiga qarab "
-          + "taxmin qilish yarim yuklamani jimgina to'lab qo'yardi.",
+      note: 'Darajasi belgilanmagan guruh to‘liq guruh sanaladi.',
    },
 ]
 
