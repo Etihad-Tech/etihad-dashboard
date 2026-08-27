@@ -120,6 +120,10 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
          // 4 and 5, which would have multiplied every bonus by four (2026-08-27). Then:
          // «imagine if someone who never seen this panel enters to it» — so the hint has
          // to say what the number DOES, not what its usual value is.
+         { key: 'load_free_units', label: 'To‘lov shu guruhdan keyin boshlanadi',
+           unit: 'guruh',
+           hint: 'Shu songacha guruh — oddiy yuklama, ortiqcha to‘lov yo‘q',
+           min: 0.5, max: 10, step: 0.5, scale: 100 },
          { key: 'k_min_units', label: 'Mukofot eng kamida shuncha marta ko‘payadi',
            unit: 'marta',
            hint: '1 = ko‘paymaydi. Bitta guruh olib borgan uchun shu qo‘llanadi',
