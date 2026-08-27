@@ -64,12 +64,26 @@
               <span class="text-xs text-gray-500">Mehmonxona turi</span>
               <span class="text-xs font-medium text-gray-700">{{ tierLabel(group.hotel_tier) }}</span>
             </div>
-            <div class="flex items-center justify-between gap-2">
+            <!-- One line while one person runs the whole trip, two when the group is
+                 split between cities. Collapsing a split into a single name would show
+                 a leader who is not on duty half the time. -->
+            <div v-if="!isSplit(group)" class="flex items-center justify-between gap-2">
               <span class="text-xs text-gray-500 shrink-0">Ellikboshi (@username)</span>
-              <span class="text-xs font-medium text-gray-700 truncate text-right" :class="{ 'text-gray-400': !group.ellikboshi_username }">{{ group.ellikboshi_username || 'belgilanmagan' }}</span>
+              <span class="text-xs font-medium text-gray-700 truncate text-right" :class="{ 'text-gray-400': !cityLead(group, 'makka') }">{{ cityLead(group, 'makka') || 'belgilanmagan' }}</span>
             </div>
+            <template v-else>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-gray-500 shrink-0">Ellikboshi · Makka</span>
+                <span class="text-xs font-medium text-gray-700 truncate text-right" :class="{ 'text-gray-400': !cityLead(group, 'makka') }">{{ cityLead(group, 'makka') || 'belgilanmagan' }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-gray-500 shrink-0">Ellikboshi · Madina</span>
+                <span class="text-xs font-medium text-gray-700 truncate text-right" :class="{ 'text-gray-400': !cityLead(group, 'madina') }">{{ cityLead(group, 'madina') || 'belgilanmagan' }}</span>
+              </div>
+            </template>
             <p class="text-[10px] text-gray-400 leading-snug">
               Bot bu guruhda xodimni @belgilaganda, murojaatni shu ellikboshiga ham shaxsiy (DM) yuboradi.
+              Ellikboshini «Ellikboshilar» bo'limida tayinlanadi.
             </p>
             <div class="flex items-center justify-between gap-2 pt-1">
               <span class="text-xs text-gray-500 shrink-0">Jo'nash sanasi</span>
@@ -173,6 +187,15 @@ const sortedGroups = computed(() => [...groupsStore.items].sort(byGroupNumber))
 // the pre-flight majlis time (below) lives solely here, so it stays editable.
 function tierLabel(tier: string | null): string {
   return tier === 'comfort' ? 'Komfort' : tier === 'premium' ? 'Premium / Lux' : 'Avto (nomdan)'
+}
+
+/** Who leads this group in a city — the client-side mirror of the server's
+ *  group_leader_for_city: the city column, falling back to the legacy one. */
+function cityLead(g: GroupInfo, c: 'makka' | 'madina'): string {
+  return (c === 'makka' ? g.ellikboshi_makka : g.ellikboshi_madina) || g.ellikboshi_username || ''
+}
+function isSplit(g: GroupInfo): boolean {
+  return cityLead(g, 'makka').trim().toLowerCase() !== cityLead(g, 'madina').trim().toLowerCase()
 }
 
 // Mirrors the bot: Thursday departure -> Payshanba flight, Saturday -> Shanba.

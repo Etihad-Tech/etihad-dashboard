@@ -14,6 +14,23 @@
                   Har bir ellikboshiga nechta guruh biriktirilgan. Bu son davrga bog'liq
                   emas: Kunlik / Haftalik / Oylik tanlovi uni o'zgartirmaydi.
                </p>
+               <!-- Said once, here, and not repeated beside every number: the weights are
+                    the same everywhere on the screen, and a rule restated three times
+                    reads as three different rules. -->
+               <p class="text-[12.5px] text-[color:var(--n-faint)] mt-1.5 leading-snug">
+                  Bitta guruhni Makkada bir ellikboshi, Madinada boshqasi olib borishi
+                  mumkin. Ish birligi: Makka {{ fmtUnits(CITY_WEIGHT_MAKKA) }} +
+                  Madina {{ fmtUnits(CITY_WEIGHT_MADINA) }} = 1 to'liq guruh.
+               </p>
+               <!-- The SECOND weight, said here for the same reason the city one is: it
+                    is the same rule everywhere on the screen. Until 26.08 this caption
+                    named only the city half, so «2 guruh» here and «1,0 yuklama» on the
+                    KPI payslip looked like a contradiction rather than two questions. -->
+               <p class="text-[12.5px] text-[color:var(--n-faint)] mt-1.5 leading-snug">
+                  Guruh SONI darajaga bog'liq emas. Oylikda hisoblanadigan
+                  <b>yuklama</b> esa darajani ham qo'shadi: Komfort 1,0 · Premium / Lux
+                  0,5 — ya'ni ikkita Premium guruh 2 guruh, lekin 1,0 yuklama.
+               </p>
             </div>
          </div>
       </div>
@@ -35,7 +52,7 @@
       <div v-if="s.periodCountsError !== 'forbidden'" class="card p-5 n-enter" style="--i: 1">
          <h3 class="n-h">Davr bo'yicha yuklama</h3>
          <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1.5 leading-snug">
-            Tanlangan davrda har bir ellikboshi nechta guruhni olib borgan.
+            Tanlangan davrda har bir ellikboshi qancha ish birligini olib borgan.
          </p>
 
          <div class="seg mt-3.5 lg:inline-flex lg:w-auto">
@@ -77,9 +94,9 @@
                      <div class="n-chart-cols">
                         <button v-for="c in periodChart.cols" :key="c.username" type="button"
                            class="n-chart-col"
-                           :title="`${c.name} · ${c.group_count} guruh`"
+                           :title="`${c.name} · ${c.group_count} guruh · ${fmtUnits(c.weighted_units)} ish birligi`"
                            @click="openCol = openCol === c.username ? '' : c.username">
-                           <span class="n-chart-val">{{ c.group_count }}</span>
+                           <span class="n-chart-val">{{ fmtUnits(c.weighted_units) }}</span>
                            <span class="n-chart-bar"
                               :style="{ height: c.height + '%', '--c': c.color }"></span>
                         </button>
@@ -102,6 +119,9 @@
                   <li v-for="g in openGroups" :key="g.telegram_id"
                      class="text-[13.5px] text-[color:var(--n-muted)]">
                      {{ g.title || ('Guruh ' + g.telegram_id) }}
+                     <span v-if="g.cities.length < 2" class="text-[color:var(--n-faint)]">
+                        · faqat {{ cityName(g.cities[0]) }}
+                     </span>
                      <span class="text-[color:var(--n-faint)] tabular-nums">
                         · {{ dmy(g.trip_start_date) }} — {{ dmy(g.trip_end_date) }}
                      </span>
@@ -150,6 +170,11 @@
          <div class="flex flex-wrap gap-x-6 gap-y-1 px-5 py-3.5 border-b border-gray-100 text-[13.5px] text-[color:var(--n-muted)]">
             <span><b class="text-[color:var(--n-ink)] tabular-nums">{{ s.leaderGroups.length }}</b> ellikboshi</span>
             <span><b class="text-[color:var(--n-ink)] tabular-nums">{{ totalGroups }}</b> guruh biriktirilgan</span>
+            <!-- Only when a group is actually split: on a roster where every leader
+                 holds both cities the weighted total equals the raw one, and showing
+                 the same number twice would just make the reader hunt for a difference
+                 that is not there. -->
+            <span v-if="anySplit"><b class="text-[color:var(--n-ink)] tabular-nums">{{ fmtUnits(totalUnits) }}</b> ish birligi</span>
             <span v-if="withoutGroups" class="text-amber-700">
                <b class="tabular-nums">{{ withoutGroups }}</b> ellikboshida guruh yo'q
             </span>
@@ -176,9 +201,28 @@
                         </span>
                      </span>
                   </span>
-                  <span class="text-[14.5px] tabular-nums shrink-0"
-                        :class="l.group_count ? 'font-semibold' : 'text-[color:var(--n-faint)]'">
-                     {{ l.group_count }} guruh
+                  <span class="text-right shrink-0">
+                     <span class="block text-[14.5px] tabular-nums"
+                           :class="l.group_count ? 'font-semibold' : 'text-[color:var(--n-faint)]'">
+                        {{ l.group_count }} guruh
+                     </span>
+                     <!-- The weighted figure appears ONLY when this leader actually
+                          holds a half-group. For everybody else it would be the same
+                          number in a second row, which teaches the reader to ignore it. -->
+                     <span v-if="l.weighted_units !== l.group_count"
+                           class="block text-[11.5px] tabular-nums text-[color:var(--n-faint)]">
+                        {{ fmtUnits(l.weighted_units) }} birlik
+                     </span>
+                     <!-- ...and the DARAJA-weighted figure, which is what the KPI payslip
+                          pays on (owner, 2026-08-26). Same rule as the line above: shown
+                          only when Daraja actually changed something, so a roster of
+                          comfort groups does not print one number three times. Two
+                          premium groups read «2 guruh» here and «1,0 yuklama» there —
+                          before this line the two tabs simply disagreed. -->
+                     <span v-if="l.sg !== l.weighted_units"
+                           class="block text-[11.5px] tabular-nums text-[color:var(--n-faint)]">
+                        {{ fmtUnits(l.sg) }} yuklama · daraja b-n
+                     </span>
                   </span>
                   <!-- chevron-RIGHT rotated, because that one is already in the icon
                        library; adding chevron-down for the same job would ship a second
@@ -194,6 +238,26 @@
                   <li v-for="g in l.groups" :key="g.telegram_id"
                      class="text-[13.5px] text-[color:var(--n-muted)]">
                      {{ g.title || ('Guruh ' + g.telegram_id) }}
+                     <!-- Which HALF of the group is theirs. Named only on a split one:
+                          on a whole group the city adds nothing and costs a line on a
+                          phone. This is also what makes the weighted total checkable. -->
+                     <span v-if="g.cities.length < 2" class="text-[color:var(--n-faint)]">
+                        · faqat {{ cityName(g.cities[0]) }} ({{ fmtUnits(g.weight) }})
+                     </span>
+                     <!-- The Daraja and what this group is worth under it — the same
+                          reason the city is named: a total nobody can check by hand is
+                          not evidence. Only when Daraja moved the number, so a comfort
+                          group (which is worth exactly its city weight) stays a
+                          one-line entry. -->
+                     <span v-if="g.tier_set && g.sg !== g.weight" class="text-[color:var(--n-faint)]">
+                        · {{ tierName(g.tier) }} ({{ fmtUnits(g.sg) }})
+                     </span>
+                     <!-- An unset Daraja is an unanswered question, not a premium group.
+                          It was counted as a WHOLE group, and this says so here rather
+                          than leaving a reader to wonder why the totals do not divide. -->
+                     <span v-else-if="!g.tier_set" class="text-amber-700">
+                        · daraja belgilanmagan
+                     </span>
                   </li>
                </ul>
             </li>
@@ -306,6 +370,45 @@ const openCol = ref('')
 const totalGroups = computed(() => s.leaderGroups.reduce((n, l) => n + l.group_count, 0))
 const withoutGroups = computed(() => s.leaderGroups.filter((l) => !l.group_count).length)
 
+/** City-weighted workload across the roster (Makka 0.6 / Madina 0.4 — owner,
+ *  2026-08-16). Rounded at the end, not per row: summing already-rounded halves is how
+ *  a total ends up one hundredth off the rows it is meant to be the sum of. */
+const totalUnits = computed(() =>
+   s.leaderGroups.reduce((n, l) => n + l.weighted_units, 0))
+/** Is any group actually split between two leaders? Until one is, every weighted figure
+ *  on this screen equals its raw count and the whole column is noise. */
+const anySplit = computed(() =>
+   s.leaderGroups.some((l) => l.weighted_units !== l.group_count))
+
+/** 2.6, not 2.60 and not 2.5999999999. Whole numbers lose the decimal entirely: "3
+ *  birlik" is the same fact as "3.0 birlik" and reads as a count, which it is. */
+function fmtUnits(n: number) {
+   return Number(n.toFixed(2)).toString()
+}
+
+// Mirrors server/bot/services/kpi.py CITY_WEIGHTS. Duplicated ONLY to caption the
+// screen — every weighted number rendered here is computed on the server, so these two
+// constants drifting apart can mislabel the rule but can never change a total.
+const CITY_WEIGHT_MAKKA = 0.6
+const CITY_WEIGHT_MADINA = 0.4
+
+const CITY_NAMES: Record<string, string> = {
+   makka: 'Makkada', madina: 'Madinada', jidda: 'Jiddada',
+}
+function cityName(c?: string) {
+   return c ? (CITY_NAMES[c] || c) : ''
+}
+
+// The Daraja names the Guruhlar SELECT already uses, so the roster calls a package what
+// the person who set it called it. Only the two real tiers appear here: an unset Daraja
+// is rendered by its own amber line, never as a tier name, because it is not one.
+const TIER_NAMES: Record<string, string> = {
+   comfort: 'Komfort', premium: 'Premium / Lux',
+}
+function tierName(t?: string | null) {
+   return t ? (TIER_NAMES[t] || t) : ''
+}
+
 const GROUP_PERIODS = [
    { value: 'week' as const, label: 'Haftalik' },
    { value: 'month' as const, label: 'Oylik' },
@@ -322,15 +425,20 @@ function dmy(iso: string) {
  *  ranking is exactly what this number is for: more groups IS more work, and that is the
  *  question the extra reward is decided on.
  *
- *  The axis is in whole groups. AXIS_STEPS is not reused: it is a duration ladder (30
- *  daq, 1 soat…) and would put fractional groups on the scale. */
+ *  Ranked and drawn on the WEIGHTED units, not the leg count: two leaders can hold the
+ *  same number of legs and not the same amount of work, and this chart exists to answer
+ *  "who carried more". Until a group is actually split the two are identical, so nothing
+ *  about the picture changes on the day this ships.
+ *
+ *  The axis stays in whole groups — the ticks are the familiar unit, the bars land
+ *  between them. AXIS_STEPS is not reused: it is a duration ladder (30 daq, 1 soat…). */
 const periodChart = computed(() => {
    const cols = s.periodCounts
       .filter((l) => l.group_count > 0)
       .slice()
-      .sort((a, b) => b.group_count - a.group_count
+      .sort((a, b) => b.weighted_units - a.weighted_units
          || (a.name || a.username).localeCompare(b.name || b.username))
-   const peak = cols.reduce((m, c) => Math.max(m, c.group_count), 0)
+   const peak = cols.reduce((m, c) => Math.max(m, c.weighted_units), 0)
    // One line per group up to 5, then a coarser step, so the axis never becomes a comb.
    const step = peak <= 5 ? 1 : Math.ceil(peak / 4)
    const top = Math.max(Math.ceil(peak / step) * step, step)
@@ -343,7 +451,7 @@ const periodChart = computed(() => {
          ...c,
          short: (c.name || c.username).replace(/^@/, '').split(/\s+/)[0],
          // Floor of 4%: one group must still be a visible block, not a hairline.
-         height: Math.max((c.group_count / top) * 100, 4),
+         height: Math.max((c.weighted_units / top) * 100, 4),
          color: PIE_COLORS[i % PIE_COLORS.length],
       })),
    }

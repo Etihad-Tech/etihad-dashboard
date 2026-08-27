@@ -106,6 +106,10 @@ const router = createRouter({
         { path: '', name: 'AiNazorat', component: () => import('../apps/ai/views/nazorat/Holat.vue') },
         { path: 'reyting', name: 'AiNazoratReyting', component: () => import('../apps/ai/views/nazorat/Reyting.vue') },
         { path: 'kpi', name: 'AiNazoratKpi', component: () => import('../apps/ai/views/nazorat/Kpi.vue') },
+        { path: 'qiymatlar', name: 'AiNazoratQiymatlar', component: () => import('../apps/ai/views/nazorat/Qiymatlar.vue') },
+        // §13 — closing the month. Admin + the full nazoratchi only; the API enforces
+        // it, and the panel only offers the link to the same accounts.
+        { path: 'yopish', name: 'AiNazoratYopish', component: () => import('../apps/ai/views/nazorat/Yopish.vue') },
         { path: 'jurnal', name: 'AiNazoratJurnal', component: () => import('../apps/ai/views/nazorat/Jurnal.vue') },
         { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'suhbat', name: 'AiNazoratSuhbat', component: () => import('../apps/ai/views/nazorat/Suhbat.vue') },
@@ -176,6 +180,13 @@ const router = createRouter({
     // the rest of the thinking — unauthenticated goes to /login, and a role that may not
     // see '/' is sent on to its own ROLE_HOME. One rule, no second copy of it here.
     {
+      // The §6 survey panel — standalone (its own layout and login role), not part
+      // of the dashboard chrome. Admin can open it too, as everywhere.
+      path: '/survey',
+      name: 'Survey',
+      component: () => import('../apps/survey/Survey.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       redirect: '/',
@@ -185,7 +196,7 @@ const router = createRouter({
 
 // Where each role lands, and which paths it may reach. Managers (flight/qa) are
 // confined to their one panel; admin (and team-only/legacy, role null) unchanged.
-const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', nazoratchi: '/ai/nazorat', nazoratchi_staff: '/ai/nazorat', nazoratchi_ellikboshi: '/ai/nazorat', admin: '/' }
+const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', nazoratchi: '/ai/nazorat', nazoratchi_staff: '/ai/nazorat', nazoratchi_ellikboshi: '/ai/nazorat', sifat_nazorati: '/survey', admin: '/' }
 
 // The three controller logins are identical to the router — same single panel; they
 // differ only in WHICH population the API lets each of them read.
@@ -206,6 +217,9 @@ function roleAllows(path: string, role: string | null): boolean {
   // several routes (its tabs and the per-person screen), so this must match the whole
   // subtree. An exact match bounced the controller back home on the first tab tap.
   if (role && NAZORATCHI_ROLES.includes(role)) return path.startsWith('/ai/nazorat')
+  // The survey specialist (§6) — its OWN panel and nothing else: they call returned
+  // pilgrims and enter the so'rovnoma; the accountability screens are not theirs.
+  if (role === 'sifat_nazorati') return path.startsWith('/survey')
   return true
 }
 
@@ -218,7 +232,7 @@ router.beforeEach((to) => {
   if (to.meta.guest && auth.isAuthenticated) {
     return home
   }
-  const gated = ['flight', 'qa', 'mingboshi', ...NAZORATCHI_ROLES]
+  const gated = ['flight', 'qa', 'mingboshi', 'sifat_nazorati', ...NAZORATCHI_ROLES]
   if (auth.isAuthenticated && auth.role && gated.includes(auth.role) && !roleAllows(to.path, auth.role)) {
     return home
   }

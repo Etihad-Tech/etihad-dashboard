@@ -4,7 +4,11 @@
       <div class="animate-fade-up">
         <h2 class="text-2xl font-bold text-gray-900">Ellikboshilar</h2>
         <p class="text-sm text-gray-500 mt-1">Ellikboshilar ro'yxatini boshqaring va har bir guruhga ellikboshi tayinlang</p>
-        <p class="text-xs text-gray-400 mt-1">Faqat Turon tizimida safarga biriktirilgan guruhlar ko'rsatiladi.</p>
+        <p class="text-xs text-gray-400 mt-1">
+          Faqat Turon tizimida safarga biriktirilgan guruhlar ko'rsatiladi.
+          Bitta guruhni Makkada bir ellikboshi, Madinada boshqasi olib borishi mumkin —
+          kerak bo'lsa guruh kartochkasidan shaharlar bo'yicha ajrating.
+        </p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">
@@ -52,18 +56,78 @@
 
         <div v-if="!filteredGroups.length" class="text-center py-10 text-sm text-gray-400">Guruh topilmadi.</div>
         <div v-else class="grid gap-3">
-          <div v-for="g in filteredGroups" :key="g.id" class="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-3 animate-fade-up">
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-gray-900 truncate">{{ g.title || g.id }}</p>
-              <p v-if="!g.ellikboshi_username" class="text-[11px] text-amber-600 mt-0.5">Ellikboshi tayinlanmagan</p>
+          <!-- One card per group. The DEFAULT shape is the old one — a single select —
+               because one leader for the whole trip is still the normal case and making
+               every group ask two questions to answer one would be a worse screen than
+               the one it replaced. The split is opened per group, by the person who
+               actually needs it, and a group that already IS split opens itself. -->
+          <div v-for="g in filteredGroups" :key="g.id" class="bg-white rounded-2xl border border-gray-200 p-4 animate-fade-up">
+            <div class="flex items-center gap-3">
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ g.title || g.id }}</p>
+                <p v-if="!leaderOf(g)" class="text-[11px] text-amber-600 mt-0.5">Ellikboshi tayinlanmagan</p>
+                <p v-else-if="isSplit(g) && (!g.ellikboshi_makka || !g.ellikboshi_madina)"
+                   class="text-[11px] text-amber-600 mt-0.5">
+                  {{ g.ellikboshi_makka ? 'Madina' : 'Makka' }} uchun ellikboshi tanlanmagan
+                </p>
+              </div>
+              <span v-if="savedId === g.id" class="text-emerald-600 shrink-0"><font-awesome-icon icon="circle" class="w-2 h-2" /></span>
+              <span v-else class="w-2 shrink-0"></span>
             </div>
-            <select :value="g.ellikboshi_username || ''" @change="onAssign(g, $event)" :disabled="savingId === g.id"
-              class="w-56 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
-              <option value="">— tanlanmagan —</option>
-              <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
-            </select>
-            <span v-if="savedId === g.id" class="text-emerald-600 shrink-0"><font-awesome-icon icon="circle" class="w-2 h-2" /></span>
-            <span v-else class="w-2 shrink-0"></span>
+
+            <!-- SINGLE leader: one select, one save, both cities written together. -->
+            <div v-if="!expanded(g)" class="mt-3 flex flex-wrap items-center gap-2">
+              <select :value="leaderOf(g)" @change="onAssign(g, 'both', $event)" :disabled="savingId === g.id"
+                class="flex-1 min-w-[13rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                <option value="">— tanlanmagan —</option>
+                <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
+              </select>
+              <button type="button" @click="openSplit(g)"
+                class="text-[12px] text-amber-700 hover:text-amber-800 hover:underline whitespace-nowrap px-1">
+                Shaharlar bo'yicha ajratish
+              </button>
+              <!-- §4.2 — WHY this person got the group. Shown ONLY when they already
+                   hold another one, because all three reasons describe the same thing:
+                   why somebody was given a group BEYOND their first. Every consequence
+                   in §4.2's table includes the yuklama to'lovi, which exists only above
+                   1,0 SG — and at 1,0 SG the K clamp is a no-op anyway, so on a single
+                   assignment the answer changes no money and asking for it is noise. -->
+              <select v-if="leaderOf(g) && holdsMore(g, leaderOf(g))" :value="typeOf(g, 'makka')"
+                @change="onType(g, 'both', $event)" :disabled="savingId === g.id"
+                class="min-w-[11rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                <option value="">Sabab — tanlanmagan</option>
+                <option v-for="t in TYPES" :key="t.code" :value="t.code">{{ t.title }}</option>
+              </select>
+            </div>
+
+            <!-- SPLIT: one select per city. Makka first — it is the heavier half. -->
+            <div v-else class="mt-3 space-y-2">
+              <div v-for="c in CITIES" :key="c.key" class="flex flex-wrap items-center gap-2">
+                <span class="w-16 shrink-0 text-[12px] text-gray-500">{{ c.label }}</span>
+                <select :value="cityLeader(g, c.key)" @change="onAssign(g, c.key, $event)" :disabled="savingId === g.id"
+                  class="flex-1 min-w-[9rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                  <option value="">— tanlanmagan —</option>
+                  <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
+                </select>
+                <!-- Per CITY: one group can be a reward in Makka and a stopgap in
+                     Madina, because those are two assignments to two people. Same rule
+                     as above — only for somebody who already holds another segment. -->
+                <select v-if="cityLeader(g, c.key) && holdsMore(g, cityLeader(g, c.key))"
+                  :value="typeOf(g, c.key)"
+                  @change="onType(g, c.key, $event)" :disabled="savingId === g.id"
+                  class="min-w-[10rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+                  <option value="">Sabab — tanlanmagan</option>
+                  <option v-for="t in TYPES" :key="t.code" :value="t.code">{{ t.title }}</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-3 pt-0.5">
+                <p class="text-[11px] text-gray-400 flex-1">Jidda kuni Makka ellikboshisiga biriktiriladi.</p>
+                <button v-if="!isSplit(g)" type="button" @click="closeSplit(g)"
+                  class="text-[12px] text-gray-400 hover:text-gray-600 hover:underline whitespace-nowrap">
+                  Bekor qilish
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -79,7 +143,25 @@ import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
 
 interface Ellik { id: number; username: string; name: string | null; is_active: boolean }
-interface Grp { id: number; title: string | null; ellikboshi_username: string | null }
+// ellikboshi_username is the LEGACY single-leader field, kept as the fallback for a
+// group nobody has re-assigned; the two city columns are the assignment (owner,
+// 2026-08-16). Migration 041 backfilled both from the legacy one, so on the morning
+// after the deploy every group here reads as "one leader, both cities".
+interface Grp {
+  id: number; title: string | null
+  ellikboshi_username: string | null
+  ellikboshi_makka: string | null
+  ellikboshi_madina: string | null
+  assignment_type_makka: string | null
+  assignment_type_madina: string | null
+}
+
+type City = 'makka' | 'madina'
+const CITIES: { key: City; label: string }[] = [
+  // Makka first: it is the heavier half (0.6), and the reading order should say so.
+  { key: 'makka', label: 'Makka' },
+  { key: 'madina', label: 'Madina' },
+]
 
 const loading = ref(false)
 const pool = ref<Ellik[]>([])
@@ -94,22 +176,50 @@ const search = ref('')
 const savingId = ref<number | null>(null)
 const savedId = ref<number | null>(null)
 
+/** WHO leads this group in a city — the client-side mirror of the server's
+ *  group_leader_for_city: the city column, falling back to the legacy one. */
+function cityLeader(g: Grp, c: City) {
+  return (c === 'makka' ? g.ellikboshi_makka : g.ellikboshi_madina) || g.ellikboshi_username || ''
+}
+const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+/** Two different people across the two cities — the state the split UI exists for. */
+function isSplit(g: Grp) {
+  return !same(cityLeader(g, 'makka'), cityLeader(g, 'madina'))
+}
+/** The one leader, when there is one. Empty on a split group (the card shows both
+ *  selects then, so there is nothing for this to be). */
+function leaderOf(g: Grp) {
+  return isSplit(g) ? '' : cityLeader(g, 'makka')
+}
+
+// Groups the user has manually opened for splitting. A group that is ALREADY split is
+// always open — that is a fact about the data, not a UI preference, and collapsing it
+// would hide one of its two leaders behind a single select that cannot show both.
+const opened = ref<Set<number>>(new Set())
+function expanded(g: Grp) { return isSplit(g) || opened.value.has(g.id) }
+function openSplit(g: Grp) { opened.value = new Set(opened.value).add(g.id) }
+function closeSplit(g: Grp) {
+  const n = new Set(opened.value); n.delete(g.id); opened.value = n
+}
+
 // Unassigned groups first (so the mingboshi sees what still needs a leader).
 const filteredGroups = computed(() => {
   const q = search.value.trim().toLowerCase()
   const list = q ? groups.value.filter(g => (g.title || '').toLowerCase().includes(q)) : groups.value
-  return [...list].sort((a, b) => Number(!!a.ellikboshi_username) - Number(!!b.ellikboshi_username))
+  return [...list].sort((a, b) => Number(!!cityLeader(a, 'makka') || !!cityLeader(a, 'madina'))
+    - Number(!!cityLeader(b, 'makka') || !!cityLeader(b, 'madina')))
 })
 
 function poolLabel(username: string) {
   const e = pool.value.find(x => x.username.toLowerCase() === username.toLowerCase())
   return e?.name ? `${e.name} (${e.username})` : username
 }
-// Pool usernames + the group's current value if it isn't in the pool (so it's not lost).
+// Pool usernames + any value this group already carries that isn't in the pool, so a
+// leader removed from the list is never silently dropped off the group they still run.
 function optionsFor(g: Grp) {
   const opts = pool.value.map(e => e.username)
-  if (g.ellikboshi_username && !opts.some(u => u.toLowerCase() === g.ellikboshi_username!.toLowerCase())) {
-    opts.push(g.ellikboshi_username)
+  for (const u of [g.ellikboshi_makka, g.ellikboshi_madina, g.ellikboshi_username]) {
+    if (u && !opts.some(o => same(o, u))) opts.push(u)
   }
   return opts
 }
@@ -164,18 +274,90 @@ async function removeFromPool(e: Ellik) {
   }
 }
 
-async function onAssign(g: Grp, event: Event) {
-  const username = (event.target as HTMLSelectElement).value
+/** Assign a leader to ONE city, or to both at once from the single-select shape.
+ *
+ *  All three fields are always sent. The legacy column is kept in step with the Makka
+ *  leader (or the Madina one when only that half is filled) so the screens that still
+ *  read it — Home, Guruhlar — name somebody who is really on this group rather than
+ *  whoever was on it before the split; the bot itself never reads it while a city
+ *  column is set. Sending the city fields explicitly also switches OFF the server's
+ *  old-dashboard mirror, so assigning one city can never overwrite the other. */
+/** §4.2 — the three reasons an assignment exists, named as the reglament names them.
+ *  What each one pays is the reglament's business and stays there: «natija» carries the
+ *  bonus coefficient, «majburiy» the §9.2 relief, «tashkiliy» neither. */
+const TYPES = [
+  { code: 'natija', title: "Natija bo'yicha" },
+  { code: 'majburiy', title: 'Majburiy' },
+  { code: 'tashkiliy', title: 'Tashkiliy' },
+]
+
+/** Does this person lead any OTHER group? §4.2's reasons only exist for a group
+ *  beyond the first, so the picker appears exactly where the table applies.
+ *
+ *  Counted across GROUPS, not segments: holding both cities of one group is one
+ *  assignment, and asking «why do you have this group twice» would be nonsense. */
+function holdsMore(g: Grp, username: string): boolean {
+  if (!username) return false
+  const u = username.toLowerCase()
+  return groups.value.some((o) => o.id !== g.id &&
+    [o.ellikboshi_makka, o.ellikboshi_madina, o.ellikboshi_username]
+      .some((x) => (x || '').toLowerCase() === u))
+}
+
+function typeOf(g: Grp, city: City): string {
+  return (city === 'makka' ? g.assignment_type_makka : g.assignment_type_madina) || ''
+}
+
+/** Saves the REASON alone, leaving the people untouched. Sent as its own request
+ *  rather than folded into onAssign, because changing why somebody holds a group is
+ *  not a handover — the history records a correction, not a new leader. */
+async function onType(g: Grp, city: City | 'both', event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  const makka = city === 'madina' ? typeOf(g, 'makka') : value
+  const madina = city === 'makka' ? typeOf(g, 'madina') : value
   savingId.value = g.id
   savedId.value = null
   try {
-    await api.put(`/groups/${g.id}/location/public`, { ellikboshi_username: username })
+    await api.put(`/groups/${g.id}/location/public`, {
+      assignment_type_makka: makka,
+      assignment_type_madina: madina,
+    })
     const idx = groups.value.findIndex(x => x.id === g.id)
-    if (idx !== -1) groups.value[idx].ellikboshi_username = username || null
+    if (idx !== -1) {
+      groups.value[idx].assignment_type_makka = makka || null
+      groups.value[idx].assignment_type_madina = madina || null
+    }
     savedId.value = g.id
     setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2000)
   } catch {
-    /* ignore */
+    toast.error('Saqlanmadi — qayta urinib ko\'ring')
+  } finally {
+    savingId.value = null
+  }
+}
+
+async function onAssign(g: Grp, city: City | 'both', event: Event) {
+  const username = (event.target as HTMLSelectElement).value
+  const makka = city === 'madina' ? cityLeader(g, 'makka') : username
+  const madina = city === 'makka' ? cityLeader(g, 'madina') : username
+  savingId.value = g.id
+  savedId.value = null
+  try {
+    await api.put(`/groups/${g.id}/location/public`, {
+      ellikboshi_makka: makka,
+      ellikboshi_madina: madina,
+      ellikboshi_username: makka || madina,
+    })
+    const idx = groups.value.findIndex(x => x.id === g.id)
+    if (idx !== -1) {
+      groups.value[idx].ellikboshi_makka = makka || null
+      groups.value[idx].ellikboshi_madina = madina || null
+      groups.value[idx].ellikboshi_username = makka || madina || null
+    }
+    savedId.value = g.id
+    setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2000)
+  } catch {
+    toast.error('Saqlanmadi — qayta urinib ko\'ring')
   } finally {
     savingId.value = null
   }

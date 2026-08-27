@@ -94,7 +94,33 @@
 
             <!-- Not over the chat: a conversation does not answer to a period, and a
                  date filter above it invites the reader to think their messages do. -->
-            <div v-if="!isDetail && !isChat" class="seg mt-3.5 lg:inline-flex lg:w-auto">
+            <div v-if="isKpiScreen" class="mt-3.5 flex flex-wrap gap-2">
+               <template v-if="!isValues && !isFreeze">
+                  <router-link to="/ai/nazorat/qiymatlar"
+                     class="btn-ghost inline-flex items-center gap-1.5 text-[13px]">
+                     <font-awesome-icon icon="sliders" class="w-3.5 h-3.5" />
+                     Qiymatlar
+                  </router-link>
+                  <!-- §13 — closing the month. Only the accounts that may actually close
+                       it (admin + the full nazoratchi, exactly what the endpoint allows):
+                       a button that always answers 403 is a button that teaches people
+                       the panel is broken. -->
+                  <router-link v-if="s.scope === 'all'" to="/ai/nazorat/yopish"
+                     class="btn-ghost inline-flex items-center gap-1.5 text-[13px]">
+                     <font-awesome-icon icon="lock" class="w-3.5 h-3.5" />
+                     Oyni yopish
+                  </router-link>
+               </template>
+               <router-link to="/ai/nazorat/kpi" v-else
+                  class="btn-ghost inline-flex items-center gap-1.5 text-[13px]">
+                  <font-awesome-icon icon="chevron-left" class="w-3 h-3" />
+                  KPI
+               </router-link>
+            </div>
+            <!-- ...nor over the freeze screen, which names its own month: two period
+                 controls on one screen is two answers to "which month am I closing". -->
+            <div v-if="!isDetail && !isChat && !isValues && !isFreeze"
+               class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
                   {{ p.label }}
@@ -105,7 +131,13 @@
          <div class="nazorat-scroll px-5 pt-4 lg:px-0 lg:pb-0">
             <!-- WHICH SLICE. Applied on the SERVER, so the cards, the ranking, the
                  journal and the person screens can never describe different slices. -->
-            <div v-if="!isDetail && !isChat" class="flex flex-wrap items-center gap-2 mb-4">
+            <!-- NOT on the KPI board or on Qiymatlar. A slice asks «what happened in
+                 that group / that city»; the KPI board answers «what is this person
+                 paid this month», which has no per-city version — the salary is one
+                 number for the whole month. Leaving the controls there let somebody
+                 slice a payslip and read the fragment as pay. -->
+            <div v-if="!isDetail && !isChat && !isKpiScreen && !isJournal"
+               class="flex flex-wrap items-center gap-2 mb-4">
                <select v-model="s.filterGroup" @change="s.setSlice()"
                   class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
                   <option value="">Barcha guruhlar</option>
@@ -301,6 +333,23 @@ function onMq(e: MediaQueryListEvent) { isDesktop.value = e.matches }
  *  the whole panel throws before it mounts. That is a blank screen with the reason only in
  *  a console, which cost an afternoon of chasing the network instead (2026-08-07). The
  *  compiler cannot see it: a TDZ violation is legal TypeScript. */
+const isValues = computed(() => route.path === '/ai/nazorat/qiymatlar')
+// The two screens the slice controls do not belong on. Grouped because they answer the
+// same kind of question — one person's money, and the scheme behind it — neither of
+// which has a per-city version.
+const isFreeze = computed(() => route.path === '/ai/nazorat/yopish')
+const isKpiScreen = computed(() =>
+   route.path === '/ai/nazorat/kpi' || isValues.value || isFreeze.value)
+/** ...and the journal, since 2026-08-20 (owner: «убери фильтр по группам и городам,
+ *  добавь фильтр по работникам и лидерам»). The journal is read to find a PERSON — who
+ *  was sent what, and what they did about it — so the useful cut there is lavozim, and
+ *  it lives on that screen next to the list it narrows. Cleared on the way in for the
+ *  same reason Reyting's city is: a slice still applying behind a control the reader
+ *  cannot see is worse than one they can. */
+const isJournal = computed(() => route.path === '/ai/nazorat/jurnal')
+watch(isJournal, (on) => {
+   if (on && (s.filterGroup || s.filterCity)) s.clearSlice()
+}, { immediate: true })
 const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
 watch(isRating, (on) => {
    if (on && s.filterCity) {

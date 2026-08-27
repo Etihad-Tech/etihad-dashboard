@@ -735,10 +735,17 @@ export function useNazoratView() {
             w, name: personLabel(w), job: jobLabel(w), best: !!w.best,
          }))
          if (!scored) return rows
+         // Ordered by the ball the row DISPLAYS — the combined one, cards and survey
+         // together. It sorted by the operational half alone, so once a group's
+         // surveys started counting the list could put a 50 above a 62 and the month's
+         // star anywhere in it: the server picks the star on the combined ball, with
+         // the load as its tie-break, and this now follows the same three keys.
          rows.sort((a, b) => {
-            const at = a.w.kpi ? a.w.kpi.total : -1
-            const bt = b.w.kpi ? b.w.kpi.total : -1
+            const ball = (w: Worker) => (w.kpi ? (w.kpi.combined ?? w.kpi.total) : -1)
+            const at = ball(a.w), bt = ball(b.w)
             if (at !== bt) return bt - at
+            const asg = a.w.sg_units ?? 0, bsg = b.w.sg_units ?? 0
+            if (asg !== bsg) return bsg - asg
             const ad = a.w.day_avg_response_seconds ?? Infinity
             return ad - (b.w.day_avg_response_seconds ?? Infinity)
          })
@@ -839,6 +846,12 @@ export function useNazoratView() {
    /** The feed: newest first, one card per murojaat. */
    const feed = computed(() =>
       [...s.requests]
+         // The lavozim filter narrows the FEED as well as the person list (owner,
+         // 2026-08-20). A murojaat belongs to whoever it was sent to, so «Ellikboshilar»
+         // keeps the cards a leader received and drops the crew's. Filtering only the
+         // person list would leave the two tabs of one screen counting different things.
+         .filter((r) => !s.filterRole || (r.recipients || []).some(
+            (rec: any) => matchesRoleFilter({ role: rec.role }, s.filterRole)))
          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
          .map((r) => ({
             id: r.id,
@@ -852,6 +865,13 @@ export function useNazoratView() {
             is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
             outcome: needOutcome(r),
             recipients: r.recipients || [],
+            // TZ 5 — the cards this murojaat actually puts into somebody's §8.1 base,
+            // which are the only ones there is any point excluding. A released card
+            // (a colleague claimed it first) and a flagged one already left the base
+            // by their own rules, and offering to exclude them would suggest they
+            // were counting.
+            graded: (r.recipients || []).filter(
+               (rec: any) => !rec.released_at && !rec.flagged_at),
          })),
    )
 
