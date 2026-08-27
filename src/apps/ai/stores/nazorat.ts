@@ -36,7 +36,13 @@ export interface WorkerKpi {
    bajarilish_pct: number; javobsiz_pct: number; takroriy_pct: number
    bajarilish_ball: number; javobsiz_ball: number; takroriy_ball: number
    vaqt_ball: number; vaqt_measured: boolean
-   total: number; bonus: number; min_sample: boolean
+   total: number; min_sample: boolean
+   // §8 — the month's Ziyoratchi bahosi (null: no survey / coverage under §10.3's bar)
+   // and the COMBINED Sifat reytingi = op × 0.5 + survey × 0.5. With no survey,
+   // combined == total — the document's own operational-only fallback. No money is
+   // derived here: under v4.5 the ball becomes a sum in one place, `compose_salary`.
+   survey_ball?: number | null
+   combined?: number
 }
 
 export interface Worker {
@@ -48,11 +54,14 @@ export interface Worker {
    // The §5.4 cut of the same average — needs raised 06:00–00:00 Makka time only.
    day_avg_response_seconds: number | null
    kpi: WorkerKpi | null
-   // §1 — years of service (a real ellikboshi only; null for crew, the doctor, or
-   // simply not entered yet) and the unvon+fiks the server derives from it. Pay
-   // arithmetic lives on the server, same rule as `kpi`.
-   staj_years: number | null
-   fiks_info: { unvon: string; fiks: number } | null
+   // §3 — the ASSIGNED category code ('stajer' | 'katta' | 'yetakchi' | 'ekspert'),
+   // which the fiks keys on. Null = nobody has placed this leader yet: the screen shows
+   // «—» and pays nothing, because a default rung would be a decision nobody made.
+   category: string | null
+   // The unvon + so'm the SERVER resolves from that category and the current pay
+   // table. Null when no category is assigned. Pay arithmetic lives on the server,
+   // same rule as `kpi` — the panel renders it and never recomputes it.
+   fiks_info: { code: string; unvon: string; fiks: number } | null
    // §8 row 3 — accepted 2× slower than the §6 window. Pure timestamps on cards the
    // worker PERSONALLY accepted, so a detector mistake can never become money.
    sla_breaches: number
@@ -60,15 +69,51 @@ export interface Worker {
    // account). Already counted inside never_accepted; kept separately because §8
    // row 4 fines the act itself.
    blocked_cards: number
-   // §7 — «Oyning ellikboshisi», decided on the SERVER (month, ≥20 cards, real
-   // ellikboshilar only) so the star and its sovrin come from one decision.
+   // §5.4 — «Oyning ellikboshisi», decided on the SERVER (month, ≥10 gradable cards,
+   // ≥1,0 SG, ≥90 ball, real ellikboshilar only). A TITLE under v4.5, not a payment.
    best?: boolean
-   // §1 + §2 + §7 − §8 composed on the SERVER, one authority for pay. Null without
-   // a staj. The sovrin sits OUTSIDE the 30% deduction cap.
-   salary: { fiks: number; mukofot: number; sovrin: number
-             jarima: number; jarima_capped: boolean
-             sla_breaches: number; bot_block: boolean; day_javobsiz: number
-             total: number } | null
+   // §4 — Shartli guruh: the month's LOAD, summed over the city segments this leader
+   // was assigned (guruh turi × shahar koeffitsienti). Null for the crew and the
+   // doctor — §4 measures a leader's groups, and their own reglament does not exist
+   // yet. `sg_units` is the same figure in hundredths, the unit the server does all
+   // SG arithmetic in; the UI only ever displays `sg`.
+   sg: number | null
+   sg_units: number | null
+   // ONE ENTRY PER CITY-LEG, not per group: a leader holding a whole trip appears twice
+   // for the same chat_id, once for Makka and once for Madina. The field was typed
+   // `cities: string[]` here and has always been `city: string` on the wire — harmless
+   // while nothing rendered it, wrong the moment something counted it, so a reader
+   // counting entries would report two groups for one. Merge by `chat_id` to count
+   // GROUPS (Kpi.vue does).
+   sg_segments: { chat_id: number; title: string | null; trip_start_date: string
+                  hotel_tier: string | null; city: string; sg: number | null
+                  assignment_type: string | null; override: boolean }[]
+   // How many of those groups have NO Daraja set. Such a group is counted as a whole
+   // group (neutral: K unaffected, no load payment) rather than guessed at from its
+   // title — the screen asks somebody to set it instead of quietly paying half.
+   sg_tier_unset: number
+   // §4.3 — over 2,0 SG at once needs the CEO's written consent. Reported, not blocked.
+   sg_over_ceiling: boolean
+   // v4.5 — `fiks + KPI`, composed on the SERVER, one authority for pay. Null until a
+   // category is assigned.
+   //
+   // THE FIKS TAKES NO INPUT. Every variable thing is inside `kpi`, which carries its
+   // own sign and may be negative. `kpi` NULL (with `pending_manual`) is not zero: it
+   // is a min-sample month waiting to be scored by hand (§8.2), and rendering it as 0
+   // would read as a decision somebody made.
+   //
+   // The rest are the steps of that one number, sent so a payslip can be CHECKED:
+   // «5 000 000 × 1,2 + 300 000» is arguable, a lone 6 300 000 is not.
+   salary: { fiks: number; kpi: number | null; total: number
+             mukofot_base: number; k: number; sg: number | null
+             sovrin: number; best: boolean
+             k_sg: number | null; yuklama: number
+             earned: number
+             jarima: number; bot_block: boolean
+             sla_breaches: number; day_javobsiz: number; false_completions: number
+             xatolik_abuse: boolean
+             manual_adjust: number
+             floor: number; floored: boolean; pending_manual: boolean } | null
    // Always true in practice: the API sends dashboard-roster members only (active
    // ellikboshilar pool / staff table; owner, 2026-08-15) and keeps the flag for
    // transparency. Deleted workers' names survive only inside Jurnal timelines.
@@ -76,9 +121,19 @@ export interface Worker {
    // Where this person actually worked, from the needs themselves — "7 murojaat" reads
    // very differently across nine groups than inside one.
    cities: string[]; group_count: number
+   // The same cards split by city, and their CITY-WEIGHTED total (Makka 0.6 /
+   // Madina 0.4 — owner, 2026-08-16: more work is done in Makka). A workload
+   // figure shown BESIDE the ball, never inside it: the §5 score is percentage-
+   // based, and weighting a percentage would make one city's mistakes cost more
+   // than another's — a management decision, not a rounding.
+   city_cards: Record<string, number>; weighted_load: number
    // Their JOB from the staff table (ishchi_guruh / doctor / airport), NOT the
    // control-system role. A doctor only ever receives health needs.
    staff_role: string | null
+   // What was written by hand on THIS month, or null. Present on the row whether or not
+   // it applied: a ball entered for a month that has since risen above ten cards is not
+   // being used, and the screen has to be able to say so rather than leave it a mystery.
+   manual?: ManualEntry | null
 }
 
 // One leader's standing assignment — every group pinned to them, with no period at all.
@@ -88,11 +143,28 @@ export interface Worker {
 // period cannot live in a list that does.
 export interface LeaderGroups {
    username: string; name: string | null
-   // false = still holds groups but has been removed from the Ellikboshilar pool. Listed
-   // anyway, or the totals stop reconciling with the Guruhlar page.
+   // Always true: the API sends pool members only (owner, 2026-08-15). A group still
+   // pinned to a deleted leader is not thereby hidden — the readiness bell names it.
    in_pool: boolean
+   // A leader holds a group-LEG, not a group (owner, 2026-08-16): one group can be led
+   // by different people in Makka and Madina, so it appears under both. `group_count`
+   // counts legs; `weighted_units` weights them (Makka 0.6 / Madina 0.4), so a group is
+   // exactly 1.0 however it is split and a leader holding both legs is unchanged.
    group_count: number
-   groups: { telegram_id: number; title: string | null }[]
+   weighted_units: number
+   // §4.1 — the same figure the KPI payslip pays on: guruh turi × shahar koeffitsienti.
+   // `weighted_units` splits a group between its two city leaders and stops there; `sg`
+   // additionally applies the Daraja, so two PREMIUM groups are 2 · 2,0 · 1,0 across the
+   // three fields. Both are shown (owner, 2026-08-26): until then this screen sent only
+   // the first two and the payslip only the third, and the panel answered «how many
+   // groups does this ellikboshi have» two different ways depending on the tab.
+   sg: number
+   // How many of those groups have NO Daraja set. Counted as WHOLE groups, the same
+   // rule the payslip follows — an unanswered question is not a premium group.
+   tier_unset: number
+   groups: { telegram_id: number; title: string | null
+             cities: string[]; weight: number
+             tier: string | null; tier_set: boolean; sg: number }[]
 }
 
 /** One ellikboshi's WORKLOAD in an arbitrary window — how many of their groups were on
@@ -103,9 +175,70 @@ export interface LeaderPeriodCount {
    username: string; name: string | null
    in_pool: boolean
    group_count: number
+   // City-weighted workload for the window, and its counterpart in the compared one.
+   // Two leaders can hold the same NUMBER of legs and not the same amount of work.
+   weighted_units: number
+   previous_count?: number; delta?: number
+   previous_weighted?: number; weighted_delta?: number
    groups: { telegram_id: number; title: string | null
+             cities: string[]; weight: number
              trip_start_date: string; trip_end_date: string }[]
 }
+
+/** §3 — one rung of the ellikboshi ladder and what it currently pays. The ladder is
+ *  the reglament's and changes with its version; the SUM is the office's and is revised
+ *  without any document being reissued, which is why it is data and not a constant.
+ *  `stored` false = the row is the seed default, never yet edited in the dashboard. */
+export interface KpiCategory {
+   code: string; title: string; fiks: number; sort_order: number; stored: boolean
+}
+
+/** v4.5 — the four numbers that shape the KPI line, all editable by the full
+ *  nazoratchi. The reglament owns the ratios, the office owns the sums. */
+export interface KpiSettings {
+   // §5's two tiers — the ball each opens at and what each pays. Seeded at the
+   // document's own numbers; settings because the office may lower a threshold without
+   // reissuing the reglament. The SHAPE (two tiers, a hard edge) is not a setting.
+   bonus_high_ball: number; bonus_high_sum: number
+   bonus_base_ball: number; bonus_base_sum: number
+   //  §5.4 — the month's best leader's prize. Outside the deduction floor.
+   sovrin_sum: number
+   load_rate: number; max_deduction_pct: number
+   k_min_units: number; k_max_units: number
+   // §4.4 — the coefficient tables, in hundredths. Data rather than constants because
+   // they describe the company's own tariffs, which move without the reglament
+   // changing version.
+   city_makka_units: number; city_madina_units: number
+   pkg_comfort_units: number; pkg_premium_units: number
+   // §11's unit prices, READ-ONLY. Constants on the server — the reglament names each
+   // sum in its own table — served here so a screen explaining a jarima line never
+   // keeps its own copy of the numbers.
+   fines: {
+      day_javobsiz: number; sla_breach: number; bot_block: number
+      false_completion: number; xatolik_abuse: number
+   }
+}
+
+/** TZ 5 — one reason a card may be taken out of the §8.1 base. Served by the API
+ *  rather than duplicated here: a client-side copy is how the dropdown and the
+ *  validator drift apart, and the one that loses is the controller staring at a
+ *  rejected save. */
+/** TZ 1 — one closed revision of one month, as the history screen lists it. */
+/** The two numbers a human writes on a payslip: the hand score for a month under the
+ *  ten-card minimum, and the office's ± on the KPI line. Null on a row nobody wrote. */
+export interface ManualEntry {
+   ball: number | null; ball_note: string | null
+   adjust: number; adjust_reason: string | null
+   updated_by: string | null; updated_at: string | null
+}
+
+export interface SnapshotRevision {
+   period: string; revision: number
+   frozen_at: string | null; frozen_by: string | null
+   comment: string | null; rows: number; payout_total: number
+}
+
+export interface ExclusionReason { code: string; title: string }
 
 export interface GroupOption { chat_id: number; title: string | null; cities: string[] }
 
@@ -461,7 +594,127 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return setSlice()
    }
 
+   // ─── TZ 1 — CLOSING THE MONTH ────────────────────────────────────────────────────
+   // Deliberately NOT part of load(): the freeze screen is opened a few times a month by
+   // two accounts, and putting its history into every panel refresh would make every
+   // controller pay for it on every period change.
+   const snapshots = ref<SnapshotRevision[]>([])
+   const snapshotsLoading = ref(false)
+
+   /** Every frozen revision, newest first. */
+   async function loadSnapshots(period?: string) {
+      snapshotsLoading.value = true
+      try {
+         snapshots.value = (await api.get('/control/snapshots',
+            { params: period ? { period } : {} })).data
+      } catch {
+         snapshots.value = []
+      } finally {
+         snapshotsLoading.value = false
+      }
+   }
+
+   /** One revision's rows — the payslips as they were written down. */
+   async function loadSnapshotRows(period: string, revision?: number) {
+      const { data } = await api.get(`/control/snapshot/${period}`,
+         { params: revision ? { revision } : {} })
+      return data
+   }
+
+   /** Close the month. Returns the server's own message on refusal, because every one of
+    *  them is a rule the reader has to know about — the month is not over, a re-freeze
+    *  needs a reason — and «Xato» would hide which. */
+   async function freezeMonth(period: string, comment?: string):
+      Promise<{ ok: boolean; revision?: number; rows?: number; error?: string }> {
+      try {
+         const { data } = await api.post(`/control/snapshot/${period}/freeze`,
+            { comment: comment || null })
+         await loadSnapshots()
+         return { ok: true, revision: data.revision, rows: data.rows }
+      } catch (e: any) {
+         return { ok: false, error: e?.response?.data?.detail || 'Yopilmadi' }
+      }
+   }
+
+   /** The accountant's file. Fetched as a blob rather than linked: the export needs the
+    *  JWT, and a plain href carries no Authorization header. */
+   async function exportSnapshot(period: string, revision?: number): Promise<string> {
+      const { data } = await api.get(`/control/snapshot/${period}/export`, {
+         params: revision ? { revision } : {}, responseType: 'blob',
+      })
+      const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `kpi-${period}${revision ? `-r${revision}` : ''}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      return url
+   }
+
+   /** Write (or clear) one person's hand-written numbers for the CURRENT calendar
+    *  month — the same month the server applies them to. Only the fields passed are
+    *  touched; `null` clears one, which is how a hand score is taken back off a month.
+    *
+    *  Reloads the board: both numbers land straight on somebody's salary, and a screen
+    *  still showing the old total after the save would be the panel disagreeing with
+    *  the payslip it just wrote. */
+   async function setManual(username: string, patch: Record<string, unknown>):
+      Promise<string | null> {
+      const now = new Date()
+      const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const bare = (username || '').replace(/^@/, '')
+      try {
+         await api.put(`/control/manual/${period}/${bare}`, patch)
+         await load()
+         return null
+      } catch (e: any) {
+         return e?.response?.data?.detail || 'Saqlanmadi'
+      }
+   }
+
    /** Dismiss a falsely auto-detected repeat, then refresh the evidence. */
+   /** TZ 5 — the fixed reason list, loaded once with the journal. */
+   const exclusionReasons = ref<ExclusionReason[]>([])
+   async function loadExclusionReasons() {
+      if (exclusionReasons.value.length) return
+      try {
+         exclusionReasons.value = (await api.get('/control/exclusion-reasons')).data
+      } catch { /* the control hides itself with no reasons to offer */ }
+   }
+
+   /** TZ 5 — take ONE card out of the §8.1 base, or put it back (`reason` null).
+    *
+    *  Reloads the board as well as the journal: an exclusion changes somebody's ball
+    *  and therefore their KPI line, and a journal that showed the card as excluded
+    *  while the ball still counted it would be the panel disagreeing with itself. */
+   async function setCardExclusion(recipientId: number, reason: string | null,
+                                   note?: string): Promise<boolean> {
+      try {
+         await api.put(`/control/cards/${recipientId}/exclusion`, { reason, note })
+         await load()
+         await loadRequests(true)
+         return true
+      } catch {
+         return false
+      }
+   }
+
+   /** The same exclusion for a WHOLE murojaat (owner, 2026-08-20): «xato edi» is a fact
+    *  about the message, so the reason is stated once and the server applies it to every
+    *  graded card in one transaction. Looping the single-card call from here would be
+    *  the same request, except it can stop halfway. */
+   async function setRequestExclusion(requestId: number, reason: string | null,
+                                      note?: string): Promise<boolean> {
+      try {
+         await api.put(`/control/requests/${requestId}/exclusion`, { reason, note })
+         await load()
+         await loadRequests(true)
+         return true
+      } catch {
+         return false
+      }
+   }
+
    async function dismissReopen(id: number) {
       try {
          await api.post(`/control/requests/${id}/dismiss-reopen`)
@@ -474,7 +727,15 @@ export const useNazoratStore = defineStore('nazorat', () => {
       saving.value = true
       savedMsg.value = ''
       try {
-         await api.put('/control/settings', form.value)
+         // A CLEARED number input is an empty string, not null — `v-model.number`
+         // leaves it as typed when it cannot parse. Sent as it stands, the IT topic
+         // field refused the whole save with a bare «Saqlashda xatolik», which is
+         // exactly what an IT group that is not a forum needs to do: leave it blank.
+         const body: Record<string, unknown> = { ...form.value }
+         for (const k of Object.keys(body)) {
+            if (typeof body[k] === 'string' && !(body[k] as string).trim()) body[k] = null
+         }
+         await api.put('/control/settings', body)
          savedMsg.value = 'Saqlandi'
          setTimeout(() => (savedMsg.value = ''), 2500)
       } catch {
@@ -538,14 +799,25 @@ export const useNazoratStore = defineStore('nazorat', () => {
       } catch { /* the badge is not worth an error toast */ }
    }
 
-   /** §1 staj write — the API allows only the admin. Patches the row for instant
-    *  feedback, then reloads the slice: the composed salary (fiks + mukofot − jarima)
-    *  lives on the server, and recomputing it here would be a second pay authority. */
-   async function setStaj(w: Worker, staj_years: number | null): Promise<boolean> {
+   /** §3 — the four category rungs and what each currently pays. Loaded once; the
+    *  KPI board needs the titles to render an unvon whoever is looking. */
+   const categories = ref<KpiCategory[]>([])
+   async function loadCategories() {
       try {
-         const { data } = await api.put('/control/ellikboshi-staj',
-            { username: w.username, staj_years })
-         w.staj_years = data.staj_years
+         categories.value = (await api.get('/control/categories')).data
+      } catch { /* the board still renders; fiks_info carries its own unvon */ }
+   }
+
+   /** §3 — place a leader on a rung. The API allows the full nazoratchi AND the
+    *  ellikboshi-scoped one (owner, 2026-08-18): they run the leaders and know who is
+    *  where. Patches the row for instant feedback, then reloads the slice — the
+    *  composed salary lives on the server, and recomputing it here would be a second
+    *  pay authority. */
+   async function setCategory(w: Worker, category: string | null): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/ellikboshi-category',
+            { username: w.username, category })
+         w.category = data.category
          w.fiks_info = data.fiks_info
          await load()
          return true
@@ -554,8 +826,48 @@ export const useNazoratStore = defineStore('nazorat', () => {
       }
    }
 
+   /** v4.5 — the KPI scheme's own four numbers. Loaded beside the categories because
+    *  the payslip needs both to explain itself, and always complete: the server fills
+    *  any missing one from its seeds rather than answering with a blank tier. */
+   const kpiSettings = ref<KpiSettings | null>(null)
+   async function loadKpiSettings() {
+      try {
+         kpiSettings.value = (await api.get('/control/kpi-settings')).data
+      } catch { /* the board still renders; the salary arrives composed either way */ }
+   }
+
+   /** Write ONE setting. Sent alone rather than as the whole object, so a stale value
+    *  sitting in this tab cannot overwrite a change somebody made in another. Reloads
+    *  the slice afterwards: every payslip on screen just changed. */
+   async function setKpiSetting(field: keyof KpiSettings, value: number): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/kpi-settings', { [field]: value })
+         kpiSettings.value = data
+         await load()
+         return true
+      } catch {
+         return false
+      }
+   }
+
+   /** §3 — what a rung PAYS. Full nazoratchi + admin only: this moves every leader on
+    *  that rung at once, which is why it is a different endpoint from the one above. */
+   async function setCategoryFiks(code: string, fiks: number): Promise<boolean> {
+      try {
+         const { data } = await api.put('/control/categories', { code, fiks })
+         const row = categories.value.find((c) => c.code === code)
+         if (row) row.fiks = data.fiks
+         await load()
+         return true
+      } catch {
+         return false
+      }
+   }
+
    return {
-      period, loading, loadError, saving, savedMsg, setStaj,
+      period, loading, loadError, saving, savedMsg,
+      categories, loadCategories, setCategory, setCategoryFiks,
+      kpiSettings, loadKpiSettings, setKpiSetting,
       report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
       groupPeriod, periodCounts, periodRange, periodUnscheduled,
@@ -565,6 +877,10 @@ export const useNazoratStore = defineStore('nazorat', () => {
       form, sliceQuery, dismissed,
       load, loadRequests, loadMoreRequests, setSlice, setPeriod, clearSlice,
       dismissProblems, restoreProblems, dismissReopen, save,
+      exclusionReasons, loadExclusionReasons, setCardExclusion, setRequestExclusion,
+      snapshots, snapshotsLoading, loadSnapshots, loadSnapshotRows, freezeMonth,
+      setManual,
+      exportSnapshot,
       chatPeers, chatThread, chatUnread, chatLoading, chatSending,
       loadChatUnread, loadChatPeers, loadChatThread, sendChat, markChatRead,
    }
