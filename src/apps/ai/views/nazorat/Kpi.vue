@@ -11,14 +11,31 @@
          </button>
       </div>
 
-      <!-- The official close is monthly; on a shorter period this is a preview and
-           must say so, or a daily 62 reads as somebody's pay. -->
-      <p v-if="s.period !== 'month'" class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
-         Mo'ljal — rasmiy hisob oylik
+      <!-- WHICH MONTH. This tab does NOT answer the panel's Kunlik/Haftalik/Oylik
+           selector: that «Oylik» is the last 30 DAYS, and a payslip has to be the
+           calendar month the accountant means (owner, 2026-08-27 — after a freeze the
+           numbers did not start fresh, because a rolling window still carried the month
+           just closed). Twelve back covers any correction anyone will make. -->
+      <div class="no-bar flex gap-2 overflow-x-auto -mx-5 px-5 py-0.5 lg:mx-0 lg:px-0">
+         <button v-for="m in months" :key="m.period" class="fchip shrink-0"
+            :class="s.kpiMonth === m.period ? 'is-on' : ''" @click="s.setKpiMonth(m.period)">
+            {{ m.label }}
+         </button>
+      </div>
+      <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
+         {{ monthLabel(s.kpiMonth) }} — to'liq kalendar oy. Bu sahifa yuqoridagi
+         Kunlik / Haftalik / Oylik tanloviga bog'liq emas.
       </p>
 
-      <div v-if="!board" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
-         Bu davr uchun ma'lumot yo'q
+      <div v-if="s.kpiLoading" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
+         Yuklanmoqda…
+      </div>
+      <div v-else-if="s.kpiError" class="card py-10 text-center">
+         <p class="text-[15px] text-[color:var(--n-muted)] mb-4">Ma'lumot yuklanmadi.</p>
+         <button class="btn-primary" @click="s.loadKpiWorkers()">Qayta urinish</button>
+      </div>
+      <div v-else-if="!board" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
+         Bu oy uchun ma'lumot yo'q
       </div>
 
       <!-- ONE number per collapsed row. The screen now answers three questions (ball,
@@ -384,7 +401,36 @@ const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
 // arrives with the period slice the store already loads.
 // The ladder is still needed here to render an unvon; the SCHEME's numbers moved
 // to Qiymatlar, which loads them itself.
-onMounted(() => { void s.loadCategories() })
+// Uzbek month names, the same list and wording «Oyni yopish» uses — the two screens name
+// the same month and must not do it two different ways.
+const UZ_MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul',
+   'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr']
+
+function monthLabel(p: string): string {
+   const [y, m] = (p || '').split('-')
+   return `${UZ_MONTHS[Number(m) - 1] || m} ${y}`
+}
+
+/** The last twelve months, newest first. A list rather than a date field, for the same
+ *  reason «Oyni yopish» uses one: a typed month is a way to read somebody's pay for the
+ *  wrong period without noticing. */
+const months = computed(() => {
+   const now = new Date()
+   const out: { period: string; label: string }[] = []
+   for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      out.push({ period, label: monthLabel(period) })
+   }
+   return out
+})
+
+onMounted(() => {
+   void s.loadCategories()
+   // This tab owns its window, so it owns its fetch: the panel's `load()` fills
+   // `workers` for the rolling slice and never touches `kpiWorkers`.
+   if (!s.kpiWorkers.length) void s.loadKpiWorkers()
+})
 
 
 

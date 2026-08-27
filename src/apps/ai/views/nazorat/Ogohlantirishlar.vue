@@ -83,6 +83,19 @@
                      </div>
                   </component>
 
+                  <!-- CLEAR THIS ONE (owner, 2026-08-27: «i should able to clear per
+                       notification not all at the same time only»). Outside the row
+                       above, never inside it: on every notice but «DM yuborib bo'lmadi»
+                       that row IS a <button>, and a button nested in a button is invalid
+                       markup whose inner click behaviour browsers do not agree on.
+                       Clearing one leaves the others exactly where they were. -->
+                  <div class="px-5 pb-3.5 -mt-1">
+                     <button type="button" @click="clearOne(p)"
+                        class="text-[13.5px] font-semibold text-[color:var(--n-muted)] underline underline-offset-2">
+                        Tozalash
+                     </button>
+                  </div>
+
                   <!-- THE ANGRY MESSAGES. The ellikboshi is named on every one: an
                        aggressive complaint has to be settled now, and the person
                        answerable is the group's leader, never whoever happened to be
@@ -199,6 +212,16 @@ const open = ref<string | null>(null)
 function clearAll() {
    open.value = null
    s.dismissProblems(activeProblems.value)
+}
+
+/** Clear ONE notice, leaving the rest (owner, 2026-08-27). dismissProblems already takes
+ *  a list and writes one bookmark per item, so a single-item call needs nothing new on
+ *  the server — the all-or-nothing behaviour was the SHEET's, not the API's.
+ *  Closes the row if it was the open one, so the sheet does not keep a body open under a
+ *  heading that has gone. */
+function clearOne(p: { key: string; sig: string }) {
+   if (open.value === p.key) open.value = null
+   s.dismissProblems([p])
 }
 function toggle(key: string) {
    open.value = open.value === key ? null : key
