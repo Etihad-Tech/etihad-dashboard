@@ -204,6 +204,8 @@ export interface KpiSettings {
    //  §5.4 — the month's best leader's prize. Outside the deduction floor.
    sovrin_sum: number
    load_rate: number; max_deduction_pct: number
+   // The load treated as the ordinary job; above it every extra group is paid.
+   load_free_units: number
    k_min_units: number; k_max_units: number
    // §4.4 — the coefficient tables, in hundredths. Data rather than constants because
    // they describe the company's own tariffs, which move without the reglament
