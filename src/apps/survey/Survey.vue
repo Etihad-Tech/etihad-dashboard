@@ -60,14 +60,14 @@
                            title="Guruh ro'yxatini tozalash" @click="clearGroup(g)">Tozalash</button>
                      </div>
 
-                     <!-- Three doors into the same queue, all through THIS group: the
-                          workbook, rows copied out of it (owner, 2026-09-08: «enable
-                          буфер обмена»), or one name typed by hand. Every door previews
-                          or echoes what it read before anything is in the queue. -->
+                     <!-- Two doors into the same queue, both through THIS group: the
+                          workbook, or one name typed (or pasted) by hand. No paste-a-
+                          list box: the owner had it removed on 2026-08-20 and did not
+                          ask for it back — «буфер обмена» meant copying names and
+                          numbers OUT of the panel, see the card. -->
                      <div v-if="importFor === g.chat_id" class="sn-paste">
                         <div class="sn-tabs">
                            <button :class="{ on: importMode === 'file' }" @click="setMode('file')">Excel fayl</button>
-                           <button :class="{ on: importMode === 'paste' }" @click="setMode('paste')">Buferdan</button>
                            <button :class="{ on: importMode === 'manual' }" @click="setMode('manual')">Qo'lda</button>
                         </div>
 
@@ -88,36 +88,20 @@
                            </p>
                         </template>
 
-                        <!-- A paste is a SELECTION with no fixed origin — the one that
-                             once arrived a column out and imported the booking date as
-                             a name. So: copy the header row along and the columns are
-                             found by name; without it the server says it guessed. -->
-                        <template v-else-if="importMode === 'paste'">
-                           <textarea v-model="pasteText" class="sn-input sn-pastebox" :disabled="importing"
-                              placeholder="Excel'da qatorlarni belgilab nusxalang (Ctrl+C) va shu yerga qo'ying (Ctrl+V)"></textarea>
-                           <p class="sn-note">
-                              <b>Sarlavha qatorini ham</b> qo'shib nusxalang — <b>Ф.И.Ш.</b> va
-                              <b>тел.ракам</b> ustunlari sarlavha bo'yicha topiladi. Faqat ikki
-                              ustun (ism, telefon) yoki faqat ismlar ro'yxati ham bo'ladi.
-                           </p>
-                           <button class="sn-btn sn-primary" :disabled="importing || !pasteText.trim()"
-                              @click="previewPaste(g.chat_id)">
-                              {{ importing ? 'O\'qilyapti…' : 'Tekshirish' }}
-                           </button>
-                           <p v-if="filePreview && filePreview.layout === 'fixed'" class="sn-note sn-warn">
-                              Sarlavha topilmadi — ustunlar C va R deb olindi. Ro'yxat
-                              noto'g'ri bo'lsa, sarlavha qatori bilan qayta nusxalang.
-                           </p>
-                        </template>
-
                         <!-- One person by hand: a late booking, somebody the export
                              dropped. Enter adds and the cursor comes back to the name,
-                             so a handful of people go in without the mouse. -->
+                             so a handful of people go in without the mouse. A pasted
+                             «NAME <tab> 998901234567» — one row from the sheet, a line
+                             from Bitrix or Telegram — lands in BOTH fields at once. -->
                         <template v-else>
                            <input v-model="newName" ref="newNameEl" class="sn-input" placeholder="Ф.И.Ш."
-                              :disabled="importing" @keyup.enter="addManual(g.chat_id)" />
+                              :disabled="importing" @keyup.enter="addManual(g.chat_id)"
+                              @paste="onManualPaste" />
                            <input v-model="newPhone" class="sn-input" placeholder="Telefon (ixtiyoriy)"
-                              :disabled="importing" @keyup.enter="addManual(g.chat_id)" />
+                              :disabled="importing" @keyup.enter="addManual(g.chat_id)"
+                              @paste="onManualPaste" />
+                           <p class="sn-note">Ism va telefonni birga qo'ysangiz (Ctrl+V) ham
+                              bo'ladi — ikkala maydon o'zi to'ladi.</p>
                            <div class="sn-prow">
                               <button class="sn-btn sn-primary" :disabled="importing || !newName.trim()"
                                  @click="addManual(g.chat_id)">Qo'shish</button>
@@ -125,11 +109,11 @@
                            </div>
                         </template>
 
-                        <!-- The report BEFORE anything is written. A workbook or a
-                             selection is easy to get subtly wrong — the wrong tab, last
-                             month's file, a shifted paste — and every one of those looks
-                             like a successful import until somebody counts the queue. -->
-                        <div v-if="filePreview && importMode !== 'manual'" class="sn-report">
+                        <!-- The report BEFORE anything is written. A workbook is easy
+                             to get subtly wrong — the wrong tab, last month's file —
+                             and every one of those looks like a successful import
+                             until somebody counts the queue. -->
+                        <div v-if="filePreview && importMode === 'file'" class="sn-report">
                            <p>
                               <b>{{ filePreview.counts.ok || 0 }}</b> ta telefon bilan
                               <template v-if="filePreview.counts.no_phone">
@@ -163,21 +147,25 @@
                            </p>
                         </div>
 
-                        <div v-if="importMode !== 'manual'" class="sn-prow">
+                        <div v-if="importMode === 'file'" class="sn-prow">
                            <button v-if="filePreview" class="sn-btn sn-primary"
                               :disabled="importing || !filePreview.parsed"
-                              @click="commitImport(g.chat_id)">
+                              @click="commitFile(g.chat_id)">
                               {{ filePreview.parsed }} ta ziyoratchini qo'shish
                            </button>
                            <button class="sn-btn sn-ghost" @click="closeImport">Bekor</button>
                         </div>
                      </div>
 
-                     <!-- The row and its ✕ are siblings, not nested: a button inside a
-                          button is invalid HTML and the click lands on both. -->
+                     <!-- A div, not a <button>: text inside a button cannot be swept
+                          with the mouse, and the owner wants a name or a number picked
+                          straight off this list (2026-09-08: «allow copy pasting»).
+                          Keyboard stays: Enter / Space open. The ✕ is a sibling, not a
+                          child — a click on it must not also open the row. -->
                      <div v-for="p in pilgrimsOf(g.chat_id)" :key="p.id" class="sn-qrow">
-                        <button class="sn-qitem"
-                           :class="{ on: current && current.id === p.id }" @click="open(p)">
+                        <div class="sn-qitem" role="button" tabindex="0"
+                           :class="{ on: current && current.id === p.id }" @click="open(p)"
+                           @keydown.enter.prevent="open(p)" @keydown.space.prevent="open(p)">
                            <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
                            <span class="sn-qmain">
                               <b>{{ p.full_name }}</b>
@@ -186,7 +174,7 @@
                               </small>
                            </span>
                            <small class="sn-qst">{{ CALL_LABELS[p.call_status] || p.call_status }}</small>
-                        </button>
+                        </div>
                         <button class="sn-x" :disabled="p.survey_status === 'saved'"
                            :title="p.survey_status === 'saved'
                               ? 'So\'rovnomasi saqlangan — o\'chirilmaydi'
@@ -218,12 +206,21 @@
                     carries «Без имени» rows and mistyped names, and the specialist
                     finds out the truth during the call. A queue that cannot record
                     what they just learned pushes it onto paper. -->
-               <h1 v-if="editingName === null" class="sn-editable" @click="startEditName()"
-                  title="Ismni tuzatish">
-                  {{ current.full_name }}<span class="sn-pen">✎</span>
-               </h1>
-               <input v-else v-model="editingName" class="sn-h1input" ref="nameInput"
-                  @keyup.enter="commitName" @keyup.esc="editingName = null" @blur="commitName" />
+               <!-- «буфер обмена» (owner, 2026-09-08): the name and the number must
+                    COPY out of here in one click — into the dialler, into a message to
+                    the ellikboshi — and a pasted number must go in as easily (the ✎
+                    editors are plain inputs; the phone one canonicalises on the server,
+                    so «+998 (90) 123-45-67» pastes as is). -->
+               <div class="sn-h1row">
+                  <h1 v-if="editingName === null" class="sn-editable" @click="startEditName()"
+                     title="Ismni tuzatish">
+                     {{ current.full_name }}<span class="sn-pen">✎</span>
+                  </h1>
+                  <input v-else v-model="editingName" class="sn-h1input" ref="nameInput"
+                     @keyup.enter="commitName" @keyup.esc="editingName = null" @blur="commitName" />
+                  <button v-if="editingName === null" type="button" class="sn-copy"
+                     title="Ismni nusxalash" @click="copyText(current.full_name, 'Ism')">⧉ ism</button>
+               </div>
                <div class="sn-facts">
                   <span class="sn-fact"><b>Guruh:</b>
                      <!-- The one pick everything cascades from. Dashboard groups only,
@@ -283,7 +280,15 @@
                           a wrong number is a pilgrim who is never reached at all, and
                           the export really does carry «+[998919000077». -->
                      <button v-if="editingPhone === null" type="button" class="sn-linkbtn"
-                        @click="startEditPhone()" title="Raqamni tuzatish">✎</button></span>
+                        @click="startEditPhone()" title="Raqamni tuzatish">✎</button>
+                     <button v-if="editingPhone === null && current.phone" type="button" class="sn-copy"
+                        title="Raqamni nusxalash" @click="copyText('+' + current.phone, 'Telefon')">⧉</button></span>
+                  <span v-if="current.phone" class="sn-fact">
+                     <button type="button" class="sn-linkbtn" style="padding:0"
+                        title="Ism va telefonni birga nusxalash"
+                        @click="copyText(`${current.full_name} +${current.phone}`, 'Ism va telefon')">
+                        ⧉ ism + telefon</button>
+                  </span>
                   <span v-if="!isSaved" class="sn-fact">
                      <button type="button" class="sn-linkbtn sn-linkdanger"
                         @click="removePilgrim(current)">Ro'yxatdan o'chirish</button>
@@ -524,10 +529,9 @@ const filePreview = ref<any>(null)
 const fileName = ref('')
 const fileB64 = ref('')
 const importing = ref(false)
-// Which door is open. Remembered across groups on purpose — a specialist who works
-// from the clipboard should not have to pick «Buferdan» on every group.
-const importMode = ref<'file' | 'paste' | 'manual'>('file')
-const pasteText = ref('')
+// Which door is open. Remembered across groups on purpose — a specialist adding a
+// few late names should not have to pick «Qo'lda» on every group.
+const importMode = ref<'file' | 'manual'>('file')
 const newName = ref('')
 const newPhone = ref('')
 
@@ -571,7 +575,6 @@ function toggleImport(chatId: number) {
 function closeImport() {
    importFor.value = null
    clearPreview()
-   pasteText.value = ''
    newName.value = ''
    newPhone.value = ''
 }
@@ -582,18 +585,74 @@ function clearPreview() {
    fileB64.value = ''
 }
 
-/** Switch doors. The report is cleared because it belongs to the other door's
- *  input — a file preview above a paste box would be a promise about the wrong
- *  thing. The typed text is kept: switching tabs is not «Bekor». */
-function setMode(m: 'file' | 'paste' | 'manual') {
+/** Switch doors. The file report is cleared because it belongs to the other tab —
+ *  a preview above the by-hand form would be a promise about the wrong thing. The
+ *  typed name is kept: switching tabs is not «Bekor». */
+function setMode(m: 'file' | 'manual') {
    importMode.value = m
    clearPreview()
    if (m === 'manual') nextTick(() => firstEl(newNameEl.value)?.focus())
 }
 
-// An edited paste is a different import: the report was computed from the text as it
-// was, and the commit button must not stay up over text it never saw.
-watch(pasteText, () => { filePreview.value = null })
+/** Copy to the clipboard, and say so. `navigator.clipboard` needs a secure context
+ *  (HTTPS or localhost — both true for this panel); the execCommand path is the
+ *  fallback for an http:// LAN address, where it still works. */
+async function copyText(text: string, what: string) {
+   const value = (text || '').trim()
+   if (!value) return
+   try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value)
+      else {
+         const ta = document.createElement('textarea')
+         ta.value = value
+         ta.setAttribute('readonly', '')
+         ta.style.position = 'fixed'
+         ta.style.opacity = '0'
+         document.body.appendChild(ta)
+         ta.select()
+         document.execCommand('copy')
+         ta.remove()
+      }
+      toast.success(`${what} nusxalandi: ${value}`)
+   } catch {
+      toast.error("Nusxalanmadi — matnni belgilab Ctrl+C bosing")
+   }
+}
+
+/** A phone inside a pasted line: the first run of 7+ digits with the usual
+ *  furniture (+, spaces, dashes, brackets). Returns [name, phone]. */
+function splitNamePhone(text: string): [string, string] {
+   const line = (text || '').replace(/\r/g, '').split('\n').map((l) => l.trim()).find(Boolean) || ''
+   const m = line.match(/\+?\(?\d[\d\s\-()]{5,}\d/)
+   const digits = m ? m[0].replace(/\D/g, '') : ''
+   if (!m || digits.length < 7) return [line.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim(), '']
+   const name = (line.slice(0, m.index) + ' ' + line.slice(m.index! + m[0].length))
+      .replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim()
+   return [name, m[0].trim()]
+}
+
+/** «NAME <tab> 998901234567» pasted into either by-hand field fills both. A plain
+ *  name or a plain number pastes normally into whichever field it landed in. Only
+ *  the first line is taken — a whole list belongs in the Excel door, which previews
+ *  what it read; this one adds without asking. */
+function onManualPaste(ev: ClipboardEvent) {
+   const text = ev.clipboardData?.getData('text') || ''
+   const first = text.replace(/\r/g, '').split('\n').map((l) => l.trim()).find(Boolean) || ''
+   // A whole sheet row — nineteen cells of booking detail — is not a name and a
+   // number, and guessing which two cells are is how a booking date once became a
+   // pilgrim's name. Refused, with the fix named.
+   if (first.split('\t').filter((f) => f.trim()).length > 2) {
+      ev.preventDefault()
+      toast.error("Butun qator qo'yildi — faqat Ф.И.Ш. va телефон katakchalarini nusxalang")
+      return
+   }
+   const [name, phone] = splitNamePhone(text)
+   if (!name || !phone) return          // nothing to split: let the browser paste
+   ev.preventDefault()
+   newName.value = name
+   newPhone.value = phone
+   if (text.trim().includes('\n')) toast.error("Faqat birinchi qator olindi — ro'yxat uchun Excel faylni yuklang")
+}
 
 function pickFile() {
    // The input is inside a v-for, so Vue hands back an ARRAY of refs; there is only
@@ -637,21 +696,6 @@ function toBase64(file: File): Promise<string> {
       fr.onerror = () => reject(fr.error)
       fr.readAsDataURL(file)
    })
-}
-
-/** The clipboard door: the server reads the text, says how it found the columns
- *  (`layout`) and what it would create, and writes nothing until commit. */
-async function previewPaste(chatId: number) {
-   importing.value = true
-   filePreview.value = null
-   try {
-      const { data } = await api.post('/survey/paste',
-         { chat_id: chatId, text: pasteText.value, commit: false })
-      filePreview.value = data
-      if (!data.parsed) toast.error("Buferdan birorta ism o'qilmadi — sarlavha qatori bilan nusxalang")
-   } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "Matn o'qilmadi")
-   } finally { importing.value = false }
 }
 
 /** One person, typed in. Stays on the form afterwards with the cursor back on the
@@ -720,19 +764,14 @@ async function clearGroup(g: any) {
    }
 }
 
-/** Commit whichever door is open. The file sends the SAME bytes the preview was
- *  computed from — never a re-read of the input, which could by then be a different
- *  file; the paste sends the text as it stands, which IS the previewed text, because
- *  any edit drops the preview and with it this button. */
-async function commitImport(chatId: number) {
+/** The SAME bytes the preview was computed from — never a re-read of the input, which
+ *  could by then be a different file. */
+async function commitFile(chatId: number) {
    importing.value = true
    try {
-      const { data } = importMode.value === 'paste'
-         ? await api.post('/survey/paste',
-            { chat_id: chatId, text: pasteText.value, commit: true })
-         : await api.post('/survey/file',
-            { chat_id: chatId, content_b64: fileB64.value,
-              filename: fileName.value, commit: true })
+      const { data } = await api.post('/survey/file',
+         { chat_id: chatId, content_b64: fileB64.value,
+           filename: fileName.value, commit: true })
       const parts = [`${data.added} qo'shildi`]
       if (data.duplicates) parts.push(`${data.duplicates} avvaldan bor`)
       if (data.no_phone) parts.push(`${data.no_phone} telefonsiz`)
@@ -1039,12 +1078,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .sn-tabs button { flex: 1; font: inherit; font-size: 12.5px; padding: 5px 6px;
    border: 1px solid #d9d3c4; background: #fff; border-radius: 8px; cursor: pointer; }
 .sn-tabs button.on { background: #0f3d2e; color: #fff; border-color: #0f3d2e; }
-/* Monospace and no wrapping, so the pasted columns stay columns and a shifted
-   selection is visible as a shifted block before «Tekshirish» is even pressed. */
-.sn-pastebox { min-height: 110px; font-family: ui-monospace, Menlo, Consolas, monospace;
-   font-size: 12px; white-space: pre; overflow-x: auto; resize: vertical; }
 .sn-qrow { display: flex; align-items: center; border-top: 1px solid #eee9dd; }
-.sn-qrow .sn-qitem { flex: 1; min-width: 0; border-top: 0; }
+/* Selectable on purpose — see the template. */
+.sn-qrow .sn-qitem { flex: 1; min-width: 0; border-top: 0; user-select: text; }
+.sn-qrow .sn-qitem:focus-visible { outline: 2px solid #d8b45a; outline-offset: -2px; }
+.sn-h1row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sn-h1row h1, .sn-h1row .sn-h1input { margin: 0 0 8px; }
+.sn-copy { font: inherit; font-size: 12px; border: 1px solid #d9d3c4; background: #fff;
+   border-radius: 7px; padding: 2px 7px; margin-left: 6px; cursor: pointer; color: #6b6455; }
+.sn-copy:hover { color: #0f3d2e; border-color: #0f3d2e; }
 .sn-x { font: inherit; font-size: 12px; border: 0; background: none; color: #b9b3a3;
    cursor: pointer; padding: 6px 8px; border-radius: 6px; flex-shrink: 0; }
 .sn-x:hover:not(:disabled) { color: #a13c2f; background: #fbeee8; }
