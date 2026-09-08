@@ -48,34 +48,88 @@
                   </button>
 
                   <div v-if="openGroup === g.chat_id" class="sn-gbody">
-                     <button class="sn-btn sn-ghost sn-add" @click="toggleImport(g.chat_id)">
-                        + Ziyoratchilar qo'shish
-                     </button>
-
-                     <!-- The whole interaction: pick the group, pick the .xlsx. No
-                          selecting, no copying — a selection is the thing that used to
-                          arrive one column out and import the booking date as a name. -->
-                     <div v-if="importFor === g.chat_id" class="sn-paste">
-                        <input ref="fileEl" type="file" accept=".xlsx,.xlsm" class="hidden"
-                           @change="onFile" />
-                        <button class="sn-btn sn-primary" :disabled="importing"
-                           @click="pickFile">
-                           {{ importing ? 'O\'qilyapti…' : 'Excel faylni tanlash' }}
+                     <div class="sn-gtools">
+                        <button class="sn-btn sn-ghost sn-add" @click="toggleImport(g.chat_id)">
+                           + Ziyoratchilar qo'shish
                         </button>
-                        <p v-if="fileName" class="sn-note">
-                           <b>{{ fileName }}</b>
-                           <template v-if="filePreview?.sheet"> · «{{ filePreview.sheet }}» varag'i</template>
-                        </p>
-                        <p class="sn-note">
-                           Jadvaldan faqat <b>Ф.И.Ш.</b> va <b>тел.ракам</b> ustunlari
-                           o'qiladi — ustunlar sarlavha bo'yicha topiladi.
-                        </p>
+                        <!-- The whole list at once — the sheet went into the wrong
+                             group, or the wrong sheet into the right one. Pilgrims
+                             with a SAVED survey stay (server rule: their ball is
+                             already on somebody's month), and the toast says so. -->
+                        <button v-if="deletableOf(g.chat_id)" class="sn-btn sn-ghost sn-clear"
+                           title="Guruh ro'yxatini tozalash" @click="clearGroup(g)">Tozalash</button>
+                     </div>
 
-                        <!-- The report BEFORE anything is written. A workbook is easy
-                             to get subtly wrong — the wrong tab, last month's file —
-                             and every one of those looks like a successful import
-                             until somebody counts the queue. -->
-                        <div v-if="filePreview" class="sn-report">
+                     <!-- Three doors into the same queue, all through THIS group: the
+                          workbook, rows copied out of it (owner, 2026-09-08: «enable
+                          буфер обмена»), or one name typed by hand. Every door previews
+                          or echoes what it read before anything is in the queue. -->
+                     <div v-if="importFor === g.chat_id" class="sn-paste">
+                        <div class="sn-tabs">
+                           <button :class="{ on: importMode === 'file' }" @click="setMode('file')">Excel fayl</button>
+                           <button :class="{ on: importMode === 'paste' }" @click="setMode('paste')">Buferdan</button>
+                           <button :class="{ on: importMode === 'manual' }" @click="setMode('manual')">Qo'lda</button>
+                        </div>
+
+                        <template v-if="importMode === 'file'">
+                           <input ref="fileEl" type="file" accept=".xlsx,.xlsm" class="hidden"
+                              @change="onFile" />
+                           <button class="sn-btn sn-primary" :disabled="importing"
+                              @click="pickFile">
+                              {{ importing ? 'O\'qilyapti…' : 'Excel faylni tanlash' }}
+                           </button>
+                           <p v-if="fileName" class="sn-note">
+                              <b>{{ fileName }}</b>
+                              <template v-if="filePreview?.sheet"> · «{{ filePreview.sheet }}» varag'i</template>
+                           </p>
+                           <p class="sn-note">
+                              Jadvaldan faqat <b>Ф.И.Ш.</b> va <b>тел.ракам</b> ustunlari
+                              o'qiladi — ustunlar sarlavha bo'yicha topiladi.
+                           </p>
+                        </template>
+
+                        <!-- A paste is a SELECTION with no fixed origin — the one that
+                             once arrived a column out and imported the booking date as
+                             a name. So: copy the header row along and the columns are
+                             found by name; without it the server says it guessed. -->
+                        <template v-else-if="importMode === 'paste'">
+                           <textarea v-model="pasteText" class="sn-input sn-pastebox" :disabled="importing"
+                              placeholder="Excel'da qatorlarni belgilab nusxalang (Ctrl+C) va shu yerga qo'ying (Ctrl+V)"></textarea>
+                           <p class="sn-note">
+                              <b>Sarlavha qatorini ham</b> qo'shib nusxalang — <b>Ф.И.Ш.</b> va
+                              <b>тел.ракам</b> ustunlari sarlavha bo'yicha topiladi. Faqat ikki
+                              ustun (ism, telefon) yoki faqat ismlar ro'yxati ham bo'ladi.
+                           </p>
+                           <button class="sn-btn sn-primary" :disabled="importing || !pasteText.trim()"
+                              @click="previewPaste(g.chat_id)">
+                              {{ importing ? 'O\'qilyapti…' : 'Tekshirish' }}
+                           </button>
+                           <p v-if="filePreview && filePreview.layout === 'fixed'" class="sn-note sn-warn">
+                              Sarlavha topilmadi — ustunlar C va R deb olindi. Ro'yxat
+                              noto'g'ri bo'lsa, sarlavha qatori bilan qayta nusxalang.
+                           </p>
+                        </template>
+
+                        <!-- One person by hand: a late booking, somebody the export
+                             dropped. Enter adds and the cursor comes back to the name,
+                             so a handful of people go in without the mouse. -->
+                        <template v-else>
+                           <input v-model="newName" ref="newNameEl" class="sn-input" placeholder="Ф.И.Ш."
+                              :disabled="importing" @keyup.enter="addManual(g.chat_id)" />
+                           <input v-model="newPhone" class="sn-input" placeholder="Telefon (ixtiyoriy)"
+                              :disabled="importing" @keyup.enter="addManual(g.chat_id)" />
+                           <div class="sn-prow">
+                              <button class="sn-btn sn-primary" :disabled="importing || !newName.trim()"
+                                 @click="addManual(g.chat_id)">Qo'shish</button>
+                              <button class="sn-btn sn-ghost" @click="closeImport">Yopish</button>
+                           </div>
+                        </template>
+
+                        <!-- The report BEFORE anything is written. A workbook or a
+                             selection is easy to get subtly wrong — the wrong tab, last
+                             month's file, a shifted paste — and every one of those looks
+                             like a successful import until somebody counts the queue. -->
+                        <div v-if="filePreview && importMode !== 'manual'" class="sn-report">
                            <p>
                               <b>{{ filePreview.counts.ok || 0 }}</b> ta telefon bilan
                               <template v-if="filePreview.counts.no_phone">
@@ -109,29 +163,39 @@
                            </p>
                         </div>
 
-                        <div class="sn-prow">
+                        <div v-if="importMode !== 'manual'" class="sn-prow">
                            <button v-if="filePreview" class="sn-btn sn-primary"
                               :disabled="importing || !filePreview.parsed"
-                              @click="commitFile(g.chat_id)">
+                              @click="commitImport(g.chat_id)">
                               {{ filePreview.parsed }} ta ziyoratchini qo'shish
                            </button>
                            <button class="sn-btn sn-ghost" @click="closeImport">Bekor</button>
                         </div>
                      </div>
 
-                     <button v-for="p in pilgrimsOf(g.chat_id)" :key="p.id" class="sn-qitem"
-                        :class="{ on: current && current.id === p.id }" @click="open(p)">
-                        <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
-                        <span class="sn-qmain">
-                           <b>{{ p.full_name }}</b>
-                           <small :class="p.phone ? '' : 'sn-warn'">
-                              {{ p.phone || 'telefon yo\'q' }}
-                           </small>
-                        </span>
-                        <small class="sn-qst">{{ CALL_LABELS[p.call_status] || p.call_status }}</small>
-                     </button>
+                     <!-- The row and its ✕ are siblings, not nested: a button inside a
+                          button is invalid HTML and the click lands on both. -->
+                     <div v-for="p in pilgrimsOf(g.chat_id)" :key="p.id" class="sn-qrow">
+                        <button class="sn-qitem"
+                           :class="{ on: current && current.id === p.id }" @click="open(p)">
+                           <span class="sn-dot" :class="p.survey_status === 'saved' ? 'done' : ''"></span>
+                           <span class="sn-qmain">
+                              <b>{{ p.full_name }}</b>
+                              <small :class="p.phone ? '' : 'sn-warn'">
+                                 {{ p.phone || 'telefon yo\'q' }}
+                              </small>
+                           </span>
+                           <small class="sn-qst">{{ CALL_LABELS[p.call_status] || p.call_status }}</small>
+                        </button>
+                        <button class="sn-x" :disabled="p.survey_status === 'saved'"
+                           :title="p.survey_status === 'saved'
+                              ? 'So\'rovnomasi saqlangan — o\'chirilmaydi'
+                              : 'Ro\'yxatdan o\'chirish'"
+                           @click="removePilgrim(p)">✕</button>
+                     </div>
                      <p v-if="!pilgrimsOf(g.chat_id).length" class="sn-note">
-                        Bu guruhda ziyoratchi yo'q — «+» orqali Excel faylni yuklang.
+                        Bu guruhda ziyoratchi yo'q — «+» orqali Excel fayl, bufer yoki
+                        qo'lda qo'shing.
                      </p>
                   </div>
                </div>
@@ -220,6 +284,10 @@
                           the export really does carry «+[998919000077». -->
                      <button v-if="editingPhone === null" type="button" class="sn-linkbtn"
                         @click="startEditPhone()" title="Raqamni tuzatish">✎</button></span>
+                  <span v-if="!isSaved" class="sn-fact">
+                     <button type="button" class="sn-linkbtn sn-linkdanger"
+                        @click="removePilgrim(current)">Ro'yxatdan o'chirish</button>
+                  </span>
                </div>
                <div class="sn-callbar">
                   <button v-for="(l, k) in CALL_LABELS" :key="k" class="sn-btn"
@@ -331,7 +399,7 @@
          </main>
          <main v-else class="sn-panel sn-empty">
             Chapdan guruhni oching va ziyoratchini tanlang — ro'yxat bo'lmasa,
-            «+» orqali Excel faylni yuklang.
+            «+» orqali Excel fayl, bufer yoki qo'lda qo'shing.
          </main>
 
          <!-- ─────────── LIVE IMPACT (preview; the SAVED score is the server's) ── -->
@@ -362,10 +430,12 @@ import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
+const { confirm } = useConfirm()
 
 const CALL_LABELS: Record<string, string> = {
    kutmoqda: 'Kutmoqda', boldi: "Bo'ldi", javob_bermadi: 'Javob bermadi',
@@ -433,6 +503,12 @@ const focusKey = ref<string | null>(null)
 // The file input lives inside the group list's v-for, so Vue collects the refs into
 // an array. Typed as both because only one group is ever open.
 const fileEl = ref<HTMLInputElement | HTMLInputElement[] | null>(null)
+const newNameEl = ref<HTMLInputElement | HTMLInputElement[] | null>(null)
+
+/** A ref inside a v-for arrives as an array; only one group is ever open. */
+function firstEl<T>(v: T | T[] | null): T | null {
+   return Array.isArray(v) ? (v[0] ?? null) : v
+}
 
 const filteredQueue = computed(() => {
    const n = search.value.trim().toLowerCase()
@@ -448,9 +524,21 @@ const filePreview = ref<any>(null)
 const fileName = ref('')
 const fileB64 = ref('')
 const importing = ref(false)
+// Which door is open. Remembered across groups on purpose — a specialist who works
+// from the clipboard should not have to pick «Buferdan» on every group.
+const importMode = ref<'file' | 'paste' | 'manual'>('file')
+const pasteText = ref('')
+const newName = ref('')
+const newPhone = ref('')
 
 function pilgrimsOf(chatId: number) {
    return filteredQueue.value.filter((p) => p.chat_id === chatId)
+}
+
+/** How many of a group's pilgrims «Tozalash» would actually remove — the whole
+ *  group, not the search-filtered view, and never the saved ones. */
+function deletableOf(chatId: number) {
+   return queue.value.filter((p) => p.chat_id === chatId && p.survey_status !== 'saved').length
 }
 
 /** Groups the search still matches — by their OWN name, or by a pilgrim inside them,
@@ -482,16 +570,35 @@ function toggleImport(chatId: number) {
 
 function closeImport() {
    importFor.value = null
+   clearPreview()
+   pasteText.value = ''
+   newName.value = ''
+   newPhone.value = ''
+}
+
+function clearPreview() {
    filePreview.value = null
    fileName.value = ''
    fileB64.value = ''
 }
 
+/** Switch doors. The report is cleared because it belongs to the other door's
+ *  input — a file preview above a paste box would be a promise about the wrong
+ *  thing. The typed text is kept: switching tabs is not «Bekor». */
+function setMode(m: 'file' | 'paste' | 'manual') {
+   importMode.value = m
+   clearPreview()
+   if (m === 'manual') nextTick(() => firstEl(newNameEl.value)?.focus())
+}
+
+// An edited paste is a different import: the report was computed from the text as it
+// was, and the commit button must not stay up over text it never saw.
+watch(pasteText, () => { filePreview.value = null })
+
 function pickFile() {
    // The input is inside a v-for, so Vue hands back an ARRAY of refs; there is only
    // ever one open at a time because the box lives in the open group.
-   const el = Array.isArray(fileEl.value) ? fileEl.value[0] : fileEl.value
-   el?.click()
+   firstEl(fileEl.value)?.click()
 }
 
 /** The file → base64 → the server, which reads it and says what it found, writing
@@ -532,14 +639,100 @@ function toBase64(file: File): Promise<string> {
    })
 }
 
-/** The SAME bytes the preview was computed from — never a re-read of the input, which
- *  could by then be a different file. */
-async function commitFile(chatId: number) {
+/** The clipboard door: the server reads the text, says how it found the columns
+ *  (`layout`) and what it would create, and writes nothing until commit. */
+async function previewPaste(chatId: number) {
+   importing.value = true
+   filePreview.value = null
+   try {
+      const { data } = await api.post('/survey/paste',
+         { chat_id: chatId, text: pasteText.value, commit: false })
+      filePreview.value = data
+      if (!data.parsed) toast.error("Buferdan birorta ism o'qilmadi — sarlavha qatori bilan nusxalang")
+   } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Matn o'qilmadi")
+   } finally { importing.value = false }
+}
+
+/** One person, typed in. Stays on the form afterwards with the cursor back on the
+ *  name — the next one is usually right behind. */
+async function addManual(chatId: number) {
+   const name = newName.value.trim()
+   if (!name || importing.value) return
    importing.value = true
    try {
-      const { data } = await api.post('/survey/file',
-         { chat_id: chatId, content_b64: fileB64.value,
-           filename: fileName.value, commit: true })
+      const { data } = await api.post('/survey/pilgrims',
+         { chat_id: chatId, full_name: name, phone: newPhone.value.trim() || null })
+      toast.success(`Qo'shildi: ${data.full_name}`)
+      newName.value = ''
+      newPhone.value = ''
+      await Promise.all([loadQueue(), loadGroups()])
+      nextTick(() => firstEl(newNameEl.value)?.focus())
+   } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Qo'shilmadi")
+   } finally { importing.value = false }
+}
+
+/** One pilgrim off the queue. A saved survey cannot go (the ✕ is disabled and the
+ *  server refuses too) — its ball is already on the ellikboshi's month. */
+async function removePilgrim(p: any) {
+   if (!p || p.survey_status === 'saved' || (current.value?.id === p.id && isSaved.value)) return
+   const ok = await confirm({
+      title: `${p.full_name} — ro'yxatdan o'chirish`,
+      message: "Boshlangan qoralama ham o'chadi. Bu amalni ortga qaytarib bo'lmaydi",
+      confirmText: "O'chirish",
+   })
+   if (!ok) return
+   try {
+      await api.delete(`/survey/pilgrims/${p.id}`)
+      if (current.value?.id === p.id) current.value = null
+      toast.success("O'chirildi")
+      await Promise.all([loadQueue(), loadGroups()])
+   } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "O'chirilmadi")
+   }
+}
+
+/** The group's whole list. The confirm names the numbers the server will act on —
+ *  what goes and what stays — so «why is it not empty» is answered before the click. */
+async function clearGroup(g: any) {
+   const all = queue.value.filter((p) => p.chat_id === g.chat_id)
+   const saved = all.filter((p) => p.survey_status === 'saved').length
+   const going = all.length - saved
+   if (!going) return
+   const ok = await confirm({
+      title: `«${g.title || g.chat_id}» ro'yxatini tozalash`,
+      message: `${going} ta ziyoratchi o'chiriladi`
+         + (saved ? `, ${saved} ta saqlangan so'rovnoma qoladi` : '')
+         + ". Bu amalni ortga qaytarib bo'lmaydi",
+      confirmText: 'Tozalash',
+   })
+   if (!ok) return
+   try {
+      const { data } = await api.delete(`/survey/groups/${g.chat_id}/pilgrims`)
+      if (current.value?.chat_id === g.chat_id && !isSaved.value) current.value = null
+      toast.success(`${data.deleted} ta o'chirildi`
+         + (data.kept_saved ? `, ${data.kept_saved} ta saqlangan qoldi` : ''))
+      closeImport()
+      await Promise.all([loadQueue(), loadGroups()])
+   } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Tozalanmadi")
+   }
+}
+
+/** Commit whichever door is open. The file sends the SAME bytes the preview was
+ *  computed from — never a re-read of the input, which could by then be a different
+ *  file; the paste sends the text as it stands, which IS the previewed text, because
+ *  any edit drops the preview and with it this button. */
+async function commitImport(chatId: number) {
+   importing.value = true
+   try {
+      const { data } = importMode.value === 'paste'
+         ? await api.post('/survey/paste',
+            { chat_id: chatId, text: pasteText.value, commit: true })
+         : await api.post('/survey/file',
+            { chat_id: chatId, content_b64: fileB64.value,
+              filename: fileName.value, commit: true })
       const parts = [`${data.added} qo'shildi`]
       if (data.duplicates) parts.push(`${data.duplicates} avvaldan bor`)
       if (data.no_phone) parts.push(`${data.no_phone} telefonsiz`)
@@ -836,7 +1029,28 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
    that means something official, so it is the only one that gets a colour. */
 .sn-qst.ok { color: #2e7d5b; font-weight: 700; }
 .sn-gbody { padding: 2px 0 10px 10px; border-left: 2px solid #eee9dd; margin-left: 8px; }
-.sn-add { width: 100%; margin-bottom: 6px; }
+.sn-gtools { display: flex; gap: 6px; margin-bottom: 6px; }
+.sn-add { flex: 1; }
+/* Red only on hover: the way out of a wrong import sits next to the way in, but it
+   must not read as the loud thing on a list the specialist works from all day. */
+.sn-clear { color: #8a8474; }
+.sn-clear:hover { color: #a13c2f; border-color: #e6c9c3; background: #fbeee8; }
+.sn-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.sn-tabs button { flex: 1; font: inherit; font-size: 12.5px; padding: 5px 6px;
+   border: 1px solid #d9d3c4; background: #fff; border-radius: 8px; cursor: pointer; }
+.sn-tabs button.on { background: #0f3d2e; color: #fff; border-color: #0f3d2e; }
+/* Monospace and no wrapping, so the pasted columns stay columns and a shifted
+   selection is visible as a shifted block before «Tekshirish» is even pressed. */
+.sn-pastebox { min-height: 110px; font-family: ui-monospace, Menlo, Consolas, monospace;
+   font-size: 12px; white-space: pre; overflow-x: auto; resize: vertical; }
+.sn-qrow { display: flex; align-items: center; border-top: 1px solid #eee9dd; }
+.sn-qrow .sn-qitem { flex: 1; min-width: 0; border-top: 0; }
+.sn-x { font: inherit; font-size: 12px; border: 0; background: none; color: #b9b3a3;
+   cursor: pointer; padding: 6px 8px; border-radius: 6px; flex-shrink: 0; }
+.sn-x:hover:not(:disabled) { color: #a13c2f; background: #fbeee8; }
+.sn-x:disabled { opacity: .35; cursor: default; }
+.sn-linkdanger { padding: 0; color: #8a8474; }
+.sn-linkdanger:hover { color: #a13c2f; }
 .sn-paste { background: #fbfaf7; border: 1px solid #e2ddd0; border-radius: 10px;
    padding: 8px; margin-bottom: 8px; }
 .sn-prow { display: flex; gap: 6px; flex-wrap: wrap; }
