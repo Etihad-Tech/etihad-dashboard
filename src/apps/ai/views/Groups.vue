@@ -110,6 +110,21 @@
               </div>
             </div>
 
+            <!-- FORUM TOPIC. A group with a lot of traffic is split into topics: one
+                 where the bot answers, one where only announcements are posted. Fill
+                 this in and the bot works ONLY in that topic; leave it empty and
+                 nothing changes — it answers wherever it is spoken to, as today. -->
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <label class="text-[11px] text-gray-500 font-medium">Bot ishlaydigan mavzu</label>
+              <input v-model="g.bot_topic_id" type="number" min="0" placeholder="—"
+                class="w-20 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <p class="text-[11px] text-gray-400 leading-snug flex-1 min-w-[16rem]">
+                Guruh mavzularga (topics) bo'lingan bo'lsa, bot <b>faqat shu mavzuda</b> javob beradi —
+                e'lonlar mavzusiga umuman aralashmaydi. Bo'sh qoldirilsa, hozirgidek hamma joyda ishlaydi.
+                Raqamni mavzudagi istalgan xabar havolasidan oling: t.me/c/1234567890/<b>2</b>/15 — bu yerda <b>2</b>.
+              </p>
+            </div>
+
             <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
               <span class="font-medium text-gray-700">{{ summary(g) }}</span>
               <span class="text-gray-400">Daraja:</span>
@@ -181,6 +196,8 @@ interface Grp {
   hotel_madina: string
   hotel_jidda: string
   bot_silent: boolean
+  // The forum topic the bot works in (message_thread_id), '' = not bound.
+  bot_topic_id: number | string
 }
 
 const authStore = useAuthStore()
@@ -233,6 +250,14 @@ const filtered = computed(() => {
 
 function hasLocation(g: Grp) {
   return (g.madina_nights != null && g.madina_nights !== '') || (g.makka_nights != null && g.makka_nights !== '')
+}
+
+/** The topic field, as the API wants it: a real id, or 0 to CLEAR the binding.
+ *  Deliberately NOT numOrNull — that returns null for an emptied box, and null means
+ *  "field not sent" to the server, so a topic could be bound and never unbound. */
+function topicOrClear(v: number | string | null): number {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? n : 0
 }
 
 function numOrNull(v: number | string | null): number | null {
@@ -494,6 +519,7 @@ async function load() {
         hotel_madina: g.hotel_madina || '',
         hotel_jidda: g.hotel_jidda || '',
         bot_silent: !!g.bot_silent,
+        bot_topic_id: g.bot_topic_id ?? '',
       }
     })
   } catch {
@@ -516,6 +542,7 @@ async function save(g: Grp) {
       hotel_makka: g.hotel_makka ?? '',
       hotel_madina: g.hotel_madina ?? '',
       hotel_jidda: g.hotel_jidda ?? '',
+      bot_topic_id: topicOrClear(g.bot_topic_id),
     })
     savedId.value = g.id
     setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2500)
