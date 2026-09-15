@@ -315,12 +315,6 @@ export const useNazoratStore = defineStore('nazorat', () => {
    // Deliberately NOT role-scoped by the API: it is an alarm, not an accountability
    // statistic, and hiding an angry pilgrim from one controller is the worse failure.
    const aggressive = ref<Aggressive>({ total: 0, items: [] })
-   // People the bot CANNOT DM at all, because they never pressed start. Back on the bell
-   // by owner request (2026-08-07) after a few hours off it: it is the one warning where
-   // nothing is failing yet — the cards simply never arrive, silently.
-   const staffReadiness = ref<StaffReady[]>([])
-   // The bell's SLA chase list — cards still acceptable, past their §6 window.
-   const slaOverdue = ref<SlaOverdueItem[]>([])
 
    // ── The controllers' 1:1 chat ─────────────────────────────────────────────
    // Kept OUT of load(): it answers to no period and no group/city slice, and re-pulling
@@ -490,22 +484,20 @@ export const useNazoratStore = defineStore('nazorat', () => {
       requests.value = []
       try {
          const q = sliceQuery.value
-         const [rep, wrk, agg, sr, st, sc, grp, sla] = await Promise.all([
+         // The SLA-overdue and staff-readiness reads are gone with the notices they fed
+         // (owner, 2026-09-15: the bell shows the aggression alarm and nothing else).
+         const [rep, wrk, agg, st, sc, grp] = await Promise.all([
             api.get(`/control/report?${q}`),
             api.get(`/control/workers?${q}`),
             // No city: a message records no location, only the need behind one does —
             // see get_aggressive_complaints. The GROUP filter is exact and is honoured.
             api.get(`/control/aggressive?period=${period.value}`
                + (filterGroup.value ? `&chat_id=${encodeURIComponent(filterGroup.value)}` : '')),
-            // No period: "has this person ever started the bot" is true now or it is not.
-            api.get('/control/staff-readiness'),
             api.get('/control/settings'),
             api.get('/control/scope'),
             // Deliberately NOT sliced: the group list must keep offering the other
             // groups, otherwise picking one would leave you unable to pick a different one.
             api.get(`/control/groups?period=${period.value}`),
-            // No period either: an SLA alarm is about NOW.
-            api.get('/control/sla-overdue'),
          ])
          // Which notices this login has already cleared. Read on every load so a clear
          // made on the phone is already in force when the laptop opens the panel.
@@ -513,8 +505,6 @@ export const useNazoratStore = defineStore('nazorat', () => {
          report.value = rep.data
          workers.value = wrk.data
          aggressive.value = agg.data || { total: 0, items: [] }
-         staffReadiness.value = sr.data
-         slaOverdue.value = sla.data || []
          scope.value = sc.data?.scope || 'all'
          groupOptions.value = grp.data
          form.value = {
@@ -532,8 +522,6 @@ export const useNazoratStore = defineStore('nazorat', () => {
          report.value = null
          workers.value = []
          aggressive.value = { total: 0, items: [] }
-         staffReadiness.value = []
-         slaOverdue.value = []
          groupOptions.value = []
       } finally {
          loading.value = false
@@ -912,7 +900,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       period, loading, loadError, saving, savedMsg,
       categories, loadCategories, setCategory, setCategoryFiks,
       kpiSettings, loadKpiSettings, setKpiSetting,
-      report, workers, groupOptions, aggressive, staffReadiness, slaOverdue, scope,
+      report, workers, groupOptions, aggressive, scope,
       // The KPI tab's own calendar-month slice — see loadKpiWorkers.
       kpiMonth, kpiWorkers, kpiLoading, kpiError, loadKpiWorkers, setKpiMonth,
       leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
