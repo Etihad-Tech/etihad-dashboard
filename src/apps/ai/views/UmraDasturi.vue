@@ -238,7 +238,7 @@
         </div>
 
         <div v-if="!dirty && editing.days_list.every(d => d.items.length === 0)" class="bg-amber-50 border border-amber-200 rounded-3xl p-3 text-sm text-amber-800">
-          Dastur bo'sh. Har bir kunga joy va vaqt kiriting — «+ band» ni bosing yoki oxirgi izohda Enter.
+          Dastur bo'sh. Har bir kunga joylarni kiriting — «+ band» ni bosing yoki oxirgi izohda Enter.
         </div>
 
         <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up">
@@ -250,7 +250,7 @@
               <p class="text-[11px] text-gray-400 tabular-nums">{{ fmtDate(d.date) }}</p>
             </div>
             <div class="w-[4.5rem] shrink-0 pt-1.5">
-              <span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-lg border-l-2" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
+              <span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
             </div>
             <div class="flex-1 min-w-0 space-y-1.5">
               <div v-for="(it, idx) in d.items" :key="idx" class="flex items-center gap-2">
@@ -518,10 +518,10 @@ function cityName(c: string | null | undefined): string {
   return c === 'jidda' ? 'Jidda' : c === 'makka' ? 'Makka' : c === 'madina' ? 'Madina' : ''
 }
 function cityBand(c: string | null | undefined): string {
-  if (c === 'jidda') return 'bg-amber-50 text-amber-700 border-amber-500'
-  if (c === 'madina') return 'bg-sky-50 text-sky-700 border-sky-500'
-  if (c === 'makka') return 'bg-emerald-50 text-emerald-700 border-emerald-500'
-  return 'bg-gray-50 text-gray-400 border-gray-300'
+  if (c === 'jidda') return 'bg-amber-50 text-amber-700'
+  if (c === 'madina') return 'bg-sky-50 text-sky-700'
+  if (c === 'makka') return 'bg-emerald-50 text-emerald-700'
+  return 'bg-gray-50 text-gray-400'
 }
 function cityDot(c: string | null | undefined): string {
   return c === 'jidda' ? 'bg-amber-400' : c === 'madina' ? 'bg-sky-400' : c === 'makka' ? 'bg-emerald-400' : 'bg-gray-200'
@@ -602,7 +602,11 @@ async function closeEditor() {
 onMounted(async () => {
   loading.value = true
   try {
-    await Promise.all([loadCells(), loadPlaces(), loadGroups()])
+    await Promise.all([loadCells(), loadPlaces()])
+    // The group list serves only the copy dialog, and /groups waits on the Turon
+    // registry lookup (seconds when that API is unreachable) — never block the
+    // screen on it.
+    loadGroups()
     if (route.query.program) await openProgram(Number(route.query.program))
     else if (route.query.group) await openForGroup(Number(route.query.group))
   } catch (e: any) {
