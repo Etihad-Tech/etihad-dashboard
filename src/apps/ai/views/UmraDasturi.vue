@@ -69,35 +69,31 @@
             Har bir katak — bitta safar shakli (<b>kun soni × Daraja</b>) va uning bitta shabloni. Guruh o'z katagini
             <b>Guruhlar</b> sahifasidagi kechalar va Daraja bo'yicha o'zi topadi. Shablonni o'zgartirsangiz, undagi
             hamma guruh darhol yangisini ko'radi. Bitta guruhga alohida dastur kerak bo'lsa — Guruhlar sahifasida
-            «Guruhga moslashtirish»: nusxa olinadi va shablondan ajraladi.
+            «Guruhga moslashtirish»: nusxa olinadi va shablondan ajraladi. Pastdagi «shablonsiz» ro'yxatda kutilmagan
+            shakl chiqsa (11 kun, 14 kun), guruhning kechalari noto'g'ri kiritilgan: <b>kecha = kun − 1</b>.
           </p>
         </div>
 
-        <div v-if="cells.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up">
+        <div v-if="templateCells.length === 0" class="bg-white rounded-3xl border border-gray-200 py-16 text-center animate-fade-up">
           <font-awesome-icon icon="route" class="w-10 h-10 text-gray-300 mb-4" />
-          <p class="text-gray-400">Hali shablon yo'q — birinchisini yarating</p>
+          <p class="text-gray-400">Hali shablon yo'q — «Yangi shablon» tugmasida tayyor shakllar bor</p>
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          <div v-for="(c, i) in cells" :key="c.days + c.tier"
-            class="bg-white rounded-3xl border p-4 flex flex-col gap-3 animate-fade-up"
-            :class="c.template ? 'border-gray-200' : 'border-amber-300 bg-amber-50/30'"
+          <div v-for="(c, i) in templateCells" :key="c.days + c.tier"
+            class="bg-white rounded-3xl border border-gray-200 p-4 flex flex-col gap-3 animate-fade-up"
             :style="{ animationDelay: `${(i + 1) * 30}ms` }">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <p class="text-lg font-semibold text-gray-900 leading-tight">{{ cellLabel(c.days, c.tier) }}</p>
                 <p class="text-xs text-gray-500 mt-0.5">{{ planeLabel(c.order) }}<template v-if="c.template"> · {{ nightsLabel(c.template) }}</template></p>
               </div>
-              <span class="text-[11px] px-2 py-0.5 rounded-lg shrink-0"
-                :class="c.template ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-100 text-amber-700'">
-                {{ c.template ? 'shablon bor' : 'shablon kerak' }}
-              </span>
+              <span class="text-[11px] px-2 py-0.5 rounded-lg shrink-0 bg-emerald-50 text-emerald-600">shablon</span>
             </div>
 
             <div class="text-sm">
-              <p v-if="c.template" class="font-medium text-gray-800 truncate">{{ c.template.name }}
-                <span class="text-gray-400 font-normal">· {{ c.template.items_count }} band</span></p>
-              <p v-else class="text-gray-500">Bu shakl uchun shablon yaratilmagan — guruhlar dastursiz.</p>
+              <p class="font-medium text-gray-800 truncate">{{ c.template!.name }}
+                <span class="text-gray-400 font-normal">· {{ c.template!.items_count }} band</span></p>
               <p class="text-xs text-gray-500 mt-1">
                 {{ c.groups_total }} guruh:
                 <span class="text-gray-700">{{ c.on_template }} shablonda</span> ·
@@ -110,27 +106,55 @@
             </div>
 
             <div class="flex items-center gap-1 mt-auto pt-1">
-              <button v-if="c.template" @click="openProgram(c.template.id)"
+              <button @click="openProgram(c.template!.id)"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
                 <font-awesome-icon icon="pen" class="w-3 h-3" /> Ochish
               </button>
-              <button v-else @click="openCreate(c)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors">
-                <font-awesome-icon icon="plus" class="w-3 h-3" /> Shablon yaratish
-              </button>
-              <button v-if="c.template" @click="openCopy(c.template)"
+              <button @click="openCopy(c.template!)"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
                 <font-awesome-icon icon="copy" class="w-3 h-3" /> Nusxalash
               </button>
-              <button v-if="c.template" @click="deleteTemplate(c.template)"
+              <button @click="deleteTemplate(c.template!)"
                 class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
                 <font-awesome-icon icon="trash" class="w-3 h-3" />
               </button>
             </div>
           </div>
         </div>
+        <!-- Groups whose computed shape has no template. Presented as GROUPS with the
+             nights the office typed, not as cells: a «14 kun» here is a group whose
+             12-night trip was entered as 13 nights, and the fix is on its card, not a
+             new template. A real new shape is one click away all the same. -->
+        <div v-if="unmatchedCells.length" class="space-y-3 animate-fade-up">
+          <div class="flex items-center gap-2 pt-2">
+            <font-awesome-icon icon="triangle-exclamation" class="w-4 h-4 text-amber-500" />
+            <h3 class="text-base font-semibold text-gray-900">Shablonsiz guruhlar ({{ unmatchedTotal }})</h3>
+            <span class="text-xs text-gray-500">— kabinetda «Dastur tayyorlanmoqda» ko'rinadi</span>
+          </div>
+          <div v-for="c in unmatchedCells" :key="'u' + c.days + c.tier" class="bg-white rounded-3xl border border-amber-200 overflow-hidden">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 bg-amber-50/60 border-b border-amber-100">
+              <span class="text-sm font-semibold text-gray-900">{{ cellLabel(c.days, c.tier) }}</span>
+              <span class="text-xs text-gray-500">{{ planeLabel(c.order) }} · {{ c.groups.length }} guruh</span>
+              <span v-if="!KNOWN_DAYS.includes(c.days)" class="text-xs text-amber-700">
+                Kompaniyada {{ c.days }} kunlik safar yo'q — kechalarni tekshiring (kecha = kun − 1)
+              </span>
+              <button @click="openCreate(c)" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors">
+                <font-awesome-icon icon="plus" class="w-3 h-3" /> Shu shakl uchun shablon
+              </button>
+            </div>
+            <div class="divide-y divide-gray-100">
+              <div v-for="g in c.groups" :key="g.telegram_id" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
+                <span class="font-medium text-gray-800">{{ g.title || g.telegram_id }}</span>
+                <span class="text-xs text-gray-500 tabular-nums">{{ nightsText(g.nights, c.order) }}</span>
+                <span v-if="g.trip_start_date" class="text-xs text-gray-400 tabular-nums">{{ fmtDate(g.trip_start_date) }}</span>
+                <span v-if="g.tier_inferred" class="text-[11px] px-1.5 py-0.5 rounded-lg bg-amber-100 text-amber-700">Daraja avtomatik</span>
+                <router-link to="/ai/groups" class="ml-auto text-xs text-amber-700 hover:underline">Guruhlarda tuzatish</router-link>
+              </div>
+            </div>
+          </div>
+        </div>
         <p v-if="groupsWithoutMap" class="text-[11px] text-gray-400">
-          {{ groupsWithoutMap }} guruhda jo'nash sanasi bor, lekin kechalar kiritilmagan — ular hech qaysi katakka tushmaydi.
+          {{ groupsWithoutMap }} guruhda jo'nash sanasi bor, lekin kechalar kiritilmagan — ular hech qaysi shaklga tushmaydi.
         </p>
       </template>
 
@@ -230,8 +254,7 @@
             </div>
             <div class="flex-1 min-w-0 space-y-1.5">
               <div v-for="(it, idx) in d.items" :key="idx" class="flex items-center gap-2">
-                <input v-model="it.time" type="time" @input="dirty = true"
-                  class="w-[6.2rem] bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <span class="w-5 text-right text-[11px] text-gray-300 tabular-nums shrink-0">{{ idx + 1 }}</span>
                 <input v-model="it.place_name" type="text" list="program-places" placeholder="Joy" @input="dirty = true"
                   class="w-56 bg-gray-50 border rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                   :class="it.place_name.trim() ? 'border-gray-200' : 'border-rose-300 ring-1 ring-rose-200'" />
@@ -250,7 +273,7 @@
           <option v-for="p in places" :key="p.id" :value="p.name">{{ cityName(p.city) }}</option>
         </datalist>
         <p class="text-[11px] text-gray-400">
-          Joyni ro'yxatdan tanlang yoki yangisini yozing — u «Joylar» lug'atiga o'zi qo'shiladi. Vaqt ixtiyoriy.
+          Joyni ro'yxatdan tanlang yoki yangisini yozing — u «Joylar» lug'atiga o'zi qo'shiladi. Tartib — strelkalar bilan.
           Kun shahri Guruhlar sahifasidagi kechalardan olinadi, bu yerda o'zgarmaydi.
         </p>
       </template>
@@ -260,7 +283,14 @@
     <div v-if="createOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="createOpen = false">
       <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 space-y-4">
         <h3 class="text-lg font-semibold text-gray-900">Yangi shablon</h3>
-        <p class="text-sm text-gray-500">Bir shakl uchun bitta shablon. Kechalar — guruhlarda odatda kiritiladigan kechalar.</p>
+        <p class="text-sm text-gray-500">Bir shakl uchun bitta shablon. Tayyor shakllardan birini bosing yoki kechalarni o'zingiz kiriting.</p>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="pr in PRESETS" :key="pr.name" @click="applyPreset(pr)" type="button"
+            class="px-2.5 py-1 rounded-xl text-xs font-medium border transition-colors"
+            :class="presetActive(pr) ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">
+            {{ pr.name }}
+          </button>
+        </div>
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1.5">Nomi</label>
           <input v-model="createForm.name" type="text" placeholder="Masalan: Shanba 13 kun comfort" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
@@ -360,8 +390,8 @@
               <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) }}</span>
             </div>
             <p v-if="d.items.length === 0" class="text-xs text-gray-300 pl-1">—</p>
-            <div v-for="(it, i) in d.items" :key="i" class="flex gap-3 pl-1 py-0.5">
-              <span class="w-12 shrink-0 text-xs text-gray-400 tabular-nums pt-0.5">{{ it.time || '' }}</span>
+            <div v-for="(it, i) in d.items" :key="i" class="flex gap-2 pl-1 py-0.5">
+              <span class="w-4 shrink-0 text-xs text-gray-300 tabular-nums pt-0.5">{{ i + 1 }}.</span>
               <div class="text-sm"><span class="font-medium text-gray-900">{{ it.place_name }}</span><span v-if="it.note" class="text-gray-500"> · {{ it.note }}</span></div>
             </div>
           </div>
@@ -388,7 +418,7 @@ interface ProgramSummary {
   jidda_nights: number; makka_nights: number; madina_nights: number
   items_count: number; updated_at: string | null; updated_by: string | null
 }
-interface Item { time: string; place_name: string; note: string }
+interface Item { place_name: string; note: string }
 interface Day { day: number; date: string | null; weekday: number | null; city: string | null; items: Item[] }
 interface ProgramView extends ProgramSummary {
   start_date: string | null
@@ -397,9 +427,14 @@ interface ProgramView extends ProgramSummary {
   group?: { telegram_id: number; title: string | null; shape: Shape | null }
   warnings?: string[]
 }
+interface CellGroup {
+  telegram_id: number; title: string | null; trip_start_date: string | null
+  nights: { jidda: number; makka: number; madina: number }; tier_inferred: boolean; source: string
+}
 interface Cell {
   days: number; tier: string; order: string; template: ProgramSummary | null
   groups_total: number; on_template: number; customized: number; without: number; tier_inferred: number
+  groups: CellGroup[]
 }
 interface Place { id: number; name: string; city: string | null; used: number }
 interface GroupRow { id: number; title: string | null; trip_start_date: string | null }
@@ -415,6 +450,18 @@ const CITY_OPTS = [
   { value: 'makka', label: 'Makka' },
   { value: 'madina', label: 'Madina' },
 ]
+// The shapes the company runs this season (owner, 2026-09-16: 10/6/13 days, comfort and
+// lux, and a 10-day comfort too). Presets only — a group's real shape still comes from
+// its own nights, and a length outside this list is flagged as a probable typo.
+type Preset = { name: string; tier: string; city_order: string; jidda_nights: number; makka_nights: number; madina_nights: number }
+const PRESETS: Preset[] = [
+  { name: 'Payshanba 10 kun comfort', tier: 'comfort', city_order: 'madina_makka', jidda_nights: 0, makka_nights: 5, madina_nights: 4 },
+  { name: 'Payshanba 10 kun lux', tier: 'premium', city_order: 'madina_makka', jidda_nights: 0, makka_nights: 5, madina_nights: 4 },
+  { name: 'Shanba 6 kun lux', tier: 'premium', city_order: 'makka_madina', jidda_nights: 1, makka_nights: 2, madina_nights: 2 },
+  { name: 'Shanba 13 kun lux', tier: 'premium', city_order: 'makka_madina', jidda_nights: 1, makka_nights: 7, madina_nights: 4 },
+  { name: 'Shanba 13 kun comfort', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 1, makka_nights: 8, madina_nights: 3 },
+]
+const KNOWN_DAYS = [6, 10, 13]
 // Python weekday(): Mon=0 … Sun=6 — what the API returns.
 const WEEKDAYS = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba']
 
@@ -429,6 +476,9 @@ const loading = ref(false)
 const saving = ref(false)
 const tab = ref<'shablonlar' | 'joylar'>('shablonlar')
 const cells = ref<Cell[]>([])
+const templateCells = computed(() => cells.value.filter(c => c.template))
+const unmatchedCells = computed(() => cells.value.filter(c => !c.template && c.groups.length))
+const unmatchedTotal = computed(() => unmatchedCells.value.reduce((n, c) => n + c.groups.length, 0))
 const groupsWithoutMap = ref(0)
 const places = ref<Place[]>([])
 const groups = ref<GroupRow[]>([])
@@ -457,6 +507,12 @@ function nightsLabel(p: { jidda_nights: number | null; makka_nights: number | nu
     if (n) parts.push(`${LEGS.find(l => l.key === k)!.label} ${n}`)
   }
   return parts.join(' · ')
+}
+function nightsText(n: { jidda: number; makka: number; madina: number }, order: string): string {
+  const seq: ('jidda' | 'makka' | 'madina')[] = order === 'madina_makka' ? ['madina', 'makka'] : ['jidda', 'makka', 'madina']
+  const parts = seq.filter(k => n[k]).map(k => `${cityName(k)} ${n[k]}`)
+  const total = n.jidda + n.makka + n.madina
+  return `${parts.join(' · ')} = ${total} kecha`
 }
 function cityName(c: string | null | undefined): string {
   return c === 'jidda' ? 'Jidda' : c === 'makka' ? 'Makka' : c === 'madina' ? 'Madina' : ''
@@ -506,7 +562,7 @@ function toView(data: any): ProgramView {
     ...data,
     days_list: (data.days_list || []).map((d: any) => ({
       day: d.day, date: d.date, weekday: d.weekday, city: d.city,
-      items: (d.items || []).map((it: any) => ({ time: it.time || '', place_name: it.place || '', note: it.note || '' })),
+      items: (d.items || []).map((it: any) => ({ place_name: it.place || '', note: it.note || '' })),
     })),
   }
 }
@@ -557,7 +613,7 @@ onMounted(async () => {
 // ─── Items editing ────────────────────────────────────────────────────────────────
 
 function addItem(d: Day, afterIdx: number) {
-  d.items.splice(afterIdx + 1, 0, { time: '', place_name: '', note: '' })
+  d.items.splice(afterIdx + 1, 0, { place_name: '', note: '' })
   dirty.value = true
 }
 function removeItem(d: Day, idx: number) {
@@ -583,7 +639,6 @@ async function saveItems() {
       days: p.days_list.map(d => ({
         day_no: d.day,
         items: d.items.map(it => ({
-          time: it.time || null,
           place_name: it.place_name.trim(),
           city: d.city,
           note: it.note.trim() || null,
@@ -640,6 +695,19 @@ const createOpen = ref(false)
 const createForm = reactive({ name: '', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 1, makka_nights: 8, madina_nights: 3 })
 const createDays = computed(() => (createForm.jidda_nights || 0) + (createForm.makka_nights || 0) + (createForm.madina_nights || 0) + 1)
 
+function applyPreset(pr: Preset) {
+  createForm.name = pr.name
+  createForm.tier = pr.tier
+  createForm.city_order = pr.city_order
+  createForm.jidda_nights = pr.jidda_nights
+  createForm.makka_nights = pr.makka_nights
+  createForm.madina_nights = pr.madina_nights
+}
+function presetActive(pr: Preset): boolean {
+  return createForm.tier === pr.tier && createForm.city_order === pr.city_order
+    && createForm.jidda_nights === pr.jidda_nights && createForm.makka_nights === pr.makka_nights
+    && createForm.madina_nights === pr.madina_nights
+}
 function openCreate(cell?: Cell) {
   formError.value = ''
   if (cell) {
