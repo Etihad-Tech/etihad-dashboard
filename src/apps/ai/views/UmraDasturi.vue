@@ -256,6 +256,7 @@
               <div v-for="(it, idx) in d.items" :key="idx" class="flex items-center gap-2">
                 <span class="w-5 text-right text-[11px] text-gray-300 tabular-nums shrink-0">{{ idx + 1 }}</span>
                 <input v-model="it.place_name" type="text" list="program-places" placeholder="Joy" @input="dirty = true"
+                  :data-item="`${d.day}-${idx}`"
                   class="w-56 bg-gray-50 border rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                   :class="it.place_name.trim() ? 'border-gray-200' : 'border-rose-300 ring-1 ring-rose-200'" />
                 <input v-model="it.note" type="text" placeholder="Izoh (nima bo'ladi)" @input="dirty = true"
@@ -402,7 +403,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
@@ -619,6 +620,12 @@ onMounted(async () => {
 function addItem(d: Day, afterIdx: number) {
   d.items.splice(afterIdx + 1, 0, { place_name: '', note: '' })
   dirty.value = true
+  // Enter in a note (or «+ band») means «next line»: put the cursor in the new
+  // line's place field, so a whole day can be typed without touching the mouse.
+  nextTick(() => {
+    const el = document.querySelector<HTMLInputElement>(`input[data-item="${d.day}-${afterIdx + 1}"]`)
+    el?.focus()
+  })
 }
 function removeItem(d: Day, idx: number) {
   d.items.splice(idx, 1)
