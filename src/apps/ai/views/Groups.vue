@@ -125,6 +125,31 @@
               </p>
             </div>
 
+            <!-- UMRA DASTURI. Which day-by-day programme this group shows: its own copy,
+                 or its cell's template (days x Daraja), or none. Resolved by the API from
+                 the nights and Daraja on THIS card — so a change here moves the group. -->
+            <div v-if="isAdmin && programs[String(g.id)]" class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+              <font-awesome-icon icon="route" class="w-3 h-3 text-gray-400" />
+              <span class="text-gray-400">Umra dasturi:</span>
+              <template v-if="programs[String(g.id)].source === 'none'">
+                <span class="text-rose-600">{{ programNone(programs[String(g.id)]) }}</span>
+              </template>
+              <template v-else>
+                <span class="font-medium text-gray-700">{{ programs[String(g.id)].program_name }}</span>
+                <span class="px-1.5 py-0.5 rounded-lg"
+                  :class="programs[String(g.id)].source === 'group' ? 'bg-violet-50 text-violet-600' : 'bg-emerald-50 text-emerald-600'">
+                  {{ programs[String(g.id)].source === 'group' ? 'moslashtirilgan' : 'shablon' }}
+                </span>
+                <span v-if="programs[String(g.id)].warnings.includes('map_mismatch')" class="text-amber-600">kechalar shablondan farq qiladi</span>
+                <span v-if="programs[String(g.id)].warnings.includes('tier_inferred')" class="text-amber-600">Daraja avtomatik</span>
+                <router-link :to="{ path: '/ai/umra-dasturi', query: { group: String(g.id) } }" class="text-amber-700 hover:underline">Ochish</router-link>
+                <button v-if="programs[String(g.id)].source === 'template'" @click="customizeProgram(g)" :disabled="programSavingId === g.id"
+                  class="text-gray-500 hover:text-gray-900 disabled:opacity-50">Guruhga moslashtirish</button>
+                <button v-else @click="revertProgram(g)" :disabled="programSavingId === g.id"
+                  class="text-gray-500 hover:text-rose-600 disabled:opacity-50">Shablonga qaytarish</button>
+              </template>
+            </div>
+
             <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
               <span class="font-medium text-gray-700">{{ summary(g) }}</span>
               <span class="text-gray-400">Daraja:</span>
@@ -160,6 +185,7 @@ import api, { teamApi } from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
 import { useHotelsStore } from '../../../stores/hotels'
 import { useToast } from '../../../composables/useToast'
+import { useConfirm } from '../../../composables/useConfirm'
 import { byGroupNumber } from '../../../utils/groupOrder'
 
 // Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
@@ -206,6 +232,46 @@ const toast = useToast()
 // this page is also served to the qa role, which must not even see the button.
 const isAdmin = computed(() => authStore.role === 'admin')
 const silentSavingId = ref<number | null>(null)
+
+// ─── Umra dasturi per group (admin only — the API is admin-only too) ──────────────
+interface ProgramRes { source: 'group' | 'template' | 'none'; program_id: number | null; program_name: string | null; shape: { days: number; tier: string } | null; warnings: string[] }
+const programs = ref<Record<string, ProgramRes>>({})
+const programSavingId = ref<number | null>(null)
+const { confirm } = useConfirm()
+
+async function loadPrograms() {
+  if (!isAdmin.value) return
+  try {
+    const { data } = await api.get('/programs/groups')
+    programs.value = data
+  } catch { programs.value = {} }
+}
+function programNone(r: ProgramRes): string {
+  if (r.warnings.includes('no_day_map')) return 'kechalar kiritilmagan'
+  const t = r.shape?.tier === 'comfort' ? 'comfort' : 'lux'
+  return `${r.shape?.days} kun · ${t} uchun shablon yo'q`
+}
+async function customizeProgram(g: Grp) {
+  programSavingId.value = g.id
+  try {
+    await api.post(`/programs/groups/${g.id}/customize`)
+    toast.success("Guruh o'z nusxasini oldi — Umra dasturi sahifasida tahrirlang")
+    await loadPrograms()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Moslashtirilmadi')
+  } finally { programSavingId.value = null }
+}
+async function revertProgram(g: Grp) {
+  if (!(await confirm({ title: 'Shablonga qaytarish', message: "Guruhning o'z dasturi o'chiriladi, u yana shablonni ko'radi.", confirmText: 'Qaytarish' }))) return
+  programSavingId.value = g.id
+  try {
+    await api.delete(`/programs/groups/${g.id}/customize`)
+    toast.success('Guruh shablonga qaytdi')
+    await loadPrograms()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Qaytarilmadi')
+  } finally { programSavingId.value = null }
+}
 
 async function toggleSilent(g: Grp) {
   silentSavingId.value = g.id
@@ -554,5 +620,5 @@ async function save(g: Grp) {
   }
 }
 
-onMounted(() => { hotelsStore.fetch(); load() })
+onMounted(() => { hotelsStore.fetch(); load(); loadPrograms() })
 </script>
