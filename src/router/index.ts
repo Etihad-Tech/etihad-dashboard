@@ -67,6 +67,11 @@ const router = createRouter({
       component: () => import('../apps/ai/views/Hotels.vue'),
     },
     {
+      path: '/ai/umra-dasturi',
+      name: 'AiUmraDasturi',
+      component: () => import('../apps/ai/views/UmraDasturi.vue'),
+    },
+    {
       path: '/ai/admins',
       name: 'AiAdmins',
       component: () => import('../apps/ai/views/Admins.vue'),
