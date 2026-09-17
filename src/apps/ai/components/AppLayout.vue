@@ -132,6 +132,7 @@ const NAV_GROUPS = [
   { title: 'Safar va guruhlar', items: [
     { to: '/ai/groups', label: 'Guruhlar', icon: 'location-dot' },
     { to: '/ai/hotels', label: 'Mehmonxonalar', icon: 'hotel' },
+    { to: '/ai/umra-dasturi', label: 'Umra dasturi', icon: 'route' },
     { to: '/ai/reyslar', label: 'Reyslar', icon: 'plane' },
   ] },
   { title: 'Bot javoblari', items: [

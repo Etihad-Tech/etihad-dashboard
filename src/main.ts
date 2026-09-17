@@ -12,6 +12,7 @@ import {
    faGear,
    faRightFromBracket,
    faXmark,
+   faRoute, faCopy, faArrowUp, faArrowDown, faClone, faCalendarDays,
    faBars,
    faEye,
    faDatabase,
@@ -64,6 +65,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
+   faRoute, faCopy, faArrowUp, faArrowDown, faClone, faCalendarDays,
    faChartLine, faComments, faGear, faRightFromBracket, faXmark, faBars,
    faEye, faDatabase, faCircle, faArrowLeft, faFileLines, faPlus, faPen,
    faTrash, faToggleOn, faToggleOff, faUsers, faPlane, faCalendar,

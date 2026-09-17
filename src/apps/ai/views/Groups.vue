@@ -39,6 +39,13 @@
                 <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
                 <p class="text-[11px] text-gray-400">{{ g.id }}</p>
               </div>
+              <!-- The CRM binding at a glance. Unbound = the pilgrim cabinet has no group
+                   link and no ellikboshi for these pilgrims; the block below fixes it. -->
+              <span class="shrink-0 px-2.5 py-1 rounded-xl text-[11px] font-medium border"
+                :class="g.crm_link ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'"
+                :title="g.crm_link ? `CRM: ${g.crm_link.departure_id} / ${g.crm_link.group_index}` : `Pastdagi «CRM guruhi» qatoridan bog'lang yoki chatda bot taklifini tasdiqlang`">
+                {{ g.crm_link ? `CRM · ${crmLabel(g.crm_link)}-guruh` : "CRMga bog'lanmagan" }}
+              </span>
               <!-- Fully-silent switch (admin here; the main nazoratchi has the same
                    toggle in the Nazorat panel). Saves IMMEDIATELY via its own
                    endpoint — deliberately independent of the Saqlash button, so
@@ -54,6 +61,74 @@
               <span v-if="savedId === g.id" class="text-emerald-600 text-xs flex items-center gap-1 shrink-0">
                 <font-awesome-icon icon="circle" class="w-2 h-2" /> Saqlandi
               </span>
+            </div>
+
+            <!-- CRM BINDING. «This chat is CRM group 006» — the row the pilgrim cabinet's
+                 group link, invite link and ellikboshi all hang off. Two ways in, one row:
+                 the bot proposes in the chat and the ellikboshi taps, or the office types
+                 the season number here and picks the departure. Both call the same server
+                 function, so whoever binds last moves the CRM group to their chat. Acts
+                 IMMEDIATELY through its own endpoints, like the Bot JIM switch — it never
+                 rides along with Saqlash. Admin binds and unbinds; qa sees the state. -->
+            <div class="mb-4 rounded-2xl border border-gray-200 bg-gray-50/60 px-3 py-2.5 text-xs space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[11px] text-gray-500 font-medium">CRM guruhi</span>
+                <template v-if="g.crm_link">
+                  <span class="font-medium text-gray-800">{{ crmLabel(g.crm_link) }}-guruh</span>
+                  <span class="text-gray-400" :title="g.crm_link.departure_id">{{ crmWho(g.crm_link) }}</span>
+                  <button v-if="isAdmin" @click="unbind(g)" :disabled="bindBusyId === g.id"
+                    class="ml-auto px-2.5 py-1 rounded-xl border border-gray-200 text-gray-500 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 transition-colors">
+                    {{ bindBusyId === g.id ? '...' : 'Uzish' }}
+                  </button>
+                </template>
+                <template v-else-if="isAdmin">
+                  <input v-model="bindForm(g.id).season" type="number" min="1" max="999" placeholder="raqam, m-n 006"
+                    @keyup.enter="searchCrm(g)"
+                    class="w-32 bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  <button @click="searchCrm(g)" :disabled="bindBusyId === g.id || !bindForm(g.id).season"
+                    class="px-2.5 py-1 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors">
+                    {{ bindBusyId === g.id && !bindForm(g.id).candidates ? 'Qidirilmoqda...' : 'Qidirish' }}
+                  </button>
+                  <span v-if="bindForm(g.id).error" class="text-rose-600">{{ bindForm(g.id).error }}</span>
+                  <span v-else class="text-[11px] text-gray-400">Mavsum raqami bo'yicha — chatda bot taklifini tasdiqlash bilan bir xil</span>
+                </template>
+                <span v-else class="text-gray-400">bog'lanmagan — chatda bot taklifini tasdiqlang</span>
+              </div>
+              <div v-if="!g.crm_link && isAdmin && bindForm(g.id).candidates" class="flex flex-col gap-1">
+                <p v-if="bindForm(g.id).candidates!.length === 0" class="text-gray-500">
+                  CRMda bunday raqamli ishchi guruh yo'q. Raqamni tekshiring.
+                </p>
+                <label v-for="c in bindForm(g.id).candidates" :key="c.departure_id + ':' + c.group_index"
+                  class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" :name="`crm-${g.id}`" :value="c" v-model="bindForm(g.id).chosen" />
+                  <span class="text-gray-800">{{ candidateLabel(c) }}</span>
+                </label>
+                <div v-if="bindForm(g.id).candidates!.length">
+                  <button @click="bind(g)" :disabled="!bindForm(g.id).chosen || bindBusyId === g.id"
+                    class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium transition-colors">
+                    {{ bindBusyId === g.id ? "Bog'lanmoqda..." : "Bog'lash" }}
+                  </button>
+                </div>
+              </div>
+              <!-- The join link the bot minted (join-request style: pilgrims ask, the CRM
+                   match or the ellikboshi approves). Only once the chat is bound. -->
+              <div v-if="g.crm_link" class="flex flex-wrap items-center gap-2">
+                <span class="text-[11px] text-gray-500 font-medium">Taklif havolasi</span>
+                <template v-if="g.invite_link">
+                  <a :href="g.invite_link" target="_blank" rel="noopener"
+                    class="font-mono text-indigo-600 hover:underline truncate max-w-[16rem]">{{ g.invite_link }}</a>
+                  <button @click="copyLink(g)"
+                    class="px-2.5 py-1 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
+                    Nusxalash
+                  </button>
+                </template>
+                <span v-else class="text-amber-600">yo'q — bot guruhda admin emas</span>
+                <button v-if="isAdmin" @click="remint(g)" :disabled="remintingId === g.id"
+                  class="px-2.5 py-1 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors">
+                  {{ remintingId === g.id ? 'Yaratilmoqda...' : (g.invite_link ? 'Qayta yaratish' : 'Yaratish') }}
+                </button>
+                <span v-if="remintError[g.id]" class="text-rose-600">{{ remintError[g.id] }}</span>
+              </div>
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -125,6 +200,31 @@
               </p>
             </div>
 
+            <!-- UMRA DASTURI. Which day-by-day programme this group shows: its own copy,
+                 or its cell's template (days x Daraja), or none. Resolved by the API from
+                 the nights and Daraja on THIS card — so a change here moves the group. -->
+            <div v-if="isAdmin && programs[String(g.id)]" class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+              <font-awesome-icon icon="route" class="w-3 h-3 text-gray-400" />
+              <span class="text-gray-400">Umra dasturi:</span>
+              <template v-if="programs[String(g.id)].source === 'none'">
+                <span class="text-rose-600">{{ programNone(programs[String(g.id)]) }}</span>
+              </template>
+              <template v-else>
+                <span class="font-medium text-gray-700">{{ programs[String(g.id)].program_name }}</span>
+                <span class="px-1.5 py-0.5 rounded-lg"
+                  :class="programs[String(g.id)].source === 'group' ? 'bg-violet-50 text-violet-600' : 'bg-emerald-50 text-emerald-600'">
+                  {{ programs[String(g.id)].source === 'group' ? 'moslashtirilgan' : 'shablon' }}
+                </span>
+                <span v-if="programs[String(g.id)].warnings.includes('map_mismatch')" class="text-amber-600">kechalar shablondan farq qiladi</span>
+                <span v-if="programs[String(g.id)].warnings.includes('tier_inferred')" class="text-amber-600">Daraja avtomatik</span>
+                <router-link :to="{ path: '/ai/umra-dasturi', query: { group: String(g.id) } }" class="text-amber-700 hover:underline">Ochish</router-link>
+                <button v-if="programs[String(g.id)].source === 'template'" @click="customizeProgram(g)" :disabled="programSavingId === g.id"
+                  class="text-gray-500 hover:text-gray-900 disabled:opacity-50">Guruhga moslashtirish</button>
+                <button v-else @click="revertProgram(g)" :disabled="programSavingId === g.id"
+                  class="text-gray-500 hover:text-rose-600 disabled:opacity-50">Shablonga qaytarish</button>
+              </template>
+            </div>
+
             <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
               <span class="font-medium text-gray-700">{{ summary(g) }}</span>
               <span class="text-gray-400">Daraja:</span>
@@ -160,6 +260,7 @@ import api, { teamApi } from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
 import { useHotelsStore } from '../../../stores/hotels'
 import { useToast } from '../../../composables/useToast'
+import { useConfirm } from '../../../composables/useConfirm'
 import { byGroupNumber } from '../../../utils/groupOrder'
 
 // Dashboard-managed hotel list (Mehmonxonalar page), filtered by city slot.
@@ -198,14 +299,83 @@ interface Grp {
   bot_silent: boolean
   // The forum topic the bot works in (message_thread_id), '' = not bound.
   bot_topic_id: number | string
+  // The CRM binding («this chat is CRM group 006») and the join link the bot minted
+  // once it was bound. Both are written by their own endpoints, never by Saqlash.
+  crm_link: CrmLink | null
+  invite_link: string | null
+}
+
+interface CrmLink {
+  departure_id: string
+  group_index: number
+  season_no: number | null
+  confirmed_by: string | null
+  confirmed_at: string | null
+}
+
+/** One CRM group carrying the searched season number — as `crm-candidates` returns it. */
+interface CrmCandidate {
+  departure_id: string
+  group_index: number
+  season_no: number | null
+  departure_date: string | null
+  package_name: string | null
+  status: string | null
+}
+
+interface BindForm {
+  season: string
+  candidates: CrmCandidate[] | null
+  chosen: CrmCandidate | null
+  error: string
 }
 
 const authStore = useAuthStore()
 const toast = useToast()
+const { confirm } = useConfirm()
 // The fully-silent switch is admin + main-nazoratchi only (the API enforces it);
 // this page is also served to the qa role, which must not even see the button.
 const isAdmin = computed(() => authStore.role === 'admin')
 const silentSavingId = ref<number | null>(null)
+
+// ─── Umra dasturi per group (admin only — the API is admin-only too) ──────────────
+interface ProgramRes { source: 'group' | 'template' | 'none'; program_id: number | null; program_name: string | null; shape: { days: number; tier: string } | null; warnings: string[] }
+const programs = ref<Record<string, ProgramRes>>({})
+const programSavingId = ref<number | null>(null)
+
+async function loadPrograms() {
+  if (!isAdmin.value) return
+  try {
+    const { data } = await api.get('/programs/groups')
+    programs.value = data
+  } catch { programs.value = {} }
+}
+function programNone(r: ProgramRes): string {
+  if (r.warnings.includes('no_day_map')) return 'kechalar kiritilmagan'
+  const t = r.shape?.tier === 'comfort' ? 'comfort' : 'lux'
+  return `${r.shape?.days} kun · ${t} uchun shablon yo'q`
+}
+async function customizeProgram(g: Grp) {
+  programSavingId.value = g.id
+  try {
+    await api.post(`/programs/groups/${g.id}/customize`)
+    toast.success("Guruh o'z nusxasini oldi — Umra dasturi sahifasida tahrirlang")
+    await loadPrograms()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Moslashtirilmadi')
+  } finally { programSavingId.value = null }
+}
+async function revertProgram(g: Grp) {
+  if (!(await confirm({ title: 'Shablonga qaytarish', message: "Guruhning o'z dasturi o'chiriladi, u yana shablonni ko'radi.", confirmText: 'Qaytarish' }))) return
+  programSavingId.value = g.id
+  try {
+    await api.delete(`/programs/groups/${g.id}/customize`)
+    toast.success('Guruh shablonga qaytdi')
+    await loadPrograms()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Qaytarilmadi')
+  } finally { programSavingId.value = null }
+}
 
 async function toggleSilent(g: Grp) {
   silentSavingId.value = g.id
@@ -520,6 +690,8 @@ async function load() {
         hotel_jidda: g.hotel_jidda || '',
         bot_silent: !!g.bot_silent,
         bot_topic_id: g.bot_topic_id ?? '',
+        crm_link: g.crm_link ?? null,
+        invite_link: g.invite_link ?? null,
       }
     })
   } catch {
@@ -554,5 +726,147 @@ async function save(g: Grp) {
   }
 }
 
-onMounted(() => { hotelsStore.fetch(); load() })
+// ─── CRM binding + invite link ──────────────────────────────────────────────────
+// The same three endpoints the bot's chat button and the internal CRM caller use,
+// through the same server function: one crm_group_links row per chat either way.
+
+const bindForms = ref<Record<number, BindForm>>({})
+const bindBusyId = ref<number | null>(null)
+const remintingId = ref<number | null>(null)
+const remintError = ref<Record<number, string>>({})
+
+function bindForm(id: number): BindForm {
+  if (!bindForms.value[id]) {
+    bindForms.value[id] = { season: '', candidates: null, chosen: null, error: '' }
+  }
+  return bindForms.value[id]
+}
+
+/** 006, the number the office knows the group by; the CRM's own index when the
+ *  season number was never set. */
+function crmLabel(link: CrmLink): string {
+  return link.season_no != null ? String(link.season_no).padStart(3, '0') : `#${link.group_index}`
+}
+
+/** Who confirmed the binding and when — the bot writes the tapping user, this
+ *  screen writes dashboard:<login>, so a wrong binding has a name on it. */
+function crmWho(link: CrmLink): string {
+  const when = link.confirmed_at ? fmtIso(link.confirmed_at) : ''
+  return ['·', link.confirmed_by || '?', when].filter(Boolean).join(' ')
+}
+
+function fmtIso(iso: string | null): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return y && m && d ? `${d}.${m}.${y}` : iso
+}
+
+function candidateLabel(c: CrmCandidate): string {
+  const no = c.season_no != null ? String(c.season_no).padStart(3, '0') : `#${c.group_index}`
+  const parts = [`${no}-guruh`, fmtIso(c.departure_date), c.package_name ?? '']
+  if (c.status && c.status !== 'SELLING') parts.push(c.status.toLowerCase())
+  return parts.filter(Boolean).join(' · ')
+}
+
+async function searchCrm(g: Grp) {
+  const form = bindForm(g.id)
+  const season = Number(form.season)
+  if (!Number.isInteger(season) || season < 1 || season > 999) {
+    form.error = "Raqam 1 dan 999 gacha bo'lishi kerak"
+    return
+  }
+  bindBusyId.value = g.id
+  form.error = ''
+  form.candidates = null
+  form.chosen = null
+  try {
+    const { data } = await api.get(`/groups/${g.id}/crm-candidates`, { params: { season_no: season } })
+    form.candidates = data.groups as CrmCandidate[]
+    // One match is the common case — preselect it so the bind is a single tap.
+    if (form.candidates.length === 1) form.chosen = form.candidates[0] ?? null
+  } catch (e: any) {
+    // 503 is the CRM not answering, which is a different message from «no such group».
+    form.error = e?.response?.status === 503
+      ? "CRM javob bermadi, keyinroq urinib ko'ring"
+      : (e?.response?.data?.detail || "Qidirib bo'lmadi")
+  } finally {
+    bindBusyId.value = null
+  }
+}
+
+async function bind(g: Grp) {
+  const form = bindForm(g.id)
+  if (!form.chosen) return
+  bindBusyId.value = g.id
+  form.error = ''
+  try {
+    const { data } = await api.post(`/groups/${g.id}/crm-link`, {
+      departure_id: form.chosen.departure_id,
+      group_index: form.chosen.group_index,
+      season_no: form.chosen.season_no,
+    })
+    g.crm_link = data.crm_link
+    g.invite_link = data.invite_link ?? g.invite_link
+    delete bindForms.value[g.id]
+    toast.success(`CRM guruhi bog'landi: ${crmLabel(data.crm_link)}-guruh`)
+    // The link is minted in the same call. When the bot is not admin in the chat it
+    // cannot be — Telegram's reason stays on the card until the rights are fixed.
+    if (data.invite_error) remintError.value[g.id] = `Havola yaratilmadi: ${data.invite_error}`
+  } catch (e: any) {
+    form.error = e?.response?.data?.detail || "Bog'lab bo'lmadi"
+  } finally {
+    bindBusyId.value = null
+  }
+}
+
+async function unbind(g: Grp) {
+  if (!g.crm_link) return
+  const ok = await confirm({
+    title: "CRM bog'lanishini uzish",
+    message: `${g.title || g.id} — ${crmLabel(g.crm_link)}-guruhdan uziladi, taklif havolasi bekor qilinadi. `
+      + "Kabinet bu guruhni ko'rmay qoladi.",
+    confirmText: 'Uzish',
+  })
+  if (!ok) return
+  bindBusyId.value = g.id
+  try {
+    await api.delete(`/groups/${g.id}/crm-link`)
+    g.crm_link = null
+    g.invite_link = null
+    delete remintError.value[g.id]
+    toast.success("CRM bog'lanishi olib tashlandi")
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || "Olib tashlab bo'lmadi")
+  } finally {
+    bindBusyId.value = null
+  }
+}
+
+async function copyLink(g: Grp) {
+  if (!g.invite_link) return
+  try {
+    await navigator.clipboard.writeText(g.invite_link)
+    toast.success('Havola nusxalandi')
+  } catch {
+    // Clipboard blocked (http, or no permission) — the link is still on screen to select.
+    toast.error("Nusxalab bo'lmadi — havolani qo'lda belgilang")
+  }
+}
+
+async function remint(g: Grp) {
+  remintingId.value = g.id
+  delete remintError.value[g.id]
+  try {
+    const { data } = await api.post(`/groups/${g.id}/invite-link`)
+    g.invite_link = data.invite_link ?? g.invite_link
+    if (data.error) remintError.value[g.id] = `Yaratilmadi: ${data.error}`
+    else toast.success('Yangi taklif havolasi yaratildi')
+  } catch (e: any) {
+    remintError.value[g.id] = e?.response?.data?.detail || 'Yaratilmadi'
+  } finally {
+    remintingId.value = null
+  }
+}
+
+onMounted(() => { hotelsStore.fetch(); load(); loadPrograms() })
 </script>
