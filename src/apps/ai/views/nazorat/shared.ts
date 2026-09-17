@@ -371,45 +371,16 @@ export function useNazoratView() {
     *  that makes each one actionable — these are notifications now, read in a panel and
     *  dismissed, not paragraphs read on the main screen. Each one keeps exactly one
     *  fact beyond its own label: what happened, or what to do about it. */
-   /** A short, stable stand-in for a set of names — the readiness notice is a list of
-    *  PEOPLE and has no ids to point at, and the stored signature is a short column.
-    *  FNV-1a: tiny, deterministic, and all we need is "same set or not". */
-   function fold(parts: string[]): string {
-      let h = 0x811c9dc5
-      for (const c of parts.join('|')) {
-         h ^= c.charCodeAt(0)
-         h = Math.imul(h, 0x01000193) >>> 0
-      }
-      return h.toString(36)
-   }
-
-   /** The needs behind «Bajarilmagan», newest first — the messages a worker accepted and
-    *  the pilgrim then had to raise again. Graded through needOutcome so the list and the
-    *  count above it can never be different sets of things. */
-   const reopenedNeeds = computed(() =>
-      [...s.requests]
-         .filter((r) => needOutcome(r).key === 'reopened')
-         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-         .map((r) => ({
-            id: r.id, text: r.text, created_at: r.created_at,
-            group_label: r.group_title || `Guruh ${r.chat_id}`,
-            city: r.location, room_no: r.room_no, pilgrim_username: r.pilgrim_username,
-            message_link: r.message_link,
-            taker: needOutcome(r).detail,
-         })),
-   )
-
    const problems = computed(() => {
       const r = s.report
       if (!r) return [] as any[]
       const out: any[] = []
-      // TWO things only, owner 2026-08-07: an angry pilgrim, and a job somebody said was
-      // done and was not. Everything else this bell used to raise — «Javobsiz qolgan»,
-      // «DM yuborib bo'lmaydi», «Asossiz Xatolik» — is a number on a screen, and a
-      // notification that fires for every number is one nobody reads.
-      //
-      // The aggression alarm leads, and not because it is bigger: the other one is a
-      // failure that already happened, this one is a pilgrim who is angry NOW.
+      // ONE thing only (owner, 2026-09-15: «remove sla notifications, only leave
+      // aggression»): a pilgrim who is angry NOW. Everything else this bell has raised
+      // over time — «SLA kutmoqda», «Bajarilmagan», «DM yuborib bo'lmadi», and before
+      // them «Javobsiz qolgan» and «Asossiz Xatolik» — is a number on a screen, and a
+      // notification that fires for every number is one nobody reads. Those numbers are
+      // still on the report and the person pages; they are no longer a bell.
       if (s.aggressive.total) out.push({
          key: 'aggressive', value: s.aggressive.total, label: 'Qattiq norozilik',
          // The NEWEST complaint's id. Clearing at that id keeps the notice away while it
@@ -418,65 +389,6 @@ export function useNazoratView() {
          sig: 'a:' + Math.max(0, ...s.aggressive.items.map((i) => i.id)),
          color: ALARM_RED,
          hint: 'Ziyoratchi keskin yozdi — ellikboshi darhol hal qilishi kerak.',
-      })
-      // §6 as an ALARM, not a punishment (owner, 2026-08-15): cards still unaccepted
-      // past their acceptance window — 10 min for a health need (the doctor's cards
-      // ARE the «tibbiy shoshilinch» class by ROUTING, no detector involved), 15 min
-      // by day, 45 by night, Makka clock. On the bell for the same reason readiness
-      // is: nothing has hardened into «Javobsiz» yet — this is the moment a chase
-      // still helps. Sits right after the angry pilgrim: both are about NOW.
-      if (s.slaOverdue.length) out.push({
-         key: 'sla', value: s.slaOverdue.length, label: 'SLA kutmoqda',
-         // The NEWEST overdue card's id — the same rule the other notices use, and NOT
-         // the set (owner, 2026-08-27: «i cannot clear notifications… after some period
-         // occurring again»).
-         //
-         // The set churned for three reasons that carry NO new information, and the
-         // dismissal test is an equality on this string, so each of them un-cleared the
-         // notice: `get_sla_overdue` keeps only the last 24 HOURS, so a card ages out on
-         // a timer; it returns at most 50, sorted by `overdue_minutes`, which grows every
-         // minute and so reshuffles which 50; and a card being accepted leaves the list.
-         // None of those is a reason to ring a bell somebody has already read.
-         //
-         // Keyed on the newest id, clearing holds until a card NEWER than the one cleared
-         // goes overdue — which is the only event worth raising it for.
-         sig: 'sla:' + Math.max(0, ...s.slaOverdue.map((c) => c.recipient_id)),
-         color: '#c2410c',
-         hint: "Qabul qilinmagan murojaatlar — belgilangan vaqt o'tdi:",
-         people: s.slaOverdue.map((c) =>
-            (c.username || '—')
-            + (c.need_type === 'health' ? ' · tibbiy (10 daq)' : ` · ${c.window_minutes} daq`)
-            + ` · +${c.overdue_minutes} daq kechikdi`
-            + (c.group_title ? ` · ${c.group_title}` : '')),
-      })
-      if (r.reopened) out.push({
-         key: 'reopened', value: r.reopened, label: 'Bajarilmagan',
-         sig: 'r:' + Math.max(0, ...reopenedNeeds.value.map((n) => n.id)),
-         color: BUCKET.reopened.color,
-         hint: "Qabul qilingan, lekin ziyoratchi keyin yana so'ragan.",
-      })
-      // Back on the bell by owner request (2026-08-07). It earns its place for the
-      // opposite reason to the other two: nothing has failed YET. These people never
-      // pressed start, so the bot cannot DM them at all — their cards simply never
-      // arrive, and the panel would score that as «Yetib bormadi» rather than as the
-      // one thing here that can be fixed before it costs anybody anything.
-      if (s.staffReadiness.length) out.push({
-         key: 'readiness', value: s.staffReadiness.length, label: "DM yuborib bo'lmadi",
-         // No ids on this one — it names people. The signature is the SET, so it stays
-         // cleared while the same people are missing and returns the moment a different
-         // person cannot be reached, even though the count did not move.
-         sig: 'p:' + fold([...s.staffReadiness]
-            .map((r2) => `${r2.role}:${r2.username || r2.name || '—'}`).sort()),
-         color: '#a16207',
-         // Owner's wording, 2026-07-31. It reads as a label for the chips right under
-         // it rather than as a sentence about them, which is why it ends in a colon.
-         hint: 'Botga start bermaganlar:',
-         people: s.staffReadiness.map((r2) =>
-            (r2.username || r2.name || '—')
-            + (r2.location ? ` · ${cityLabel(r2.location)}` : '')
-            + (r2.group ? ` · ${r2.group}` : '')
-            + (r2.role === 'ellikboshi' && r2.in_pool === false
-               ? " · ro'yxatdan o'chirilgan" : '')),
       })
       return out
    })
@@ -1018,7 +930,6 @@ export function useNazoratView() {
       groupChoices, filteredWorkers,
       problems, activeProblems, clearedCount,
       bucketRows, bucketTotal, bucketSegments, contextStats, errorKinds, responseChart,
-      reopenedNeeds,
       ratingBoards, ratingBoard,
       kpiBoards, kpiBoard,
       feed, journalPeople, entriesFor,
