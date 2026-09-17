@@ -104,6 +104,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../../stores/auth'
+import { ofisAllows } from '../../../router'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -159,6 +160,9 @@ const isNazoratchi = computed(() => !!auth.role && auth.role.startsWith('nazorat
 
 // Role-limited managers see only their own panel; admin sees everything.
 function allowed(to: string): boolean {
+  // The office login: every panel except Tizim, Nazorat and Sifat nazorati — one rule,
+  // shared with the router so the sidebar and the guard cannot disagree.
+  if (auth.role === 'ofis') return ofisAllows(to)
   if (auth.role === 'flight') return to === '/ai/reyslar'
   // qa: knowledge base + response templates (Shablonlar) + per-group hotel/tier
   // setup (Guruhlar). The Mehmonxonalar (hotels) management page is admin-only; qa

@@ -335,7 +335,10 @@ const toast = useToast()
 const { confirm } = useConfirm()
 // The fully-silent switch is admin + main-nazoratchi only (the API enforces it);
 // this page is also served to the qa role, which must not even see the button.
-const isAdmin = computed(() => authStore.role === 'admin')
+// «Admin» here means whoever may manage a group: the admin, and the office login
+// (owner, 2026-09-17), which has every panel except Tizim and Nazorat. The API
+// grants the same two roles on these endpoints.
+const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 'ofis')
 const silentSavingId = ref<number | null>(null)
 
 // ─── Umra dasturi per group (admin only — the API is admin-only too) ──────────────
