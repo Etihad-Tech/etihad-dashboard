@@ -201,7 +201,7 @@ const router = createRouter({
 
 // Where each role lands, and which paths it may reach. Managers (flight/qa) are
 // confined to their one panel; admin (and team-only/legacy, role null) unchanged.
-const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', nazoratchi: '/ai/nazorat', nazoratchi_staff: '/ai/nazorat', nazoratchi_ellikboshi: '/ai/nazorat', sifat_nazorati: '/survey', admin: '/' }
+const ROLE_HOME: Record<string, string> = { flight: '/ai/reyslar', qa: '/ai/qa', mingboshi: '/ai/ellikboshi', nazoratchi: '/ai/nazorat', nazoratchi_staff: '/ai/nazorat', nazoratchi_ellikboshi: '/ai/nazorat', sifat_nazorati: '/survey', ofis: '/', admin: '/' }
 
 // The three controller logins are identical to the router — same single panel; they
 // differ only in WHICH population the API lets each of them read.
@@ -214,7 +214,17 @@ const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/
 // group (needs a Turon team token — the login posts to both APIs to obtain one).
 const QA_PATHS = ['/', '/ai/qa', '/ai/groups', '/ai/templates']
 
+// The OFFICE login (owner, 2026-09-17): everything the admin sees EXCEPT the Tizim
+// block (Sozlamalar, Audit jurnali, Redis) and the Nazorat panel — plus Adminlar,
+// which manages the bot admins, and the survey panel. Denied as PREFIXES so a
+// new tab under /ai/nazorat is closed by default. The API denies the same routers.
+const OFIS_DENIED = ['/ai/settings', '/ai/audit-log', '/ai/redis', '/ai/nazorat', '/ai/admins', '/survey']
+export function ofisAllows(path: string): boolean {
+  return !OFIS_DENIED.some((p) => path === p || path.startsWith(p + '/'))
+}
+
 function roleAllows(path: string, role: string | null): boolean {
+  if (role === 'ofis') return ofisAllows(path)
   if (role === 'flight') return path === '/ai/reyslar'
   if (role === 'qa') return QA_PATHS.includes(path)
   if (role === 'mingboshi') return MINGBOSHI_PATHS.includes(path)
