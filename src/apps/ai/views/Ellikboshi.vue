@@ -65,7 +65,11 @@
             <div class="flex items-center gap-3">
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-gray-900 truncate">{{ g.title || g.id }}</p>
-                <p v-if="!leaderOf(g)" class="text-[11px] text-amber-600 mt-0.5">Ellikboshi tayinlanmagan</p>
+                <!-- «Not assigned» means NOBODY leads this group in EITHER city. It used to
+                     test `leaderOf`, which is empty by definition on a SPLIT group (two people,
+                     no single leader to name) — so every group split between cities was
+                     flagged as unassigned with both leaders sitting right under the line. -->
+                <p v-if="!cityLeader(g, 'makka') && !cityLeader(g, 'madina')" class="text-[11px] text-amber-600 mt-0.5">Ellikboshi tayinlanmagan</p>
                 <p v-else-if="isSplit(g) && (!g.ellikboshi_makka || !g.ellikboshi_madina)"
                    class="text-[11px] text-amber-600 mt-0.5">
                   {{ g.ellikboshi_makka ? 'Madina' : 'Makka' }} uchun ellikboshi tanlanmagan
