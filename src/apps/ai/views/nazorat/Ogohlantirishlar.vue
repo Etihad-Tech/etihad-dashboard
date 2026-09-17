@@ -126,41 +126,6 @@
                      </p>
                   </div>
 
-                  <!-- THE JOBS THAT WERE NOT DONE, with the person who said they were. -->
-                  <div v-if="p.key === 'reopened' && open === 'reopened'"
-                     class="bg-gray-50 border-t border-gray-100">
-                     <div v-if="s.requestsLoading" class="px-5 py-4 space-y-2">
-                        <div v-for="i in 3" :key="i" class="h-3 rounded-full bg-gray-200 animate-pulse"
-                           :class="i === 3 ? 'w-1/2' : ''"></div>
-                     </div>
-                     <template v-else>
-                        <div v-if="!reopenedNeeds.length"
-                           class="flex flex-wrap items-center gap-3 px-5 py-4 text-[13.5px] text-[color:var(--n-muted)]">
-                           <span>Ko'rsatilayotgan oxirgi {{ s.requests.length }} tadan tashqarida.</span>
-                           <button v-if="s.reqLimit < MAX_REQ_LIMIT" @click="s.loadMoreRequests()" class="btn-ghost">
-                              Ko'proq yuklash
-                           </button>
-                        </div>
-                        <div v-else class="divide-y divide-gray-200">
-                           <div v-for="n in reopenedNeeds" :key="n.id" class="px-5 py-4">
-                              <p class="text-[15px] leading-snug">
-                                 <span v-if="n.text">{{ n.text }}</span>
-                                 <span v-else class="text-[color:var(--n-faint)]">Matnsiz</span>
-                              </p>
-                              <p class="flex flex-wrap gap-x-2 gap-y-1 mt-1.5 text-[12.5px] text-[color:var(--n-muted)]">
-                                 <span>{{ fmtDateTime(n.created_at) }}</span>
-                                 <span class="font-semibold text-[color:var(--n-ink-2)]">· {{ n.group_label }}</span>
-                                 <span v-if="n.city">· {{ cityLabel(n.city) }}</span>
-                                 <span v-if="n.room_no">· {{ n.room_no }}-xona</span>
-                                 <span v-if="n.pilgrim_username">· {{ n.pilgrim_username }}</span>
-                                 <a v-if="n.message_link" :href="n.message_link" target="_blank"
-                                    class="font-medium text-[color:var(--n-ink-2)] underline underline-offset-2">Xabarni ko'rish</a>
-                              </p>
-                              <p class="text-[13px] text-[color:var(--n-muted)] mt-2">{{ n.taker }}</p>
-                           </div>
-                        </div>
-                     </template>
-                  </div>
                </div>
 
                <!-- Some cleared, some still showing. -->
@@ -194,13 +159,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useNazoratStore, MAX_REQ_LIMIT } from '../../stores/nazorat'
-import { BUCKET, cityLabel, fmtDateTime, useNazoratView } from './shared'
+import { useNazoratStore } from '../../stores/nazorat'
+import { BUCKET, fmtDateTime, useNazoratView } from './shared'
 
 const emit = defineEmits<{ close: [] }>()
 
 const s = useNazoratStore()
-const { problems, activeProblems, clearedCount, reopenedNeeds } = useNazoratView()
+const { problems, activeProblems, clearedCount } = useNazoratView()
 
 /** One notice open at a time — the sheet is a phone-height panel and two open lists
  *  would push the second one's heading off the screen that raised it. */
@@ -225,8 +190,5 @@ function clearOne(p: { key: string; sig: string }) {
 }
 function toggle(key: string) {
    open.value = open.value === key ? null : key
-   // The angry messages ride along with the report; only the reopened list needs the
-   // heavy /control/requests read, so opening it is what pays for it.
-   if (open.value === 'reopened') s.loadRequests()
 }
 </script>
