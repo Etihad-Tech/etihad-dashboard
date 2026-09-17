@@ -214,11 +214,13 @@ const MINGBOSHI_PATHS = ['/ai/ellikboshi', '/ai/staff', '/ai/yonaltirish', '/ai/
 // group (needs a Turon team token — the login posts to both APIs to obtain one).
 const QA_PATHS = ['/', '/ai/qa', '/ai/groups', '/ai/templates']
 
-// The OFFICE login (owner, 2026-09-17): everything the admin sees EXCEPT the Tizim
-// block (Sozlamalar, Audit jurnali, Redis) and the Nazorat panel — plus Adminlar,
-// which manages the bot admins, and the survey panel. Denied as PREFIXES so a
+// The OFFICE login (owner, 2026-09-17, restated the same day: «абсолютно ко всему
+// кроме блока Tizim, Sifat nazorati, Nazorat»): everything the admin sees EXCEPT
+// the Tizim block (Sozlamalar, Audit jurnali, Redis), the Nazorat panel and the
+// Sifat nazorati survey panel. Adminlar sits in the Xodimlar block, so it is OPEN
+// — a first cut closed it, and the owner sent it back. Denied as PREFIXES so a
 // new tab under /ai/nazorat is closed by default. The API denies the same routers.
-const OFIS_DENIED = ['/ai/settings', '/ai/audit-log', '/ai/redis', '/ai/nazorat', '/ai/admins', '/survey']
+const OFIS_DENIED = ['/ai/settings', '/ai/audit-log', '/ai/redis', '/ai/nazorat', '/survey']
 export function ofisAllows(path: string): boolean {
   return !OFIS_DENIED.some((p) => path === p || path.startsWith(p + '/'))
 }
