@@ -249,7 +249,7 @@ router.beforeEach((to) => {
   if (to.meta.guest && auth.isAuthenticated) {
     return home
   }
-  const gated = ['flight', 'qa', 'mingboshi', 'sifat_nazorati', ...NAZORATCHI_ROLES]
+  const gated = ['flight', 'qa', 'mingboshi', 'sifat_nazorati', 'ofis', ...NAZORATCHI_ROLES]
   if (auth.isAuthenticated && auth.role && gated.includes(auth.role) && !roleAllows(to.path, auth.role)) {
     return home
   }
