@@ -90,18 +90,6 @@
                 class="text-[12px] text-amber-700 hover:text-amber-800 hover:underline whitespace-nowrap px-1">
                 Shaharlar bo'yicha ajratish
               </button>
-              <!-- §4.2 — WHY this person got the group. Shown ONLY when they already
-                   hold another one, because all three reasons describe the same thing:
-                   why somebody was given a group BEYOND their first. Every consequence
-                   in §4.2's table includes the yuklama to'lovi, which exists only above
-                   1,0 SG — and at 1,0 SG the K clamp is a no-op anyway, so on a single
-                   assignment the answer changes no money and asking for it is noise. -->
-              <select v-if="leaderOf(g) && holdsMore(g, leaderOf(g))" :value="typeOf(g, 'makka')"
-                @change="onType(g, 'both', $event)" :disabled="savingId === g.id"
-                class="min-w-[11rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
-                <option value="">Sabab — tanlanmagan</option>
-                <option v-for="t in TYPES" :key="t.code" :value="t.code">{{ t.title }}</option>
-              </select>
             </div>
 
             <!-- SPLIT: one select per city. Makka first — it is the heavier half. -->
@@ -112,16 +100,6 @@
                   class="flex-1 min-w-[9rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
                   <option value="">— tanlanmagan —</option>
                   <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
-                </select>
-                <!-- Per CITY: one group can be a reward in Makka and a stopgap in
-                     Madina, because those are two assignments to two people. Same rule
-                     as above — only for somebody who already holds another segment. -->
-                <select v-if="cityLeader(g, c.key) && holdsMore(g, cityLeader(g, c.key))"
-                  :value="typeOf(g, c.key)"
-                  @change="onType(g, c.key, $event)" :disabled="savingId === g.id"
-                  class="min-w-[10rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
-                  <option value="">Sabab — tanlanmagan</option>
-                  <option v-for="t in TYPES" :key="t.code" :value="t.code">{{ t.title }}</option>
                 </select>
               </div>
               <div class="flex items-center gap-3 pt-0.5">
@@ -156,8 +134,6 @@ interface Grp {
   ellikboshi_username: string | null
   ellikboshi_makka: string | null
   ellikboshi_madina: string | null
-  assignment_type_makka: string | null
-  assignment_type_madina: string | null
 }
 
 type City = 'makka' | 'madina'
@@ -286,60 +262,9 @@ async function removeFromPool(e: Ellik) {
  *  whoever was on it before the split; the bot itself never reads it while a city
  *  column is set. Sending the city fields explicitly also switches OFF the server's
  *  old-dashboard mirror, so assigning one city can never overwrite the other. */
-/** §4.2 — the three reasons an assignment exists, named as the reglament names them.
- *  What each one pays is the reglament's business and stays there: «natija» carries the
- *  bonus coefficient, «majburiy» the §9.2 relief, «tashkiliy» neither. */
-const TYPES = [
-  { code: 'natija', title: "Natija bo'yicha" },
-  { code: 'majburiy', title: 'Majburiy' },
-  { code: 'tashkiliy', title: 'Tashkiliy' },
-]
-
-/** Does this person lead any OTHER group? §4.2's reasons only exist for a group
- *  beyond the first, so the picker appears exactly where the table applies.
- *
- *  Counted across GROUPS, not segments: holding both cities of one group is one
- *  assignment, and asking «why do you have this group twice» would be nonsense. */
-function holdsMore(g: Grp, username: string): boolean {
-  if (!username) return false
-  const u = username.toLowerCase()
-  return groups.value.some((o) => o.id !== g.id &&
-    [o.ellikboshi_makka, o.ellikboshi_madina, o.ellikboshi_username]
-      .some((x) => (x || '').toLowerCase() === u))
-}
-
-function typeOf(g: Grp, city: City): string {
-  return (city === 'makka' ? g.assignment_type_makka : g.assignment_type_madina) || ''
-}
-
-/** Saves the REASON alone, leaving the people untouched. Sent as its own request
- *  rather than folded into onAssign, because changing why somebody holds a group is
- *  not a handover — the history records a correction, not a new leader. */
-async function onType(g: Grp, city: City | 'both', event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  const makka = city === 'madina' ? typeOf(g, 'makka') : value
-  const madina = city === 'makka' ? typeOf(g, 'madina') : value
-  savingId.value = g.id
-  savedId.value = null
-  try {
-    await api.put(`/groups/${g.id}/location/public`, {
-      assignment_type_makka: makka,
-      assignment_type_madina: madina,
-    })
-    const idx = groups.value.findIndex(x => x.id === g.id)
-    if (idx !== -1) {
-      groups.value[idx].assignment_type_makka = makka || null
-      groups.value[idx].assignment_type_madina = madina || null
-    }
-    savedId.value = g.id
-    setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2000)
-  } catch {
-    toast.error('Saqlanmadi — qayta urinib ko\'ring')
-  } finally {
-    savingId.value = null
-  }
-}
-
+// The §4.2 «reason» picker (Natija bo'yicha / Majburiy / Tashkiliy) that used to sit
+// beside the leader select is gone: every group beyond the limit carries the
+// coefficient now (owner, 18.09.2026: «эти категории не нужны, убери их»).
 async function onAssign(g: Grp, city: City | 'both', event: Event) {
   const username = (event.target as HTMLSelectElement).value
   const makka = city === 'madina' ? cityLeader(g, 'makka') : username

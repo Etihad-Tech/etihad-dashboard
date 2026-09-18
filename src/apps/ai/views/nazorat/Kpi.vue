@@ -253,19 +253,14 @@
                         class="grid grid-cols-[0.75rem_1fr_auto] gap-x-2.5 gap-y-1
                                text-[12.5px] tabular-nums text-[color:var(--n-muted)]">
                         <span></span>
+                        <!-- The tier as it stands (18.09.2026): the coefficient no longer
+                             multiplies it, so there is no «×» line under the mukofot. -->
                         <span>Ball mukofoti · {{ r.w.kpi ? (r.w.kpi.combined ?? r.w.kpi.total) : '—' }} ball</span>
                         <span class="text-right">{{ soum(r.w.salary.mukofot_base) }}</span>
-                        <template v-if="r.w.salary.k > 1 || r.w.salary.k_sg !== r.w.salary.sg">
-                           <span>×</span>
-                           <!-- The multiplier is named by what it MEASURES — how many
-                                groups the month held — never by its letter. A reader who
-                                has never opened the reglament must be able to check
-                                their own payslip; «K · SG 1,6» told them nothing. -->
-                           <span>{{ kBasis(r.w.salary) }}</span>
-                           <span class="text-right">{{ dec(r.w.salary.k) }}</span>
-                        </template>
                         <template v-if="r.w.salary.yuklama">
                            <span>+</span>
+                           <!-- «1,5 ortiqcha guruh × 1,6» — the extra load and the
+                                coefficient it was paid at, never a letter. -->
                            <span>Ortiqcha guruh uchun · {{ extraText(r.w.salary) }}</span>
                            <span class="text-right">{{ soum(r.w.salary.yuklama) }}</span>
                         </template>
@@ -296,12 +291,13 @@
                              leader who ran two Premium groups was shown a number saying
                              one. «guruh» now only ever counts groups; «yuklama» is the
                              daraja-weighted figure the money is calculated from. -->
+                        <!-- THE LIMIT (18.09.2026): «5 guruh · 4 oddiy + 1,5 ortiqcha».
+                             Groups up to the Qiymatlar limit are whole and unpaid; the
+                             ones beyond it are the weighted load the line above pays. -->
                         <template v-if="r.w.sg !== null">
                            <span></span>
                            <span>Oylik yuklama</span>
-                           <span class="text-right">
-                              {{ sgGroups(r.w).length }} guruh · {{ dec(r.w.sg) }} yuklama
-                           </span>
+                           <span class="text-right">{{ loadText(r.w) }}</span>
                         </template>
                      </div>
                      <!-- WHICH groups made that load, one line each. «Why is my yuklama
@@ -320,6 +316,9 @@
                               <span class="text-[color:var(--n-faint)]">
                                  · {{ g.cities.map(cityShort).join('+') || '—' }}
                                  · {{ g.tier ? tierName(g.tier) : 'daraja yo\'q' }}
+                                 <!-- inside the limit: a whole group, the daraja and
+                                      the cities are shown but do not weigh anything -->
+                                 · {{ g.extra ? 'ortiqcha' : 'oddiy' }}
                               </span>
                            </span>
                            <span class="tabular-nums shrink-0">{{ dec(g.sg) }}</span>
@@ -495,11 +494,12 @@ function cityShort(c?: string) {
  *  heaviest first, so the group that moved the number most is the one read first. */
 function sgGroups(w: Worker) {
    const by = new Map<number, { chat_id: number; title: string | null
-                                cities: string[]; tier: string | null; sg: number }>()
+                                cities: string[]; tier: string | null; sg: number
+                                extra: boolean }>()
    for (const s of w.sg_segments || []) {
       const row = by.get(s.chat_id) || {
          chat_id: s.chat_id, title: s.title, cities: [],
-         tier: s.hotel_tier, sg: 0,
+         tier: s.hotel_tier, sg: 0, extra: !!s.extra,
       }
       if (s.city && !row.cities.includes(s.city)) row.cities.push(s.city)
       row.sg += s.sg ?? 0
@@ -510,26 +510,24 @@ function sgGroups(w: Worker) {
       .sort((a, b) => b.sg - a.sg || (a.title || '').localeCompare(b.title || ''))
 }
 
-/** How much of the month's load the BONUS was multiplied by, in words.
- *
- *  Never named by its letter (owner, 2026-08-20: «не пиши как SG, K … не знающий человек
- *  не поймет вообще»). It says «yuklama» and not «guruh» (owner, 2026-08-26): the count
- *  and the daraja-weighted load are different numbers — two Premium groups are 2 guruh
- *  and 1,0 yuklama — and one word for both was what made the payslip and the Guruhlar
- *  tab look like they disagreed. When every group was assigned as a reward this is simply
- *  the load; when only part of it was, both numbers are said out loud, because a 1,0
- *  multiplier printed beside a 1,6 load reads as a bug rather than as the rule working. */
-function kBasis(sal: NonNullable<Worker['salary']>): string {
-   const sg = dec(sal.sg ?? 0)
-   const k = dec(sal.k_sg ?? sal.sg ?? 0)
-   return k === sg ? `${sg} yuklama`
-      : `${sg} yuklamadan ${k} tasi natija bo'yicha`
+/** «1,5 guruh × 1,6» — what was carried BEYOND the limit and the coefficient it was
+ *  paid at (18.09.2026). Never named by its letter (owner, 2026-08-20: «не пиши как
+ *  SG, K … не знающий человек не поймет вообще»). */
+function extraText(sal: NonNullable<Worker['salary']>): string {
+   return `${dec(sal.load ?? 0)} guruh × ${dec(sal.k)}`
 }
 
-/** «0,4 guruh» — what was carried BEYOND the first one, which is what this line pays
- *  for. The whole load gets its own line below it. */
-function extraText(sal: NonNullable<Worker['salary']>): string {
-   return `${dec(Math.max(0, (sal.sg ?? 0) - 1))} guruh`
+/** «5 guruh · 4 oddiy + 1,5 ortiqcha» — the month's groups, split the way the money
+ *  is: the ordinary ones (whole, unpaid) and the load beyond the limit (weighted,
+ *  paid). A month at or under the limit says so («3 guruh · chegara 4»), so «why is
+ *  there no yuklama line» is answered on the payslip itself. */
+function loadText(w: Worker): string {
+   const groups = w.sg_groups ?? sgGroups(w).length
+   const load = w.sg_load ?? 0
+   if (load > 0) return `${groups} guruh · ${w.sg_base_groups} oddiy + ${dec(load)} ortiqcha`
+   return w.sg_limit_groups != null
+      ? `${groups} guruh · chegara ${w.sg_limit_groups}`
+      : `${groups} guruh`
 }
 
 /** «1,2» — a coefficient with the decimal comma this panel writes numbers in. */
