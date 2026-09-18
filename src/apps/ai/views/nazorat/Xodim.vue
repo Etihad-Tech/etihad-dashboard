@@ -261,34 +261,39 @@ const payRows = computed(() => {
                  negative?: boolean }[] = []
 
    const ball = w.kpi ? (w.kpi.combined ?? w.kpi.total) : null
+   // The tier as it stands (18.09.2026): the coefficient no longer multiplies it.
    rows.push({
       label: 'Ball mukofoti',
       how: sal.mukofot_base
-         ? `${soum(sal.mukofot_base)} × ${dec(sal.k)} = ${soum(sal.earned)}`
+         ? `${ball ?? '—'} ball — ${soum(sal.mukofot_base)}`
          : `${ball ?? '—'} ball — pog'ona ochilmadi`,
-      why: "Ball pog'onaga yetsa, o'sha pog'ona summasi beriladi va oylik yuklamaga "
-         + "ko'paytiriladi. Yetmasa — mukofot yo'q.",
+      why: "Ball pog'onaga yetsa, o'sha pog'ona summasi beriladi. Yetmasa — mukofot "
+         + "yo'q. Guruhlar soni bunga ta'sir qilmaydi.",
       amount: soum(sal.earned),
    })
 
-   if (sal.k_sg !== null && sal.sg !== null && sal.k_sg !== sal.sg) {
-      rows.push({
-         label: 'Nega ko\u2019paytiruvchi to\u2019liq emas',
-         how: `Yuklama ${dec(sal.sg)} guruh, shundan ${dec(sal.k_sg)} tasi «Natija bo'yicha»`,
-         why: "Ko'paytiruvchi faqat rag'bat uchun berilgan guruhlarga tegishli. "
-            + "Majburiy va tashkiliy biriktirish hajm uchun to'lanadi.",
-         amount: '',
-      })
-   }
-
+   // THE LIMIT (owner, 18.09.2026): groups up to the Qiymatlar limit are the ordinary
+   // job — whole, unpaid; only the ones beyond it are weighted, paid per group and
+   // multiplied by the coefficient. Said in full on the appeal screen, because this
+   // is the line a leader with a fifth group will argue about.
+   const load = sal.load ?? 0
+   const rate = s.kpiSettings?.load_rate ?? 0
    if (sal.yuklama) {
       rows.push({
-         label: "Ortiqcha guruh uchun",
-         how: `${dec(sal.sg ?? 0)} − 1 = ${dec((sal.sg ?? 0) - 1)} guruh `
-            + `× ${soum(s.kpiSettings?.load_rate ?? 0)}`,
-         why: "Bitta guruhdan ortiq olib borilgan har bir guruh uchun. Ball qanday "
-            + "bo'lishidan qat'i nazar beriladi — soatlar ishlangan.",
+         label: 'Ortiqcha guruh uchun',
+         how: `${dec(load)} guruh × ${soum(rate)} × ${dec(sal.k)}`,
+         why: `Oyiga ${sal.limit} guruh — oddiy ish, ustama yo'q. Undan oshgan guruhlar `
+            + "daraja va shahar og'irligi bilan sanaladi va koeffitsientga ko'paytiriladi. "
+            + "Ball qanday bo'lishidan qat'i nazar beriladi — soatlar ishlangan.",
          amount: soum(sal.yuklama),
+      })
+   } else if (sal.groups) {
+      rows.push({
+         label: 'Ortiqcha guruh uchun',
+         how: `${sal.groups} guruh — chegara ${sal.limit}`,
+         why: `Oyiga ${sal.limit} guruhgacha oddiy ish: ustama yo'q, har bir guruh butun `
+            + "sanaladi (darajasi va shahri hisobga olinmaydi).",
+         amount: '',
       })
    }
 
