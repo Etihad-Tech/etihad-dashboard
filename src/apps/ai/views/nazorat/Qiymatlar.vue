@@ -109,58 +109,55 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
           + 'summa; oraliq summa yo‘q.',
    },
    {
-      title: 'Yuklama',
+      // THE LIMIT RULE (owner, 18.09.2026): groups up to the limit are the ordinary
+      // job — whole groups, no daraja, no city weight, no extra pay. Only the groups
+      // beyond it are weighted, paid per group and multiplied by the coefficient.
+      // The names say what each number IS, in the office's own words (owner: «сами
+      // названия чтобы были понятными»); the hint says what it DOES.
+      title: 'Ortiqcha guruhlar uchun to‘lov',
       rows: [
-         { key: 'load_rate', label: "Ikkinchi va undan keyingi guruh uchun to'lov",
-           unit: "so'm",
-           hint: 'Birinchidan ortiq har bir guruh uchun. Guruh soni cheklanmagan',
-           min: 0, max: 100_000_000, step: 100_000, scale: 1 },
-         // The old labels said «Koeffitsient — eng past / eng yuqori» and never said OF
-         // WHAT. The owner read them as a limit on the NUMBER OF GROUPS and set them to
-         // 4 and 5, which would have multiplied every bonus by four (2026-08-27). Then:
-         // «imagine if someone who never seen this panel enters to it» — so the hint has
-         // to say what the number DOES, not what its usual value is.
-         { key: 'load_free_units', label: 'To‘lov shu guruhdan keyin boshlanadi',
+         { key: 'load_free_units', label: 'Oyiga oddiy guruhlar soni',
            unit: 'guruh',
-           hint: 'Shu songacha guruh — oddiy yuklama, ortiqcha to‘lov yo‘q',
-           min: 0.5, max: 10, step: 0.5, scale: 100 },
-         { key: 'k_min_units', label: 'Mukofot eng kamida shuncha marta ko‘payadi',
+           hint: 'Shu songacha guruh — oddiy ish, qo‘shimcha to‘lov yo‘q. Har bir guruh butun sanaladi',
+           min: 1, max: 10, step: 1, scale: 100 },
+         { key: 'load_rate', label: 'Har bir ortiqcha guruh uchun to‘lov',
+           unit: "so'm",
+           hint: 'Chegaradan oshgan har bir butun guruh uchun (yarim guruh — yarmi)',
+           min: 0, max: 100_000_000, step: 100_000, scale: 1 },
+         { key: 'k_max_units', label: 'Ortiqcha guruh koeffitsienti',
            unit: 'marta',
-           hint: '1 = ko‘paymaydi. Bitta guruh olib borgan uchun shu qo‘llanadi',
-           min: 0.01, max: 10, step: 0.1, scale: 100 },
-         { key: 'k_max_units', label: 'Mukofot eng ko‘pi shuncha marta ko‘payadi',
-           unit: 'marta',
-           hint: 'Ko‘p guruh olib borgan ham bundan ortig‘ini olmaydi',
+           hint: 'Ortiqcha guruh to‘lovi shunga ko‘paytiriladi. 1 = ko‘paymaydi. Mukofotga tegmaydi',
            min: 0.01, max: 10, step: 0.1, scale: 100 },
       ],
-      note: 'Ko‘paytiruvchi faqat MUKOFOTGA tegishli — guruhlar soniga cheklov emas. '
-          + 'Yuqoridagi to‘lov esa har bir qo‘shimcha guruh uchun beriladi, ball qanday '
-          + 'bo‘lishidan qat‘i nazar.',
+      note: 'Masalan, chegara 4 va ellikboshida 5,5 guruh bo‘lsa: 4 tasi oddiy, 1,5 tasi '
+          + 'ortiqcha — 1,5 × to‘lov × koeffitsient. 4 guruh bo‘lsa — ustama yo‘q. '
+          + 'Ball mukofoti bunga bog‘liq emas.',
    },
    {
-      title: 'Shahar og‘irligi',
+      title: 'Ortiqcha guruhning shahar og‘irligi',
       rows: [
-         { key: 'city_makka_units', label: 'Guruhning Makka qismi', unit: 'guruh',
-           hint: 'Faqat Makkada olib borsa — shuncha guruh hisoblanadi',
+         { key: 'city_makka_units', label: 'Faqat Makka qismi', unit: 'guruh',
+           hint: 'Ortiqcha guruhni faqat Makkada olib borsa — shuncha guruh sanaladi',
            min: 0.01, max: 10, step: 0.05, scale: 100 },
-         { key: 'city_madina_units', label: 'Guruhning Madina qismi', unit: 'guruh',
-           hint: 'Faqat Madinada olib borsa — shuncha guruh hisoblanadi',
+         { key: 'city_madina_units', label: 'Faqat Madina qismi', unit: 'guruh',
+           hint: 'Ortiqcha guruhni faqat Madinada olib borsa — shuncha guruh sanaladi',
            min: 0.01, max: 10, step: 0.05, scale: 100 },
       ],
-      note: 'Bitta guruhni Makkada bir ellikboshi, Madinada boshqasi olib borishi '
-          + 'mumkin. Shuning uchun ikkovi qo‘shilganda 1,0 chiqishi kerak.',
+      note: 'Faqat chegaradan oshgan guruhlarga qo‘llanadi — oddiy guruh shahridan qat‘i '
+          + 'nazar butun sanaladi. Ikkovi qo‘shilganda 1,0 chiqishi kerak.',
    },
    {
-      title: 'Guruh og‘irligi',
+      title: 'Ortiqcha guruhning daraja og‘irligi',
       rows: [
          { key: 'pkg_comfort_units', label: 'Comfort guruh', unit: 'guruh',
-           hint: 'Bitta Comfort guruh shuncha guruh hisoblanadi',
+           hint: 'Ortiqcha Comfort guruh shuncha guruh sanaladi',
            min: 0.01, max: 10, step: 0.05, scale: 100 },
          { key: 'pkg_premium_units', label: 'Premium / Lux guruh', unit: 'guruh',
-           hint: 'Tarkibi kichik — shuncha guruh hisoblanadi',
+           hint: 'Ortiqcha Premium guruh shuncha guruh sanaladi (tarkibi kichik)',
            min: 0.01, max: 10, step: 0.05, scale: 100 },
       ],
-      note: 'Darajasi belgilanmagan guruh to‘liq guruh sanaladi.',
+      note: 'Faqat chegaradan oshgan guruhlarga qo‘llanadi — chegara ichidagi Premium '
+          + 'guruh ham butun sanaladi. Darajasi belgilanmagan guruh to‘liq sanaladi.',
    },
 ]
 
