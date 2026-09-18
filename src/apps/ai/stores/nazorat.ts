@@ -87,7 +87,7 @@ export interface Worker {
    // GROUPS (Kpi.vue does).
    sg_segments: { chat_id: number; title: string | null; trip_start_date: string
                   hotel_tier: string | null; city: string; sg: number | null
-                  assignment_type: string | null; override: boolean
+                  override: boolean
                   // 18.09.2026 — beyond the limit (weighted, paid) or inside it
                   // (one whole group, unpaid).
                   extra: boolean }[]
@@ -116,14 +116,13 @@ export interface Worker {
    // «5 000 000 × 1,2 + 300 000» is arguable, a lone 6 300 000 is not.
    salary: { fiks: number; kpi: number | null; total: number
              // `k` is the coefficient the EXTRA load is paid at (18.09.2026) — it no
-             // longer multiplies the tier. `load` is the extra load, `k_load` the part
-             // of it that carried the coefficient («Natija bo'yicha»), `k_sg` the same
-             // figure under its pre-18.09 name.
+             // longer multiplies the tier. `load` is the extra load, every bit of which
+             // carries the coefficient (the §4.2 assignment types are retired).
              mukofot_base: number; k: number; sg: number | null
-             load: number | null; k_load: number | null
+             load: number | null
              groups: number | null; limit: number; limit_units: number
              sovrin: number; best: boolean
-             k_sg: number | null; yuklama: number
+             yuklama: number
              earned: number
              jarima: number; bot_block: boolean
              sla_breaches: number; day_javobsiz: number; false_completions: number

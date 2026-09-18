@@ -277,19 +277,14 @@ const payRows = computed(() => {
    // multiplied by the coefficient. Said in full on the appeal screen, because this
    // is the line a leader with a fifth group will argue about.
    const load = sal.load ?? 0
-   const withK = sal.k_load ?? load
    const rate = s.kpiSettings?.load_rate ?? 0
    if (sal.yuklama) {
       rows.push({
          label: 'Ortiqcha guruh uchun',
-         how: withK >= load
-            ? `${dec(load)} guruh × ${soum(rate)} × ${dec(sal.k)}`
-            : `${dec(withK)} guruh × ${soum(rate)} × ${dec(sal.k)} + `
-              + `${dec(load - withK)} guruh × ${soum(rate)} (koeffitsientsiz)`,
+         how: `${dec(load)} guruh × ${soum(rate)} × ${dec(sal.k)}`,
          why: `Oyiga ${sal.limit} guruh — oddiy ish, ustama yo'q. Undan oshgan guruhlar `
             + "daraja va shahar og'irligi bilan sanaladi va koeffitsientga ko'paytiriladi. "
-            + "«Majburiy» va «Tashkiliy» biriktirilgan ortiqcha guruh koeffitsientsiz "
-            + "to'lanadi. Ball qanday bo'lishidan qat'i nazar beriladi — soatlar ishlangan.",
+            + "Ball qanday bo'lishidan qat'i nazar beriladi — soatlar ishlangan.",
          amount: soum(sal.yuklama),
       })
    } else if (sal.groups) {

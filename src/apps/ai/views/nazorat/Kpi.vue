@@ -512,15 +512,9 @@ function sgGroups(w: Worker) {
 
 /** «1,5 guruh × 1,6» — what was carried BEYOND the limit and the coefficient it was
  *  paid at (18.09.2026). Never named by its letter (owner, 2026-08-20: «не пиши как
- *  SG, K … не знающий человек не поймет вообще»). When only part of the extra load
- *  carried the coefficient («Natija bo'yicha»), both parts are said out loud, because
- *  a line that reads «1,5 × 1,6» beside a smaller sum reads as a bug rather than as
- *  the §4.2 rule working. */
+ *  SG, K … не знающий человек не поймет вообще»). */
 function extraText(sal: NonNullable<Worker['salary']>): string {
-   const load = sal.load ?? 0
-   const withK = sal.k_load ?? load
-   if (withK >= load) return `${dec(load)} guruh × ${dec(sal.k)}`
-   return `${dec(withK)} guruh × ${dec(sal.k)} + ${dec(load - withK)} guruh (koeffitsientsiz)`
+   return `${dec(sal.load ?? 0)} guruh × ${dec(sal.k)}`
 }
 
 /** «5 guruh · 4 oddiy + 1,5 ortiqcha» — the month's groups, split the way the money
