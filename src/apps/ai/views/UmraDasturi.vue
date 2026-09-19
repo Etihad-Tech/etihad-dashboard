@@ -23,7 +23,7 @@
               · shablon o'zgarishlari bu guruhga tegmaydi
             </template>
             <template v-else>
-              Kunlar bo'yicha dastur: kabinet «Umra rejasi» va vaucher shu yerdan o'qiydi. Shakl = kun soni × Daraja.
+              Kunlar bo'yicha dastur: kabinetdagi «Safar dasturi» va vaucher shu yerdan o'qiydi. Shakl = kun soni × Daraja.
             </template>
           </p>
         </div>
@@ -237,8 +237,8 @@
           </div>
         </div>
 
-        <div v-if="!dirty && editing.days_list.every(d => d.items.length === 0)" class="bg-amber-50 border border-amber-200 rounded-3xl p-3 text-sm text-amber-800">
-          Dastur bo'sh. Har bir kunga joylarni kiriting — «+ band» ni bosing yoki oxirgi izohda Enter.
+        <div v-if="!dirty && editing.days_list.every(d => d.items.length === 0 && !d.title)" class="bg-amber-50 border border-amber-200 rounded-3xl p-3 text-sm text-amber-800">
+          Dastur bo'sh. Har bir kunga mavzu va joylarni kiriting — «+ band» ni bosing yoki oxirgi izohda Enter.
         </div>
 
         <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up">
@@ -253,6 +253,12 @@
               <span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
             </div>
             <div class="flex-1 min-w-0 space-y-1.5">
+              <!-- MAVZU — the day's heading (owner, 2026-09-19): the pilgrim reads
+                   «1-KUN | ✈️ JIDDAGA SAFAR» and then the lines. The emoji is typed
+                   in, like the rest; the office decides the look. -->
+              <input v-model="d.title" type="text" maxlength="160" @input="dirty = true"
+                placeholder="Mavzu — kun sarlavhasi (masalan: ✈️ Jiddaga safar)"
+                class="w-full bg-amber-50/40 border border-amber-200/70 rounded-xl px-3 py-1.5 text-sm font-semibold text-gray-900 placeholder:font-normal placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500" />
               <div v-for="(it, idx) in d.items" :key="idx" class="flex items-center gap-2">
                 <span class="w-5 text-right text-[11px] text-gray-300 tabular-nums shrink-0">{{ idx + 1 }}</span>
                 <input v-model="it.place_name" type="text" list="program-places" placeholder="Joy" @input="dirty = true"
@@ -386,7 +392,7 @@
         <div class="px-5 py-3 space-y-4">
           <div v-for="d in editing.days_list" :key="d.day">
             <div class="flex items-baseline gap-2 mb-1">
-              <span class="text-sm font-semibold text-gray-900">{{ d.day }}-kun</span>
+              <span class="text-sm font-semibold text-gray-900">{{ d.day }}-kun<template v-if="d.title"> | {{ d.title }}</template></span>
               <span class="text-xs text-gray-500">{{ weekdayName(d.weekday) }}<template v-if="d.date">, {{ fmtDate(d.date) }}</template></span>
               <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) }}</span>
             </div>
@@ -420,7 +426,8 @@ interface ProgramSummary {
   items_count: number; updated_at: string | null; updated_by: string | null
 }
 interface Item { place_name: string; note: string }
-interface Day { day: number; date: string | null; weekday: number | null; city: string | null; items: Item[] }
+// `title` is the day's MAVZU — its heading — '' when none (owner, 2026-09-19).
+interface Day { day: number; date: string | null; weekday: number | null; city: string | null; title: string; items: Item[] }
 interface ProgramView extends ProgramSummary {
   start_date: string | null
   days_list: Day[]
@@ -562,7 +569,7 @@ function toView(data: any): ProgramView {
   return {
     ...data,
     days_list: (data.days_list || []).map((d: any) => ({
-      day: d.day, date: d.date, weekday: d.weekday, city: d.city,
+      day: d.day, date: d.date, weekday: d.weekday, city: d.city, title: d.title || '',
       items: (d.items || []).map((it: any) => ({ place_name: it.place || '', note: it.note || '' })),
     })),
   }
@@ -649,6 +656,7 @@ async function saveItems() {
     const { data } = await api.put(`/programs/${p.id}/items`, {
       days: p.days_list.map(d => ({
         day_no: d.day,
+        title: d.title.trim() || null,
         items: d.items.map(it => ({
           place_name: it.place_name.trim(),
           city: d.city,
