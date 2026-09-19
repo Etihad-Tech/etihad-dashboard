@@ -49,6 +49,16 @@ export const BUCKET = Object.fromEntries(BUCKETS.map((b) => [b.key, b])) as
  *  right now, and a bot mistake the office has confirmed. */
 export const ALARM_RED = '#ef4444'
 
+/** The Sifat nazorati status pill: did the survey half enter this month's ball, and
+ *  if not, why. Three states, three colours from the outcome palette — green is
+ *  «counted», amber is «called but under the coverage bar», grey is «nobody called».
+ *  Named so a leader reading their own row can tell «no survey» from «not enough». */
+export function surveyStatus(s: { counted: boolean; surveys: number } | null | undefined) {
+   if (!s || !s.surveys) return { label: "so'rovnoma yo'q", color: '#9ca3af' }
+   if (s.counted) return { label: 'hisobga olindi', color: '#059669' }
+   return { label: 'qamrov yetarli emas', color: '#f59e0b' }
+}
+
 export const PERIODS = [
    { value: 'day', label: 'Kunlik' },
    { value: 'week', label: 'Haftalik' },
