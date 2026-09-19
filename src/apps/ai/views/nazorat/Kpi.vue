@@ -127,7 +127,61 @@
                         <span class="font-semibold text-right">{{ r.w.kpi.survey_ball }}</span>
                      </template>
                   </div>
-                  <div v-else class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
+                  <!-- SIFAT NAZORATI — the survey half's STATUS, not only its number (owner,
+                       19.09.2026: «где дается статус и информация»). Until now a missing
+                       survey half looked the same whether nobody was called or the calls
+                       fell short of the coverage bar; the pill and the per-group coverage
+                       are what tell those apart. Leader rows of a whole month only — the
+                       server sends the key exactly where the half can exist. -->
+                  <div v-if="board.scored && r.w.survey !== undefined"
+                     class="mt-2.5 pt-2.5 text-[12.5px] tabular-nums"
+                     style="border-top: 1px solid var(--n-line-soft)">
+                     <div class="flex items-center gap-2">
+                        <span class="font-semibold text-[13px]">Sifat nazorati</span>
+                        <span class="pill" :style="{ color: surveyStatus(r.w.survey).color,
+                                                     background: surveyStatus(r.w.survey).color + '17' }">
+                           <i></i>{{ surveyStatus(r.w.survey).label }}
+                        </span>
+                     </div>
+                     <template v-if="r.w.survey && r.w.survey.surveys">
+                        <div class="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[color:var(--n-muted)]">
+                           <span>Anketalar</span>
+                           <span class="text-right">
+                              {{ r.w.survey.surveys }} ta · {{ r.w.survey.used }} tasi ballga kirdi
+                           </span>
+                           <span>Qamrov</span>
+                           <span class="text-right">
+                              <template v-if="r.w.survey.assigned">
+                                 {{ r.w.survey.coverage_pct }}% · {{ r.w.survey.surveys }} / {{ r.w.survey.assigned }} ziyoratchi
+                              </template>
+                              <template v-else>ro'yxat yuklanmagan</template>
+                           </span>
+                           <span>Ziyoratchilar bahosi</span>
+                           <span class="text-right font-semibold" :class="{ 'text-[color:var(--n-muted)]': !r.w.survey.counted }">
+                              {{ r.w.survey.ball !== null ? Math.round(r.w.survey.ball) : '—' }}
+                           </span>
+                        </div>
+                        <!-- Per group, because the coverage bar is PER GROUP: one group at
+                             80% and another at 20% is one half counted and one half not. -->
+                        <ul class="mt-1 space-y-0.5 text-[color:var(--n-muted)]">
+                           <li v-for="g in r.w.survey.groups" :key="g.chat_id" class="flex items-baseline gap-2">
+                              <span class="min-w-0 flex-1 truncate">{{ g.title || ('Guruh ' + g.chat_id) }}</span>
+                              <span class="shrink-0">
+                                 {{ g.surveyed }}<template v-if="g.assigned"> / {{ g.assigned }} · {{ g.coverage_pct }}%</template>
+                                 · {{ g.covered ? (g.mean !== null ? g.mean + ' ball' : 'ballsiz') : 'qamrov past' }}
+                              </span>
+                           </li>
+                        </ul>
+                        <p v-if="!r.w.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
+                           Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan — so'rovnoma
+                           sanalmadi, ball faqat kartochkalardan.
+                        </p>
+                     </template>
+                     <p v-else class="mt-1 text-[color:var(--n-muted)]">
+                        Bu oyda ziyoratchilari so'ralmagan — ball faqat kartochkalardan.
+                     </p>
+                  </div>
+                  <div v-if="!(board.scored && r.w.kpi)" class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[13.5px] tabular-nums">
                      <span>Bajarildi</span><span class="font-semibold text-right">{{ r.w.completed }}</span>
                      <span>Bajarilmagan</span><span class="font-semibold text-right">{{ r.w.reopened }}</span>
                      <span>Javobsiz</span><span class="font-semibold text-right">{{ r.w.never_accepted }}</span>
@@ -365,7 +419,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../../../stores/auth'
 import { useToast } from '../../../../composables/useToast'
 import { useNazoratStore, type Worker } from '../../stores/nazorat'
-import { dur, kpiTab, useNazoratView } from './shared'
+import { dur, kpiTab, surveyStatus, useNazoratView } from './shared'
 
 const router = useRouter()
 const auth = useAuthStore()

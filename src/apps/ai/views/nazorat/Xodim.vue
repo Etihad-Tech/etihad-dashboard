@@ -152,16 +152,62 @@
                         <span class="font-semibold text-right">{{ worker.kpi.survey_ball }}</span>
                      </template>
                   </div>
-                  <p class="mt-3 text-[12.5px] text-[color:var(--n-muted)]">
-                     <template v-if="worker.kpi.survey_ball === null || worker.kpi.survey_ball === undefined">
-                        So'rovnoma bu oyda hisobga kirmadi — ball faqat kartochkalardan.
-                        Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan
-                        bo'lsa, so'rovnoma sanalmaydi.
+                  <!-- SIFAT NAZORATI — the survey half's STATUS, not only its number (owner,
+                       19.09.2026: «где дается статус и информация»). Until now a missing
+                       survey half looked the same whether nobody was called or the calls
+                       fell short of the coverage bar; the pill and the per-group coverage
+                       are what tell those apart. Leader rows of a whole month only — the
+                       server sends the key exactly where the half can exist. -->
+                  <div v-if="worker.survey !== undefined"
+                     class="mt-2.5 pt-2.5 text-[12.5px] tabular-nums"
+                     style="border-top: 1px solid var(--n-line-soft)">
+                     <div class="flex items-center gap-2">
+                        <span class="font-semibold text-[13px]">Sifat nazorati</span>
+                        <span class="pill" :style="{ color: surveyStatus(worker.survey).color,
+                                                     background: surveyStatus(worker.survey).color + '17' }">
+                           <i></i>{{ surveyStatus(worker.survey).label }}
+                        </span>
+                     </div>
+                     <template v-if="worker.survey && worker.survey.surveys">
+                        <div class="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[color:var(--n-muted)]">
+                           <span>Anketalar</span>
+                           <span class="text-right">
+                              {{ worker.survey.surveys }} ta · {{ worker.survey.used }} tasi ballga kirdi
+                           </span>
+                           <span>Qamrov</span>
+                           <span class="text-right">
+                              <template v-if="worker.survey.assigned">
+                                 {{ worker.survey.coverage_pct }}% · {{ worker.survey.surveys }} / {{ worker.survey.assigned }} ziyoratchi
+                              </template>
+                              <template v-else>ro'yxat yuklanmagan</template>
+                           </span>
+                           <span>Ziyoratchilar bahosi</span>
+                           <span class="text-right font-semibold" :class="{ 'text-[color:var(--n-muted)]': !worker.survey.counted }">
+                              {{ worker.survey.ball !== null ? Math.round(worker.survey.ball) : '—' }}
+                           </span>
+                        </div>
+                        <!-- Per group, because the coverage bar is PER GROUP: one group at
+                             80% and another at 20% is one half counted and one half not. -->
+                        <ul class="mt-1 space-y-0.5 text-[color:var(--n-muted)]">
+                           <li v-for="g in worker.survey.groups" :key="g.chat_id" class="flex items-baseline gap-2">
+                              <span class="min-w-0 flex-1 truncate">{{ g.title || ('Guruh ' + g.chat_id) }}</span>
+                              <span class="shrink-0">
+                                 {{ g.surveyed }}<template v-if="g.assigned"> / {{ g.assigned }} · {{ g.coverage_pct }}%</template>
+                                 · {{ g.covered ? (g.mean !== null ? g.mean + ' ball' : 'ballsiz') : 'qamrov past' }}
+                              </span>
+                           </li>
+                        </ul>
+                        <p v-if="!worker.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
+                           Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan — so'rovnoma
+                           sanalmadi, ball faqat kartochkalardan.
+                        </p>
                      </template>
-                     <template v-else>
-                        Ball ikki manbadan: kartochkalar va ziyoratchilar so'rovnomasi,
-                        har biri yarmi.
-                     </template>
+                     <p v-else class="mt-1 text-[color:var(--n-muted)]">
+                        Bu oyda ziyoratchilari so'ralmagan — ball faqat kartochkalardan.
+                     </p>
+                  </div>
+                  <p v-if="worker.survey === undefined" class="mt-3 text-[12.5px] text-[color:var(--n-muted)]">
+                     Ball ikki manbadan: kartochkalar va ziyoratchilar so'rovnomasi, har biri yarmi.
                   </p>
                </section>
 
@@ -209,7 +255,7 @@ import { useRoute } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import {
    BUCKETS, dur, initials, isLeaderLevel, jobLabel,
-   personLabel, rowSegments, rowSplitHint, uncounted, whereLabel, useNazoratView,
+   personLabel, rowSegments, rowSplitHint, surveyStatus, uncounted, whereLabel, useNazoratView,
 } from './shared'
 
 const s = useNazoratStore()
