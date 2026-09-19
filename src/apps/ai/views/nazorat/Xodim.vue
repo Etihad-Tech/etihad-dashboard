@@ -90,32 +90,9 @@
             </div>
 
             <template v-else>
-               <!-- 1. The two lines the payslip actually has. -->
-               <section class="card p-5 n-enter" style="--i: 1">
-                  <div class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 tabular-nums">
-                     <span class="text-[color:var(--n-muted)]">
-                        Fiks
-                        <span class="block text-[12.5px]">{{ worker.fiks_info?.unvon }}</span>
-                     </span>
-                     <span class="text-right">{{ soum(worker.salary.fiks) }}</span>
-                     <span class="text-[color:var(--n-muted)]">KPI</span>
-                     <span v-if="worker.salary.pending_manual"
-                        class="text-right text-[color:var(--n-muted)]">qo'lda baholanadi</span>
-                     <span v-else class="text-right font-semibold" :class="kpiTone">
-                        {{ signed(worker.salary.kpi as number) }}
-                     </span>
-                     <span class="font-semibold pt-2" style="border-top: 1px solid var(--n-line-soft)">
-                        Yakuniy oylik
-                     </span>
-                     <b class="text-right pt-2" style="border-top: 1px solid var(--n-line-soft)">
-                        {{ soum(worker.salary.total) }} so'm
-                     </b>
-                  </div>
-               </section>
-
-               <!-- 2. WHERE THE BALL CAME FROM. The share of the fund is decided by this
+               <!-- 1. WHERE THE BALL CAME FROM. The share of the fund is decided by this
                        number, so the number itself has to be openable. -->
-               <section v-if="worker.kpi" class="card p-5 n-enter" style="--i: 2">
+               <section v-if="worker.kpi" class="card p-5 n-enter" style="--i: 1">
                   <div class="flex items-baseline gap-2.5">
                      <h3 class="n-h">Sifat reytingi</h3>
                      <span class="ml-auto text-[19px] font-bold tabular-nums">
@@ -211,8 +188,8 @@
                   </p>
                </section>
 
-               <!-- 3. EVERY TERM OF THE KPI LINE, with the rule beside it. -->
-               <section v-if="!worker.salary.pending_manual" class="card p-5 n-enter" style="--i: 3">
+               <!-- 2. EVERY TERM OF THE KPI LINE, with the rule beside it. -->
+               <section v-if="!worker.salary.pending_manual" class="card p-5 n-enter" style="--i: 2">
                   <h3 class="n-h">KPI qatori</h3>
                   <div class="mt-3 space-y-3">
                      <div v-for="row in payRows" :key="row.label">
@@ -240,6 +217,31 @@
                         {{ soum(-worker.salary.floor) }} so'mdan ortig'i ushlab
                         qolinmadi.
                      </p>
+                  </div>
+               </section>
+
+               <!-- 3. The two lines the payslip actually has — LAST, after the facts
+                    they were computed from (owner, 19.09.2026: «сначала что к чему,
+                    потом в конце оплата»). -->
+               <section class="card p-5 n-enter" style="--i: 3">
+                  <div class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 tabular-nums">
+                     <span class="text-[color:var(--n-muted)]">
+                        Fiks
+                        <span class="block text-[12.5px]">{{ worker.fiks_info?.unvon }}</span>
+                     </span>
+                     <span class="text-right">{{ soum(worker.salary.fiks) }}</span>
+                     <span class="text-[color:var(--n-muted)]">KPI</span>
+                     <span v-if="worker.salary.pending_manual"
+                        class="text-right text-[color:var(--n-muted)]">qo'lda baholanadi</span>
+                     <span v-else class="text-right font-semibold" :class="kpiTone">
+                        {{ signed(worker.salary.kpi as number) }}
+                     </span>
+                     <span class="font-semibold pt-2" style="border-top: 1px solid var(--n-line-soft)">
+                        Yakuniy oylik
+                     </span>
+                     <b class="text-right pt-2" style="border-top: 1px solid var(--n-line-soft)">
+                        {{ soum(worker.salary.total) }} so'm
+                     </b>
                   </div>
                </section>
             </template>
