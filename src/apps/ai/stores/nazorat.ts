@@ -45,6 +45,18 @@ export interface WorkerKpi {
    combined?: number
 }
 
+/** §9 — the month's Sifat nazorati behind the survey half: what the ball stood on.
+ *  `counted` false with surveys > 0 = the calls were made but fell short of the
+ *  coverage bar (half of the group's imported pilgrims), so the month runs on the
+ *  operational ball alone. Absent from the row on a slice or a crew row. */
+export interface WorkerSurvey {
+   ball: number | null; counted: boolean
+   surveys: number; used: number; assigned: number; coverage_pct: number | null
+   groups: { chat_id: number; title: string | null; assigned: number; surveyed: number
+             scored: number; coverage_pct: number | null; covered: boolean
+             mean: number | null }[]
+}
+
 export interface Worker {
    telegram_id: number; username: string | null; name: string | null; role: string
    dms: number; undelivered: number; accepted: number; never_accepted: number
@@ -98,6 +110,9 @@ export interface Worker {
    sg_groups: number
    sg_base_groups: number
    sg_limit_groups: number | null
+   // 19.09.2026 — the Sifat nazorati status (leader rows of a whole month only;
+   // null = nobody of theirs was surveyed this month).
+   survey?: WorkerSurvey | null
    // How many of those groups have NO Daraja set. Such a group is counted as a whole
    // group (neutral: K unaffected, no load payment) rather than guessed at from its
    // title — the screen asks somebody to set it instead of quietly paying half.
