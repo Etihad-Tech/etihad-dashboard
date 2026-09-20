@@ -182,70 +182,64 @@
                        rung PAYS is the full nazoratchi's panel below. -->
                   <div v-if="r.w.role === 'ellikboshi'"
                      class="pt-2 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5 text-[13.5px]">
-                     <div class="flex items-center gap-2">
-                        <span class="text-[color:var(--n-muted)]">Toifa</span>
-                        <select v-if="canSetCategory"
-                           class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px]"
-                           :value="r.w.category ?? ''"
-                           @click.stop @change="saveCategory(r.w, $event)">
-                           <option value="">— tanlanmagan</option>
-                           <option v-for="c in s.categories" :key="c.code" :value="c.code">
-                              {{ c.title }}
-                           </option>
-                        </select>
-                        <span v-else class="font-semibold">
-                           {{ r.w.fiks_info ? r.w.fiks_info.unvon : '—' }}
-                        </span>
-                        <span v-if="r.w.fiks_info" class="badge badge-indigo ml-auto">
-                           {{ soum(r.w.fiks_info.fiks) }} so'm
-                        </span>
-                     </div>
-                     <!-- v4.5 — THREE lines. The fiks takes no input at all; everything
-                          variable lives inside the KPI line, which carries its own sign.
-                          Straight from the server's composition, no pay maths here. -->
-                     <div v-if="r.w.salary"
-                        class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
-                        <span class="text-[color:var(--n-muted)]">Asosiy oylik</span>
-                        <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
-                        <span class="text-[color:var(--n-muted)]">KPI</span>
-                        <span v-if="r.w.salary.pending_manual"
-                           class="text-right text-[color:var(--n-muted)]">qo'lda baholanadi</span>
-                        <span v-else class="text-right font-semibold" :class="kpiTone(r.w.salary)">
-                           {{ signed(r.w.salary.kpi as number) }}
-                        </span>
-                        <span class="font-semibold">Yakuniy oylik</span>
-                        <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
-                     </div>
-                     <p class="text-[12px] text-[color:var(--n-muted)]">
-                        Asosiy oylik toifaga bog'liq va o'zgarmaydi. KPI — ball,
-                        yuklama va jarimalardan; manfiy ham bo'lishi mumkin.
-                     </p>
-
-                     <!-- The office's own ± on this line. It sits with the payslip it
-                          changes rather than on a settings screen, because it is about
-                          one person and one month — and it is refused without a reason,
-                          here and on the server both: an unexplained adjustment to
-                          somebody's pay is the one thing this panel exists to prevent. -->
-                     <div v-if="canWritePay" class="pt-2 space-y-1.5
-                                border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
-                        <div class="flex flex-wrap items-center gap-2 text-[12.5px]">
-                           <span class="text-[color:var(--n-muted)]">Qo'lda tuzatish</span>
-                           <input type="number" step="50000" placeholder="0"
-                              class="w-28 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px] tabular-nums text-right"
-                              :value="r.w.manual?.adjust || ''" @click.stop
-                              @change="saveAdjust(r.w, $event)" />
-                           <input type="text" maxlength="200" placeholder="sabab — majburiy"
-                              class="flex-1 min-w-[8rem] px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
-                              :value="r.w.manual?.adjust_reason ?? ''" @click.stop
-                              @change="saveAdjustReason(r.w, $event)" />
+                     <!-- FIRST WHAT THE MONTH WAS, LAST WHAT IT PAYS (owner, 19.09.2026: «везде
+                          структура такая: сначала что к чему, потом в конце оплата»). So the
+                          Sifat nazorati status opens the leader block where the pay lines
+                          used to be, the payslip breakdown follows, and Toifa / Asosiy oylik /
+                          KPI / Yakuniy oylik close it. -->
+                     <!-- SIFAT NAZORATI — the survey half's STATUS, not only its number (owner,
+                          19.09.2026: «где дается статус и информация»). Until now a missing
+                          survey half looked the same whether nobody was called or the calls
+                          fell short of the coverage bar; the pill and the per-group coverage
+                          are what tell those apart. Leader rows of a whole month only — the
+                          server sends the key exactly where the half can exist. -->
+                     <div v-if="board.scored && r.w.survey !== undefined"
+                        class="text-[12.5px] tabular-nums">
+                        <div class="flex items-center gap-2">
+                           <span class="font-semibold text-[13px]">Sifat nazorati</span>
+                           <span class="pill" :style="{ color: surveyStatus(r.w.survey).color,
+                                                        background: surveyStatus(r.w.survey).color + '17' }">
+                              <i></i>{{ surveyStatus(r.w.survey).label }}
+                           </span>
                         </div>
-                        <p v-if="r.w.manual && r.w.manual.adjust"
-                           class="text-[12px] text-[color:var(--n-muted)]">
-                           {{ r.w.manual.adjust_reason || 'sababsiz' }}
-                           <template v-if="r.w.manual.updated_by"> · {{ r.w.manual.updated_by }}</template>
+                        <template v-if="r.w.survey && r.w.survey.surveys">
+                           <div class="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[color:var(--n-muted)]">
+                              <span>Anketalar</span>
+                              <span class="text-right">
+                                 {{ r.w.survey.surveys }} ta · {{ r.w.survey.used }} tasi ballga kirdi
+                              </span>
+                              <span>Qamrov</span>
+                              <span class="text-right">
+                                 <template v-if="r.w.survey.assigned">
+                                    {{ r.w.survey.coverage_pct }}% · {{ r.w.survey.surveys }} / {{ r.w.survey.assigned }} ziyoratchi
+                                 </template>
+                                 <template v-else>ro'yxat yuklanmagan</template>
+                              </span>
+                              <span>Ziyoratchilar bahosi</span>
+                              <span class="text-right font-semibold" :class="{ 'text-[color:var(--n-muted)]': !r.w.survey.counted }">
+                                 {{ r.w.survey.ball !== null ? Math.round(r.w.survey.ball) : '—' }}
+                              </span>
+                           </div>
+                           <!-- Per group, because the coverage bar is PER GROUP: one group at
+                                80% and another at 20% is one half counted and one half not. -->
+                           <ul class="mt-1 space-y-0.5 text-[color:var(--n-muted)]">
+                              <li v-for="g in r.w.survey.groups" :key="g.chat_id" class="flex items-baseline gap-2">
+                                 <span class="min-w-0 flex-1 truncate">{{ g.title || ('Guruh ' + g.chat_id) }}</span>
+                                 <span class="shrink-0">
+                                    {{ g.surveyed }}<template v-if="g.assigned"> / {{ g.assigned }} · {{ g.coverage_pct }}%</template>
+                                    · {{ g.covered ? (g.mean !== null ? g.mean + ' ball' : 'ballsiz') : 'qamrov past' }}
+                                 </span>
+                              </li>
+                           </ul>
+                           <p v-if="!r.w.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
+                              Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan — so'rovnoma
+                              sanalmadi, ball faqat kartochkalardan.
+                           </p>
+                        </template>
+                        <p v-else class="mt-1 text-[color:var(--n-muted)]">
+                           Bu oyda ziyoratchilari so'ralmagan — ball faqat kartochkalardan.
                         </p>
                      </div>
-
                      <!-- Where that one number came from, step by step. A KPI line
                           nobody can check is a KPI line everybody argues about, and this
                           is the screen a leader is shown on an appeal (§12). -->
@@ -336,6 +330,73 @@
                         class="text-[12.5px] text-[color:var(--n-muted)]">
                         2 guruhdan ortiq yuklama · rahbar ruxsati kerak
                      </p>
+                     <!-- THE PAY, LAST — under its own rule so the eye lands on it after
+                          the facts it was computed from (owner, 19.09.2026). -->
+                     <div class="pt-2 mt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5">
+                     <div class="flex items-center gap-2">
+                        <span class="text-[color:var(--n-muted)]">Toifa</span>
+                        <select v-if="canSetCategory"
+                           class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px]"
+                           :value="r.w.category ?? ''"
+                           @click.stop @change="saveCategory(r.w, $event)">
+                           <option value="">— tanlanmagan</option>
+                           <option v-for="c in s.categories" :key="c.code" :value="c.code">
+                              {{ c.title }}
+                           </option>
+                        </select>
+                        <span v-else class="font-semibold">
+                           {{ r.w.fiks_info ? r.w.fiks_info.unvon : '—' }}
+                        </span>
+                        <span v-if="r.w.fiks_info" class="badge badge-indigo ml-auto">
+                           {{ soum(r.w.fiks_info.fiks) }} so'm
+                        </span>
+                     </div>
+                     <!-- v4.5 — THREE lines. The fiks takes no input at all; everything
+                          variable lives inside the KPI line, which carries its own sign.
+                          Straight from the server's composition, no pay maths here. -->
+                     <div v-if="r.w.salary"
+                        class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
+                        <span class="text-[color:var(--n-muted)]">Asosiy oylik</span>
+                        <span class="text-right">{{ soum(r.w.salary.fiks) }}</span>
+                        <span class="text-[color:var(--n-muted)]">KPI</span>
+                        <span v-if="r.w.salary.pending_manual"
+                           class="text-right text-[color:var(--n-muted)]">qo'lda baholanadi</span>
+                        <span v-else class="text-right font-semibold" :class="kpiTone(r.w.salary)">
+                           {{ signed(r.w.salary.kpi as number) }}
+                        </span>
+                        <span class="font-semibold">Yakuniy oylik</span>
+                        <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
+                     </div>
+                     <p class="text-[12px] text-[color:var(--n-muted)]">
+                        Asosiy oylik toifaga bog'liq va o'zgarmaydi. KPI — ball,
+                        yuklama va jarimalardan; manfiy ham bo'lishi mumkin.
+                     </p>
+
+                     <!-- The office's own ± on this line. It sits with the payslip it
+                          changes rather than on a settings screen, because it is about
+                          one person and one month — and it is refused without a reason,
+                          here and on the server both: an unexplained adjustment to
+                          somebody's pay is the one thing this panel exists to prevent. -->
+                     <div v-if="canWritePay" class="pt-2 space-y-1.5
+                                border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">
+                        <div class="flex flex-wrap items-center gap-2 text-[12.5px]">
+                           <span class="text-[color:var(--n-muted)]">Qo'lda tuzatish</span>
+                           <input type="number" step="50000" placeholder="0"
+                              class="w-28 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px] tabular-nums text-right"
+                              :value="r.w.manual?.adjust || ''" @click.stop
+                              @change="saveAdjust(r.w, $event)" />
+                           <input type="text" maxlength="200" placeholder="sabab — majburiy"
+                              class="flex-1 min-w-[8rem] px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13px]"
+                              :value="r.w.manual?.adjust_reason ?? ''" @click.stop
+                              @change="saveAdjustReason(r.w, $event)" />
+                        </div>
+                        <p v-if="r.w.manual && r.w.manual.adjust"
+                           class="text-[12px] text-[color:var(--n-muted)]">
+                           {{ r.w.manual.adjust_reason || 'sababsiz' }}
+                           <template v-if="r.w.manual.updated_by"> · {{ r.w.manual.updated_by }}</template>
+                        </p>
+                     </div>
+                     </div>
                      <!-- Tied to the CATEGORY, not chained to the line above it: this
                           `v-else` used to hang off `sg_over_ceiling`, so every leader
                           under the 2,0 ceiling was told their category was unset —
@@ -365,7 +426,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../../../stores/auth'
 import { useToast } from '../../../../composables/useToast'
 import { useNazoratStore, type Worker } from '../../stores/nazorat'
-import { dur, kpiTab, useNazoratView } from './shared'
+import { dur, kpiTab, surveyStatus, useNazoratView } from './shared'
 
 const router = useRouter()
 const auth = useAuthStore()
