@@ -320,11 +320,23 @@
 
                   <div v-for="r in b.rows" :key="r.k" class="sn-rowline"
                      :class="{ focus: focusKey === r.k }" @click="focusKey = r.k">
-                     <span class="sn-rowlabel">{{ r.label }}</span>
+                     <span class="sn-rowlabel">{{ r.label }}
+                        <small v-if="r.hint" class="sn-rowhint">{{ r.hint }}</small>
+                     </span>
                      <span v-if="r.type === 'scale'" class="sn-scale">
                         <button v-for="v in 5" :key="v" :class="{ sel: answers[r.k] === v,
                            low: answers[r.k] === v && v <= 2, mid: answers[r.k] === v && v === 3 }"
                            :disabled="isSaved" @click="setAns(r.k, v)">{{ v }}</button>
+                        <button class="sn-skip" :class="{ sel: answers[r.k] === null && touched.has(r.k) }"
+                           :disabled="isSaved" title="Javob bermadi" @click="setAns(r.k, null)">—</button>
+                     </span>
+                     <!-- 0–10: «0» is an ANSWER (the harshest), not a skip — only «—»
+                          skips, and a skipped row keeps the whole survey out of the
+                          ellikboshi's mean. -->
+                     <span v-else-if="r.type === 'scale10'" class="sn-scale sn-scale10">
+                        <button v-for="v in 11" :key="v - 1" :class="{ sel: answers[r.k] === v - 1,
+                           low: answers[r.k] === v - 1 && v - 1 <= 4, mid: answers[r.k] === v - 1 && (v - 1 === 5 || v - 1 === 6) }"
+                           :disabled="isSaved" @click="setAns(r.k, v - 1)">{{ v - 1 }}</button>
                         <button class="sn-skip" :class="{ sel: answers[r.k] === null && touched.has(r.k) }"
                            :disabled="isSaved" title="Javob bermadi" @click="setAns(r.k, null)">—</button>
                      </span>
@@ -412,9 +424,10 @@
             <div class="sn-lbl">Ellikboshi bahosi · jonli hisob</div>
             <div class="sn-bignum">{{ preview.ell === null ? '—' : preview.ell }}<small> / 100</small></div>
             <div class="sn-bar"><i :style="{ width: (preview.ell || 0) + '%' }"></i></div>
-            <div class="sn-brk"><span>Muomala va e'tibor</span><span>{{ preview.muomala ?? '—' }} / 40</span></div>
-            <div class="sn-brk"><span>Bilim darajasi</span><span>{{ preview.bilim ?? '—' }} / 30</span></div>
-            <div class="sn-brk"><span>Qayta tanlash</span><span>{{ preview.qayta ?? '—' }} / 30</span></div>
+            <div class="sn-brk"><span>Muomala va e'tibor</span><span>{{ preview.muomala ?? '—' }} / {{ W.service }}</span></div>
+            <div class="sn-brk"><span>Bilim darajasi</span><span>{{ preview.bilim ?? '—' }} / {{ W.knowledge }}</span></div>
+            <div class="sn-brk"><span>Qayta tanlash</span><span>{{ preview.qayta ?? '—' }} / {{ W.again }}</span></div>
+            <div class="sn-brk"><span>Qayta Umra sifati</span><span>{{ preview.umra ?? '—' }} / {{ W.umra }}</span></div>
             <div class="sn-brk neg"><span>Muammolar jarimasi</span><span>−{{ preview.jarima }}</span></div>
             <div class="sn-lbl" style="margin-top:14px">Boshqa kimga ta'sir qiladi</div>
             <div v-if="affected.length">
@@ -448,13 +461,18 @@ const CALL_LABELS: Record<string, string> = {
 }
 
 /** The merged questionnaire (owner, 2026-08-15) — §6.1 plus the seven added blocks.
- *  Only Q1 feeds the ellikboshi's ball; the rest accumulate for other parties. */
+ *  Only Q1 feeds the ellikboshi's ball; the rest accumulate for other parties.
+ *  Q1 gained «Qayta Umra qilish sifati» (0–10) on 2026-09-22 and the 100 was re-cut
+ *  35/25/20/20 — the weights live in W below and in kpi.py, and must match. */
+const W = { service: 35, knowledge: 25, again: 20, umra: 20 }
 const BLOCKS = [
    { key: 'q1', title: 'Ellikboshi xizmati va bilimi', who: 'KPI ga kiradi', hint: "Baho to'g'ridan-to'g'ri ellikboshi KPI siga tushadi.", rows: [
       { k: 'q1_service', label: "Muomala va e'tibor", type: 'scale' },
       { k: 'q1_knowledge', label: 'Diniy va marshrut bilimi', type: 'scale' },
       { k: 'q1_again', label: 'Yana shu ellikboshi bilan borasizmi?', type: 'choice',
-        choices: [{ v: 30, l: 'Ha' }, { v: 15, l: 'Bilmayman' }, { v: 0, l: "Yo'q" }] },
+        choices: [{ v: 'ha', l: 'Ha' }, { v: 'bilmayman', l: 'Bilmayman' }, { v: 'yoq', l: "Yo'q" }] },
+      { k: 'q1_umra_quality', label: 'Qayta Umra qilish sifatiga qanday baholaysiz',
+        type: 'scale10', hint: "0 dan 10 gacha. Klaviaturada 1–9, «0» tugmasi = 10, «−» javob bermadi." },
    ] },
    // «Otinoyi» IS the ayol maslahatchi the company already has (owner, 2026-08-18:
    // @Zilola_Irfon), configured as the city-agnostic `female_advisor` inquiry tag —
@@ -826,18 +844,27 @@ const splitGroup = computed(() => {
 })
 const answeredCount = computed(() => ALL_KEYS.filter((k) => touched.has(k)).length)
 
-/** Client-side PREVIEW of the §6.2 arithmetic — the saved score is the server's. */
+/** Client-side PREVIEW of the §6.2 arithmetic — the saved score is the server's.
+ *  Math.round matches kpi.py's `_half_up`: both send .5 up, so the number a pilgrim
+ *  watches being filled in is the number that gets written down. */
 const preview = computed(() => {
-   const p5 = (v: any) => (v == null ? null : Math.round(((v - 1) / 4) * 100) / 100)
+   const p5 = (v: any) => (v == null ? null : (v - 1) / 4)
+   const AGAIN: Record<string, number> = { ha: 1, bilmayman: 0.5, yoq: 0 }
+   // Drafts autosaved on the old wire carried the ball itself (30/15/0) — read as a
+   // share of that 30, exactly as the server does.
+   const share = (v: any) => (v == null ? null : typeof v === 'string' ? (AGAIN[v] ?? null) : Math.min(1, Math.max(0, v / 30)))
    const s = p5(answers.q1_service), kn = p5(answers.q1_knowledge)
-   const again = answers.q1_again
+   const ag = share(answers.q1_again)
+   const um = answers.q1_umra_quality == null ? null : Math.min(1, Math.max(0, answers.q1_umra_quality / 10))
    const jarima = Math.min(20, problems.value
       .filter((p) => p.masul === 'ellikboshi')
       .reduce((sum, p) => sum + ({ kichik: 5, orta: 10, jiddiy: 15 } as any)[p.jiddiylik] || 0, 0))
-   if (s === null || kn === null || again == null || again === null)
-      return { muomala: s === null ? null : Math.round(s * 40), bilim: kn === null ? null : Math.round(kn * 30), qayta: again ?? null, jarima, ell: null }
-   const m = Math.round(s * 40), b = Math.round(kn * 30)
-   return { muomala: m, bilim: b, qayta: again, jarima, ell: Math.max(0, m + b + again - jarima) }
+   const part = (v: number | null, w: number) => (v === null ? null : Math.round(v * w))
+   const m = part(s, W.service), b = part(kn, W.knowledge)
+   const q = part(ag, W.again), u = part(um, W.umra)
+   if (m === null || b === null || q === null || u === null)
+      return { muomala: m, bilim: b, qayta: q, umra: u, jarima, ell: null }
+   return { muomala: m, bilim: b, qayta: q, umra: u, jarima, ell: Math.max(0, m + b + q + u - jarima) }
 })
 
 const AFF_LABELS: Record<string, string> = {
@@ -900,7 +927,12 @@ function setAns(k: string, v: any) {
 }
 
 /** Keys 1–5 answer the highlighted row, 0/− skip it, ↓/Enter and ↑ move — the
- *  operator is on a live call and must never need the mouse. */
+ *  operator is on a live call and must never need the mouse.
+ *
+ *  On the 0–10 row the number row reads 1…9 then 0 = 10, the way the keys sit; only
+ *  «−» skips there. «0» must not mean «javob bermadi» on that row: 0 is the harshest
+ *  answer on the scale, and a skip and a zero are different facts about the pilgrim
+ *  — one keeps the survey out of the mean, the other scores it at nothing. */
 function onKey(e: KeyboardEvent) {
    if (!current.value || isSaved.value) return
    const tag = (e.target as HTMLElement)?.tagName
@@ -908,7 +940,12 @@ function onKey(e: KeyboardEvent) {
    const k = focusKey.value
    if (!k) return
    const row: any = BLOCKS.flatMap((b: any) => b.rows).find((r: any) => r.k === k)
-   if (e.key >= '1' && e.key <= '5') {
+   const ten = row?.type === 'scale10'
+   if (ten && e.key >= '0' && e.key <= '9') {
+      setAns(k, e.key === '0' ? 10 : Number(e.key)); e.preventDefault()
+   } else if (ten && e.key === '-') {
+      setAns(k, null); e.preventDefault()
+   } else if (e.key >= '1' && e.key <= '5') {
       if (row.type === 'scale') setAns(k, Number(e.key))
       else if (Number(e.key) <= row.choices.length) setAns(k, row.choices[Number(e.key) - 1].v)
       e.preventDefault()
@@ -1150,7 +1187,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
    flex-wrap: wrap; border-radius: 8px; padding: 3px 6px; }
 .sn-rowline.focus { background: #f6f2e7; outline: 1px dashed #d8b45a; }
 .sn-rowlabel { min-width: 210px; font-size: 13.5px; }
+.sn-rowhint { display: block; font-size: 11.5px; color: #8a8474; margin-top: 1px; }
 .sn-scale, .sn-choice { display: flex; gap: 6px; }
+/* Eleven buttons where five used to fit: narrower, and free to wrap on a small
+   laptop rather than pushing the skip key off the row. */
+.sn-scale10 { flex-wrap: wrap; }
+.sn-scale10 button { min-width: 30px; padding: 0 6px; }
 .sn-scale button, .sn-choice button, .sn-skip { font: inherit; font-weight: 600;
    border: 1px solid #d9d3c4; background: #fff; border-radius: 9px; min-width: 34px;
    height: 32px; cursor: pointer; padding: 0 10px; }
