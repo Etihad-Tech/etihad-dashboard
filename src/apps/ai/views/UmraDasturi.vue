@@ -46,6 +46,15 @@
           <button @click="openCopy(editing)" class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
             <font-awesome-icon icon="copy" class="w-3.5 h-3.5" /> Nusxalash
           </button>
+          <!-- Russian: fills what is still untranslated; when nothing is missing, offers
+               to redo the whole programme (the office's own edits included). -->
+          <button @click="translateProgram" :disabled="translating || dirty"
+            :title="dirty ? 'Avval saqlang' : ''"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium transition-colors disabled:opacity-50"
+            :class="editing.ru_missing ? 'text-amber-700 bg-amber-50 hover:bg-amber-100' : 'text-gray-600 hover:bg-gray-100'">
+            <font-awesome-icon icon="language" class="w-3.5 h-3.5" />
+            {{ translating ? 'Tarjima qilinmoqda...' : (editing.ru_missing ? `Ruscha tarjima (${editing.ru_missing} ta yo'q)` : 'Ruscha: to\'liq') }}
+          </button>
           <button v-if="!editing.is_template" @click="revertToTemplate(editing.group_telegram_id!)"
             class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors">
             <font-awesome-icon icon="rotate-right" class="w-3.5 h-3.5" /> Shablonga qaytarish
@@ -102,6 +111,10 @@
               </p>
               <p v-if="c.tier_inferred" class="text-[11px] text-amber-600 mt-1">
                 {{ c.tier_inferred }} guruhda Daraja «avtomatik» — nomidan taxmin qilindi. Guruhlar sahifasida aniq tanlang.
+              </p>
+              <p v-if="c.template!.items_count" class="text-[11px] mt-1" :class="c.template!.ru_missing ? 'text-amber-600' : 'text-emerald-600'">
+                <font-awesome-icon icon="language" class="w-3 h-3 mr-0.5" />
+                {{ c.template!.ru_missing ? `Ruscha: ${c.template!.ru_missing} ta band tarjimasiz` : 'Ruscha tarjima to\'liq' }}
               </p>
             </div>
 
@@ -180,6 +193,10 @@
             <input v-if="placeEditId === p.id" v-model="placeEditName" @keyup.enter="savePlace(p)" @keyup.esc="placeEditId = null"
               class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
             <span v-else class="flex-1 text-sm text-gray-900">{{ p.name }}</span>
+            <input v-if="placeEditId === p.id" v-model="placeEditNameRu" @keyup.enter="savePlace(p)" @keyup.esc="placeEditId = null"
+              placeholder="Русское название — avtomatik"
+              class="flex-1 bg-sky-50/40 border border-sky-100 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300" />
+            <span v-else class="flex-1 text-sm" :class="p.name_ru ? 'text-sky-700' : 'text-amber-500'">{{ p.name_ru || 'ruscha yo\'q' }}</span>
             <select v-if="placeEditId === p.id" v-model="placeEditCity" class="bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-xs">
               <option value="">shahar —</option>
               <option v-for="c in CITY_OPTS" :key="c.value" :value="c.value">{{ c.label }}</option>
@@ -241,6 +258,15 @@
           Dastur bo'sh. Har bir kunga joylarni kiriting — «+ band» ni bosing yoki oxirgi izohda Enter.
         </div>
 
+        <div class="flex items-center justify-end gap-2 text-xs text-gray-500">
+          <span>Ruscha qatorlarni ko'rsatish</span>
+          <button @click="showRu = !showRu" type="button" role="switch" :aria-checked="showRu"
+            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+            :class="showRu ? 'bg-sky-500' : 'bg-gray-300'">
+            <span class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform" :class="showRu ? 'translate-x-4' : 'translate-x-0.5'"></span>
+          </button>
+        </div>
+
         <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up">
           <div v-for="d in editing.days_list" :key="d.day" class="flex gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0"
             :class="d.city === 'jidda' ? 'bg-amber-50/30' : d.city === 'madina' ? 'bg-sky-50/30' : ''">
@@ -253,18 +279,30 @@
               <span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
             </div>
             <div class="flex-1 min-w-0 space-y-1.5">
-              <div v-for="(it, idx) in d.items" :key="idx" class="flex items-center gap-2">
-                <span class="w-5 text-right text-[11px] text-gray-300 tabular-nums shrink-0">{{ idx + 1 }}</span>
-                <input v-model="it.place_name" type="text" list="program-places" placeholder="Joy" @input="dirty = true"
-                  :data-item="`${d.day}-${idx}`"
-                  class="w-56 bg-gray-50 border rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  :class="it.place_name.trim() ? 'border-gray-200' : 'border-rose-300 ring-1 ring-rose-200'" />
-                <input v-model="it.note" type="text" placeholder="Izoh (nima bo'ladi)" @input="dirty = true"
-                  @keydown.enter.prevent="addItem(d, idx)"
-                  class="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <button @click="moveItem(d, idx, -1)" :disabled="idx === 0" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-20" title="Yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
-                <button @click="moveItem(d, idx, 1)" :disabled="idx === d.items.length - 1" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-20" title="Pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
-                <button @click="removeItem(d, idx)" class="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="O'chirish"><font-awesome-icon icon="xmark" class="w-3 h-3" /></button>
+              <div v-for="(it, idx) in d.items" :key="idx" class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="w-5 text-right text-[11px] text-gray-300 tabular-nums shrink-0">{{ idx + 1 }}</span>
+                  <input v-model="it.place_name" type="text" list="program-places" placeholder="Joy" @input="dirty = true"
+                    :data-item="`${d.day}-${idx}`"
+                    class="w-56 bg-gray-50 border rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    :class="it.place_name.trim() ? 'border-gray-200' : 'border-rose-300 ring-1 ring-rose-200'" />
+                  <input v-model="it.note" type="text" placeholder="Izoh (nima bo'ladi)" @input="dirty = true"
+                    @keydown.enter.prevent="addItem(d, idx)"
+                    class="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  <button @click="moveItem(d, idx, -1)" :disabled="idx === 0" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-20" title="Yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
+                  <button @click="moveItem(d, idx, 1)" :disabled="idx === d.items.length - 1" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-20" title="Pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
+                  <button @click="removeItem(d, idx)" class="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="O'chirish"><font-awesome-icon icon="xmark" class="w-3 h-3" /></button>
+                </div>
+                <!-- The Russian line the cabinet shows a Russian reader. Empty = the model fills
+                     it on save; typed = kept as typed. The place's Russian is shared by every
+                     programme naming that place, the note's belongs to this line. -->
+                <div v-if="showRu" class="flex items-center gap-2 pr-[5.75rem]">
+                  <span class="w-5 text-right text-[10px] font-semibold text-sky-400 shrink-0">RU</span>
+                  <input v-model="it.place_ru" type="text" placeholder="Название места — avtomatik" @input="dirty = true"
+                    class="w-56 bg-sky-50/40 border border-sky-100 rounded-xl px-3 py-1 text-xs text-gray-700 placeholder:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300" />
+                  <input v-if="it.note.trim()" v-model="it.note_ru" type="text" placeholder="Примечание — avtomatik" @input="dirty = true"
+                    class="flex-1 min-w-0 bg-sky-50/40 border border-sky-100 rounded-xl px-3 py-1 text-xs text-gray-700 placeholder:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300" />
+                </div>
               </div>
               <button @click="addItem(d, d.items.length - 1)" class="text-xs text-gray-400 hover:text-amber-600 px-1 py-1">+ band</button>
             </div>
@@ -393,7 +431,14 @@
             <p v-if="d.items.length === 0" class="text-xs text-gray-300 pl-1">—</p>
             <div v-for="(it, i) in d.items" :key="i" class="flex gap-2 pl-1 py-0.5">
               <span class="w-4 shrink-0 text-xs text-gray-300 tabular-nums pt-0.5">{{ i + 1 }}.</span>
-              <div class="text-sm"><span class="font-medium text-gray-900">{{ it.place_name }}</span><span v-if="it.note" class="text-gray-500"> · {{ it.note }}</span></div>
+              <div class="text-sm">
+                <span class="font-medium text-gray-900">{{ it.place_name }}</span><span v-if="it.note" class="text-gray-500"> · {{ it.note }}</span>
+                <!-- What a Russian reader sees: the translation, or the Uzbek line where there is none yet. -->
+                <p class="text-xs" :class="it.place_ru || it.note_ru ? 'text-sky-700' : 'text-amber-600'">
+                  {{ it.place_ru || it.place_name }}<span v-if="it.note"> · {{ it.note_ru || it.note }}</span>
+                  <span v-if="!it.place_ru || (it.note && !it.note_ru)" class="text-amber-500"> (tarjimasiz)</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -418,8 +463,10 @@ interface ProgramSummary {
   days: number; tier: string; city_order: string
   jidda_nights: number; makka_nights: number; madina_nights: number
   items_count: number; updated_at: string | null; updated_by: string | null
+  /** Lines a Russian reader still sees in Uzbek; 0 = fully translated. */
+  ru_missing: number
 }
-interface Item { place_name: string; note: string }
+interface Item { place_name: string; note: string; place_ru: string; note_ru: string }
 interface Day { day: number; date: string | null; weekday: number | null; city: string | null; items: Item[] }
 interface ProgramView extends ProgramSummary {
   start_date: string | null
@@ -437,7 +484,7 @@ interface Cell {
   groups_total: number; on_template: number; customized: number; without: number; tier_inferred: number
   groups: CellGroup[]
 }
-interface Place { id: number; name: string; city: string | null; used: number }
+interface Place { id: number; name: string; city: string | null; name_ru: string | null; used: number }
 interface GroupRow { id: number; title: string | null; trip_start_date: string | null }
 
 type LegKey = 'jidda_nights' | 'makka_nights' | 'madina_nights'
@@ -563,7 +610,10 @@ function toView(data: any): ProgramView {
     ...data,
     days_list: (data.days_list || []).map((d: any) => ({
       day: d.day, date: d.date, weekday: d.weekday, city: d.city,
-      items: (d.items || []).map((it: any) => ({ place_name: it.place || '', note: it.note || '' })),
+      items: (d.items || []).map((it: any) => ({
+        place_name: it.place || '', note: it.note || '',
+        place_ru: it.place_ru || '', note_ru: it.note_ru || '',
+      })),
     })),
   }
 }
@@ -618,7 +668,7 @@ onMounted(async () => {
 // ─── Items editing ────────────────────────────────────────────────────────────────
 
 function addItem(d: Day, afterIdx: number) {
-  d.items.splice(afterIdx + 1, 0, { place_name: '', note: '' })
+  d.items.splice(afterIdx + 1, 0, { place_name: '', note: '', place_ru: '', note_ru: '' })
   dirty.value = true
   // Enter in a note (or «+ band») means «next line»: put the cursor in the new
   // line's place field, so a whole day can be typed without touching the mouse.
@@ -653,16 +703,46 @@ async function saveItems() {
           place_name: it.place_name.trim(),
           city: d.city,
           note: it.note.trim() || null,
+          place_ru: it.place_ru.trim() || null,
+          note_ru: it.note_ru.trim() || null,
         })),
       })),
     })
     editing.value = toView(data)
     dirty.value = false
-    toast.success('Dastur saqlandi')
+    // The save always lands; the Russian is filled by the model in the same request
+    // and can fail on its own — then the button above says how many lines are left.
+    if (data.ru_pending) toast.info('Dastur saqlandi, ruscha tarjima qilinmadi — «Ruscha tarjima» tugmasini bosing')
+    else toast.success('Dastur saqlandi')
     await loadPlaces()
   } catch (e: any) {
     toast.error(errText(e, 'Saqlanmadi'))
   } finally { saving.value = false }
+}
+
+// ─── Russian ──────────────────────────────────────────────────────────────────────
+
+const showRu = ref(true)
+const translating = ref(false)
+
+/** Fill the missing Russian; when nothing is missing, offer to redo it all. */
+async function translateProgram() {
+  if (!editing.value || dirty.value) return
+  const p = editing.value
+  let force = false
+  if (!p.ru_missing) {
+    if (!(await confirm({ title: 'Barcha ruscha matnni qaytadan tarjima qilish?', message: 'Qo\'lda tahrirlangan ruscha qatorlar ham model tarjimasi bilan almashadi.' }))) return
+    force = true
+  }
+  translating.value = true
+  try {
+    const { data } = await api.post(`/programs/${p.id}/translate`, null, { params: { force } })
+    editing.value = toView(data)
+    toast.success(data.translated ? `${data.translated} ta matn tarjima qilindi` : 'Tarjima qilinadigan matn yo\'q')
+    await loadPlaces()
+  } catch (e: any) {
+    toast.error(errText(e, 'Tarjima qilinmadi'))
+  } finally { translating.value = false }
 }
 
 // ─── Template shape ───────────────────────────────────────────────────────────────
@@ -820,6 +900,7 @@ const newPlace = reactive({ name: '', city: '' })
 const placeEditId = ref<number | null>(null)
 const placeEditName = ref('')
 const placeEditCity = ref('')
+const placeEditNameRu = ref('')
 const filteredPlaces = computed(() => {
   const q = placeQuery.value.trim().toLowerCase()
   return q ? places.value.filter(p => p.name.toLowerCase().includes(q)) : places.value
@@ -836,10 +917,15 @@ function editPlace(p: Place) {
   placeEditId.value = p.id
   placeEditName.value = p.name
   placeEditCity.value = p.city || ''
+  placeEditNameRu.value = p.name_ru || ''
 }
 async function savePlace(p: Place) {
   try {
-    await api.put(`/programs/places/${p.id}`, { name: placeEditName.value.trim(), city: placeEditCity.value || null })
+    // An empty Russian field means «let the model do it» (it re-translates on a rename).
+    await api.put(`/programs/places/${p.id}`, {
+      name: placeEditName.value.trim(), city: placeEditCity.value || null,
+      name_ru: placeEditNameRu.value.trim() || null,
+    })
     placeEditId.value = null
     toast.success('Saqlandi')
     await loadPlaces()
