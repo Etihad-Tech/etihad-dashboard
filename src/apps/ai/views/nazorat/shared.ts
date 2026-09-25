@@ -182,18 +182,43 @@ export const MIN_SAMPLE = 3
  *  land on a duration a person would say out loud. */
 export const AXIS_STEPS = [60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600, 43200]
 
+/** The Nazorat clock: MAKKA / MADINA time (UTC+3), never the browser's. The office reads
+ *  this panel in Tashkent, two hours ahead, while every rule a time is checked against —
+ *  the 15/45-minute norms, the day/night boundaries in Qiymatlar — is written on the
+ *  Makka clock (owner, 25.09.2026). A card raised at 05:30 in Makka used to print as
+ *  07:30 here and read like a day card. */
+export const MAKKA_TZ = 'Asia/Riyadh'
+const CLOCK: Intl.DateTimeFormatOptions = {
+   hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: MAKKA_TZ,
+}
+
 export function fmtTime(iso: string | null): string {
    if (!iso) return '—'
-   return new Date(iso).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+   return new Date(iso).toLocaleTimeString('uz-UZ', CLOCK)
 }
 
 /** Date + time — a feed can span a whole month, so the day matters here in a way it
- *  does not inside one worker's own log. */
+ *  does not inside one worker's own log. The DATE is Makka's too: 01:00 in Tashkent is
+ *  still the previous evening in Makka. */
 export function fmtDateTime(iso: string | null): string {
    if (!iso) return '—'
    const d = new Date(iso)
-   return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' })
-      + ' ' + d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+   return d.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', timeZone: MAKKA_TZ })
+      + ' ' + d.toLocaleTimeString('uz-UZ', CLOCK)
+}
+
+/** Minutes after midnight -> «HH:MM», the way the reglament writes a boundary. */
+export function clockText(min: number): string {
+   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+}
+
+/** The day and the night as the office set them in Qiymatlar, ready for a sentence:
+ *  { day: '06:00–00:00', night: '00:00–06:00' }. Null until the settings have loaded —
+ *  a screen then leaves the hours out rather than print a boundary nobody set. */
+export function dayNightText(st: { day_start_min: number; night_start_min: number } | null) {
+   if (!st) return null
+   const d = clockText(st.day_start_min), n = clockText(st.night_start_min)
+   return { day: `${d}–${n}`, night: `${n}–${d}` }
 }
 
 /** Human duration between two timestamps; if `toIso` is null, measures up to NOW. */
