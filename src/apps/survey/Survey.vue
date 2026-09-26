@@ -306,10 +306,17 @@
             </div>
 
             <div class="sn-panel">
-               <!-- Blocks with 1–5 + «—» (javob bermadi): a skipped answer is excluded
-                    from every mean — an operator must never invent a middle score for
-                    a pilgrim who didn't answer. Keys 1–5 score the highlighted row,
-                    0 skips, Enter/↓ move on. -->
+               <!-- Every scored row is 0–10 + «—» (javob bermadi) since 2026-09-26 (owner:
+                    one question on 5, the next on 10 was confusing). A skipped answer is
+                    excluded from every mean — an operator must never invent a middle
+                    score for a pilgrim who didn't answer. Keys 1–9 and 0 = 10 score the
+                    highlighted row, «−» skips, Enter/↓ move on. -->
+               <p class="sn-qhint" v-if="scale === 10">
+                  Barcha baholar 0 dan 10 gacha. Klaviaturada 1–9, «0» tugmasi = 10, «−» — javob bermadi.
+               </p>
+               <p class="sn-qhint" v-else>
+                  Bu so'rovnoma eski 1–5 shkalada boshlangan — shu shkalada davom etadi.
+               </p>
                <div v-for="(b, bi) in BLOCKS" :key="b.key" class="sn-qblock">
                   <div class="sn-qhead">
                      <span class="sn-qnum">{{ bi + 1 }}</span>
@@ -323,7 +330,9 @@
                      <span class="sn-rowlabel">{{ r.label }}
                         <small v-if="r.hint" class="sn-rowhint">{{ r.hint }}</small>
                      </span>
-                     <span v-if="r.type === 'scale'" class="sn-scale">
+                     <!-- 1–5 only on a survey STARTED before the switch to 0–10
+                          (see `scale`); every new survey asks all rows 0–10. -->
+                     <span v-if="r.type === 'scale' && scale === 5" class="sn-scale">
                         <button v-for="v in 5" :key="v" :class="{ sel: answers[r.k] === v,
                            low: answers[r.k] === v && v <= 2, mid: answers[r.k] === v && v === 3 }"
                            :disabled="isSaved" @click="setAns(r.k, v)">{{ v }}</button>
@@ -333,7 +342,7 @@
                      <!-- 0–10: «0» is an ANSWER (the harshest), not a skip — only «—»
                           skips, and a skipped row keeps the whole survey out of the
                           ellikboshi's mean. -->
-                     <span v-else-if="r.type === 'scale10'" class="sn-scale sn-scale10">
+                     <span v-else-if="r.type === 'scale10' || r.type === 'scale'" class="sn-scale sn-scale10">
                         <button v-for="v in 11" :key="v - 1" :class="{ sel: answers[r.k] === v - 1,
                            low: answers[r.k] === v - 1 && v - 1 <= 4, mid: answers[r.k] === v - 1 && (v - 1 === 5 || v - 1 === 6) }"
                            :disabled="isSaved" @click="setAns(r.k, v - 1)">{{ v - 1 }}</button>
@@ -471,8 +480,7 @@ const BLOCKS = [
       { k: 'q1_knowledge', label: 'Diniy va marshrut bilimi', type: 'scale' },
       { k: 'q1_again', label: 'Yana shu ellikboshi bilan borasizmi?', type: 'choice',
         choices: [{ v: 'ha', l: 'Ha' }, { v: 'bilmayman', l: 'Bilmayman' }, { v: 'yoq', l: "Yo'q" }] },
-      { k: 'q1_umra_quality', label: 'Qayta Umra qilish sifatiga qanday baholaysiz',
-        type: 'scale10', hint: "0 dan 10 gacha. Klaviaturada 1–9, «0» tugmasi = 10, «−» javob bermadi." },
+      { k: 'q1_umra_quality', label: 'Qayta Umra qilish sifatiga qanday baholaysiz', type: 'scale10' },
    ] },
    // «Otinoyi» IS the ayol maslahatchi the company already has (owner, 2026-08-18:
    // @Zilola_Irfon), configured as the city-agnostic `female_advisor` inquiry tag —
@@ -524,6 +532,12 @@ const suggestion = ref('')
 const choiceReason = ref('')
 const touched = reactive(new Set<string>())
 const isSaved = ref(false)
+// The scale of the OPEN survey's 'scale' rows. 10 for every survey begun since
+// 2026-09-26; 5 only for one begun before (a draft carried over, or a saved survey
+// being viewed) — its answers are 1–5 numbers and must be read, shown and scored as
+// such. Sent to the server as `answers._scale`, which is how kpi.py tells the two apart.
+const scale = ref<5 | 10>(10)
+const SCALE_KEYS: string[] = BLOCKS.flatMap((b: any) => b.rows.filter((r: any) => r.type === 'scale').map((r: any) => r.k))
 const savedScore = ref<number | null>(null)
 const saving = ref(false)
 const draftState = ref('')
@@ -853,7 +867,9 @@ const answeredCount = computed(() => ALL_KEYS.filter((k) => touched.has(k)).leng
  *  Math.round matches kpi.py's `_half_up`: both send .5 up, so the number a pilgrim
  *  watches being filled in is the number that gets written down. */
 const preview = computed(() => {
-   const p5 = (v: any) => (v == null ? null : (v - 1) / 4)
+   // The same two conversions as kpi.py's _pct5 / _pct10, picked by the survey's scale.
+   const p5 = (v: any) => (v == null ? null
+      : scale.value === 10 ? Math.min(1, Math.max(0, v / 10)) : (v - 1) / 4)
    const AGAIN: Record<string, number> = { ha: 1, bilmayman: 0.5, yoq: 0 }
    // Drafts autosaved on the old wire carried the ball itself (30/15/0) — read as a
    // share of that 30, exactly as the server does.
@@ -884,7 +900,7 @@ const AFF_LABELS: Record<string, string> = {
 const affected = computed(() => {
    const out: string[] = []
    for (const [k, l] of Object.entries(AFF_LABELS))
-      if (answers[k] != null) out.push(`${l} — ${answers[k]} / 5`)
+      if (answers[k] != null) out.push(`${l} — ${answers[k]} / ${scale.value}`)
    for (const p of problems.value)
       if (p.masul && p.masul !== 'ellikboshi' && p.masul !== 'none')
          out.push(`Muammo → ${p.masul} (${p.jiddiylik})`)
@@ -907,6 +923,7 @@ function open(p: any) {
    // EVERY key, not just the asked ones: an old draft's retired `q5_workgroup` is not in
    // ALL_KEYS, and clearing only those would carry it into the next pilgrim's survey.
    for (const k of Object.keys(answers)) delete answers[k]
+   scale.value = 10
    touched.clear()
    problems.value = []
    suggestion.value = ''
@@ -921,7 +938,10 @@ async function resumeDraft(pid: number) {
    try {
       const { data } = await api.get(`/survey/${pid}/draft`)
       if (current.value?.id !== pid || !data) return
-      Object.assign(answers, data.answers || {})
+      const a = data.answers || {}
+      // No marker + a scored row already answered = begun on the old 1–5 form.
+      scale.value = a._scale === 10 ? 10 : SCALE_KEYS.some((k) => a[k] != null) ? 5 : 10
+      Object.assign(answers, a)
       for (const k of Object.keys(data.answers || {})) touched.add(k)
       problems.value = data.problems || []
       suggestion.value = data.suggestion || ''
@@ -936,10 +956,11 @@ function setAns(k: string, v: any) {
    focusKey.value = ALL_KEYS[Math.min(i + 1, ALL_KEYS.length - 1)]
 }
 
-/** Keys 1–5 answer the highlighted row, 0/− skip it, ↓/Enter and ↑ move — the
- *  operator is on a live call and must never need the mouse.
+/** Number keys answer the highlighted row, ↓/Enter and ↑ move — the operator is on a
+ *  live call and must never need the mouse. On a choice row (and a scored row of an
+ *  old 1–5 survey) keys 1–5 answer and 0/− skip.
  *
- *  On the 0–10 row the number row reads 1…9 then 0 = 10, the way the keys sit; only
+ *  On a 0–10 row the number row reads 1…9 then 0 = 10, the way the keys sit; only
  *  «−» skips there. «0» must not mean «javob bermadi» on that row: 0 is the harshest
  *  answer on the scale, and a skip and a zero are different facts about the pilgrim
  *  — one keeps the survey out of the mean, the other scores it at nothing. */
@@ -950,7 +971,7 @@ function onKey(e: KeyboardEvent) {
    const k = focusKey.value
    if (!k) return
    const row: any = BLOCKS.flatMap((b: any) => b.rows).find((r: any) => r.k === k)
-   const ten = row?.type === 'scale10'
+   const ten = row?.type === 'scale10' || (row?.type === 'scale' && scale.value === 10)
    if (ten && e.key >= '0' && e.key <= '9') {
       setAns(k, e.key === '0' ? 10 : Number(e.key)); e.preventDefault()
    } else if (ten && e.key === '-') {
@@ -974,16 +995,19 @@ watch([answers, problems, suggestion, choiceReason], () => {
    if (!current.value || isSaved.value) return
    draftState.value = '…'
    clearTimeout(draftTimer)
-   draftTimer = setTimeout(async () => {
-      try {
-         await api.put(`/survey/${current.value.id}/draft`, {
-            answers: { ...answers }, problems: problems.value,
-            suggestion: suggestion.value || null, choice_reason: choiceReason.value || null,
-         })
-         draftState.value = 'qoralama saqlandi'
-      } catch { draftState.value = 'qoralama saqlanmadi!' }
-   }, 800)
+   draftTimer = setTimeout(() => { void pushDraft() }, 800)
 }, { deep: true })
+
+async function pushDraft() {
+   draftTimer = null
+   try {
+      await api.put(`/survey/${current.value.id}/draft`, {
+         answers: { ...answers, _scale: scale.value }, problems: problems.value,
+         suggestion: suggestion.value || null, choice_reason: choiceReason.value || null,
+      })
+      draftState.value = 'qoralama saqlandi'
+   } catch { draftState.value = 'qoralama saqlanmadi!' }
+}
 
 // null = not editing. A separate ref per field rather than one "editing" flag: fixing
 // a name and fixing a number are different corrections and must not clear each other.
@@ -1051,6 +1075,9 @@ async function save() {
    if (!current.value) return
    saving.value = true
    try {
+      // The server scores the DRAFT it holds. An answer given in the last 800 ms is
+      // still waiting on the autosave timer — send it first, or it is scored without.
+      if (draftTimer) { clearTimeout(draftTimer); await pushDraft() }
       const { data } = await api.post(`/survey/${current.value.id}/save`)
       isSaved.value = true
       savedScore.value = data.ell_score
