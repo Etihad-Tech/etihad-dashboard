@@ -20,7 +20,10 @@
                   <span class="block text-[14px] font-semibold">{{ f.label }}</span>
                   <span class="block text-[12px] text-[color:var(--n-muted)]">{{ f.hint }}</span>
                </span>
-               <input type="number" :min="f.min" :max="f.max" :step="f.step"
+               <input v-if="f.kind === 'time'" type="time" step="60"
+                  class="w-32 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums text-right"
+                  :value="value(f)" @change="save(f, $event)" />
+               <input v-else type="number" :min="f.min" :max="f.max" :step="f.step"
                   class="w-32 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[13.5px] tabular-nums text-right"
                   :value="value(f)" @change="save(f, $event)" />
                <span class="w-8 text-[12.5px] text-[color:var(--n-muted)]">{{ f.unit }}</span>
@@ -28,6 +31,9 @@
          </div>
          <p v-if="grp.note" class="mt-2 text-[12.5px] text-[color:var(--n-muted)]">
             {{ grp.note }}
+         </p>
+         <p v-if="grp.clock" class="mt-1 text-[12.5px] text-[color:var(--n-muted)]">
+            Hozir Makka va Madinada: <b class="tabular-nums">{{ makkaNow }}</b>
          </p>
       </section>
 
@@ -57,14 +63,30 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useNazoratStore, type KpiSettings } from '../../stores/nazorat'
 import { useToast } from '../../../../composables/useToast'
+import { MAKKA_TZ, clockText } from './shared'
 
 const s = useNazoratStore()
 const toast = useToast()
 
-onMounted(() => { void s.loadCategories(); void s.loadKpiSettings() })
+/** The Makka wall clock, live — so whoever moves a boundary can see which side of it
+ *  «now» falls on without converting from Tashkent in their head. */
+const makkaNow = ref('')
+function tick() {
+   makkaNow.value = new Date().toLocaleTimeString('uz-UZ', {
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: MAKKA_TZ,
+   })
+}
+let clockTimer: number | undefined
+
+onMounted(() => {
+   void s.loadCategories(); void s.loadKpiSettings()
+   tick()
+   clockTimer = window.setInterval(tick, 20_000)
+})
+onUnmounted(() => window.clearInterval(clockTimer))
 
 /** Only the EDITABLE numeric settings. `fines` rides on the same object but is
  *  read-only — §11 names each sum in its own table, so moving one is a document
@@ -77,12 +99,14 @@ type EditableKey = {
 type Row = {
    key: EditableKey; label: string; hint: string; unit: string
    min: number; max: number; step: number; scale: number
+   /** A wall-clock time: minutes after midnight on the server, «HH:MM» on screen. */
+   kind?: 'time'
 }
 
 /** Grouped the way the arithmetic reads, not the way the columns happen to sit in the
  *  table: what the fund pays, what the load pays, what a group weighs. A flat list of
  *  ten numbers is a list nobody can check against the reglament. */
-const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
+const GROUPS: { title: string; rows: Row[]; note?: string; clock?: boolean }[] = [
    {
       title: 'Sifat mukofoti',
       rows: [
@@ -107,6 +131,26 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
       ],
       note: 'Ball 100 dan hisoblanadi. 89 ball — mukofot yo‘q, 90 ball — to‘liq '
           + 'summa; oraliq summa yo‘q.',
+   },
+   {
+      // §10 (owner, 25.09.2026): «сделать день и ночь динамичным … по времени Мекки и
+      // Мадины, а не по ташкентскому». Both are Makka wall-clock times; the server reads
+      // them on UTC+3 whatever clock this browser is set to.
+      title: 'Kunduz va tun (Makka vaqti)',
+      rows: [
+         { key: 'day_start_min', kind: 'time', label: 'Kunduz boshlanadi', unit: '',
+           hint: 'Kunduzi: normativ 15 daqiqa, 30 daqiqadan kech qabul — jarima. '
+               + 'Javobsiz kartochka ham jarimaga tortiladi',
+           min: 0, max: 1439, step: 1, scale: 1 },
+         { key: 'night_start_min', kind: 'time', label: 'Tun boshlanadi', unit: '',
+           hint: 'Tunda: normativ 45 daqiqa, 90 daqiqadan kech qabul — jarima. '
+               + 'Javobsiz kartochka jarimaga tortilmaydi',
+           min: 0, max: 1439, step: 1, scale: 1 },
+      ],
+      note: 'Makka va Madina vaqti Toshkentdan 2 soat orqada: Toshkentda 08:00 bo‘lsa, '
+          + 'Makkada 06:00. Kartochka kunduzgi yoki tungi ekanini ziyoratchi yozgan vaqt '
+          + 'belgilaydi.',
+      clock: true,
    },
    {
       // THE LIMIT RULE (owner, 18.09.2026): groups up to the limit are the ordinary
@@ -167,12 +211,22 @@ const GROUPS: { title: string; rows: Row[]; note?: string }[] = [
 function value(f: Row): number | string {
    const st = s.kpiSettings
    if (!st) return ''
+   if (f.kind === 'time') return clockText(st[f.key])
    return f.scale === 1 ? st[f.key] : st[f.key] / f.scale
+}
+
+/** «HH:MM» -> minutes after midnight, or NaN for anything the time input let through
+ *  half-typed. */
+function minutesOf(text: string): number {
+   const m = /^(\d{1,2}):(\d{2})$/.exec(text.trim())
+   if (!m) return NaN
+   const h = Number(m[1]), min = Number(m[2])
+   return h < 24 && min < 60 ? h * 60 + min : NaN
 }
 
 async function save(f: Row, ev: Event) {
    const el = ev.target as HTMLInputElement
-   const typed = Number(el.value)
+   const typed = f.kind === 'time' ? minutesOf(el.value) : Number(el.value)
    if (!Number.isFinite(typed)) {
       el.value = String(value(f))
       return

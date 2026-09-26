@@ -242,6 +242,10 @@ export interface KpiSettings {
    // changing version.
    city_makka_units: number; city_madina_units: number
    pkg_comfort_units: number; pkg_premium_units: number
+   // §10 — where the day and the night begin, in minutes after midnight on the MAKKA /
+   // MADINA clock (360 = 06:00). The server decides day vs night with them; the panel
+   // only edits and prints them.
+   day_start_min: number; night_start_min: number
    // §11's unit prices, READ-ONLY. Constants on the server — the reglament names each
    // sum in its own table — served here so a screen explaining a jarima line never
    // keeps its own copy of the numbers.
