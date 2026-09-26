@@ -256,7 +256,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import {
-   BUCKETS, dur, initials, isLeaderLevel, jobLabel,
+   BUCKETS, dayNightText, dur, initials, isLeaderLevel, jobLabel,
    personLabel, rowSegments, rowSplitHint, surveyStatus, uncounted, whereLabel, useNazoratView,
 } from './shared'
 
@@ -354,12 +354,15 @@ const payRows = computed(() => {
          amount: soum(sal.sovrin),
       })
    }
+   // The day and the night as Qiymatlar sets them, on the Makka clock — printed so the
+   // rule a fine was charged under can be checked against the card's own time.
+   const dn = dayNightText(s.kpiSettings)
    if (sal.day_javobsiz && f) {
       rows.push({
          label: 'Kunduzgi javobsiz',
          how: `${sal.day_javobsiz} × ${soum(f.day_javobsiz)}`,
-         why: 'Kunduzi kelgan kartochka yetkazildi, lekin «Qabul qilish» bosilmadi. '
-            + 'Tungi javobsizlik jarimaga tortilmaydi.',
+         why: `Kunduzi${dn ? ` (${dn.day}, Makka vaqti)` : ''} kelgan kartochka yetkazildi, `
+            + 'lekin «Qabul qilish» bosilmadi. Tungi javobsizlik jarimaga tortilmaydi.',
          amount: soum(sal.day_javobsiz * f.day_javobsiz), negative: true,
       })
    }
@@ -368,7 +371,8 @@ const payRows = computed(() => {
          label: 'Kechikib qabul qilish',
          how: `${sal.sla_breaches} × ${soum(f.sla_breach)}`,
          why: 'Qabul qilish normatividan 2 barobar kech bosilgan kartochkalar '
-            + '(kunduzi 30 daqiqa, tunda 90).',
+            + (dn ? `(kunduzi ${dn.day} — 30 daqiqa, tunda ${dn.night} — 90; Makka vaqti).`
+                  : '(kunduzi 30 daqiqa, tunda 90).'),
          amount: soum(sal.sla_breaches * f.sla_breach), negative: true,
       })
    }

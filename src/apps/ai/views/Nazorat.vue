@@ -95,11 +95,18 @@
             <!-- Not over the chat: a conversation does not answer to a period, and a
                  date filter above it invites the reader to think their messages do. -->
             <div v-if="isKpiScreen" class="mt-3.5 flex flex-wrap gap-2">
-               <template v-if="!isValues && !isFreeze">
+               <template v-if="!isValues && !isFreeze && !isTrips">
                   <router-link to="/ai/nazorat/qiymatlar"
                      class="btn-ghost inline-flex items-center gap-1.5 text-[13px]">
                      <font-awesome-icon icon="sliders" class="w-3.5 h-3.5" />
                      Qiymatlar
+                  </router-link>
+                  <!-- Ishchi guruh: the airport / Makka ziyorati trips, paid per trip. Not
+                       for the leaders' controller — it is the other population's pay. -->
+                  <router-link v-if="s.scope !== 'ellikboshi'" to="/ai/nazorat/chiqishlar"
+                     class="btn-ghost inline-flex items-center gap-1.5 text-[13px]">
+                     <font-awesome-icon icon="plane" class="w-3.5 h-3.5" />
+                     Chiqishlar
                   </router-link>
                   <!-- §13 — closing the month. Only the accounts that may actually close
                        it (admin + the full nazoratchi, exactly what the endpoint allows):
@@ -119,7 +126,7 @@
             </div>
             <!-- ...nor over the freeze screen, which names its own month: two period
                  controls on one screen is two answers to "which month am I closing". -->
-            <div v-if="!isDetail && !isChat && !isValues && !isFreeze"
+            <div v-if="!isDetail && !isChat && !isValues && !isFreeze && !isTrips"
                class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
@@ -187,7 +194,10 @@
                  The one-scroll below is four REPORTS read together in a meeting; a
                  conversation is not one of them, and dropping a message composer between
                  the ranking and the journal would make both harder to read. -->
-            <router-view v-else-if="isDetail || isChat" />
+            <!-- ...and so do the pay screens a KPI button leads to (Qiymatlar, Oyni yopish,
+                 Chiqishlar). The desktop one-scroll below holds none of them, so without
+                 this a desktop reader who pressed «Qiymatlar» got the overview back. -->
+            <router-view v-else-if="isDetail || isChat || isValues || isFreeze || isTrips" />
 
             <!-- One screen at a time on a phone; on a desktop the same four panels stay a
                  single scroll, because the office reads the whole thing in a meeting and
@@ -338,8 +348,11 @@ const isValues = computed(() => route.path === '/ai/nazorat/qiymatlar')
 // same kind of question — one person's money, and the scheme behind it — neither of
 // which has a per-city version.
 const isFreeze = computed(() => route.path === '/ai/nazorat/yopish')
+/** The crew's trips (Ishchi guruh KPI) — one of the pay screens: no period control, no
+ *  slice, and a way back to the KPI tab. */
+const isTrips = computed(() => route.path === '/ai/nazorat/chiqishlar')
 const isKpiScreen = computed(() =>
-   route.path === '/ai/nazorat/kpi' || isValues.value || isFreeze.value)
+   route.path === '/ai/nazorat/kpi' || isValues.value || isFreeze.value || isTrips.value)
 /** ...and the journal, since 2026-08-20 (owner: «убери фильтр по группам и городам,
  *  добавь фильтр по работникам и лидерам»). The journal is read to find a PERSON — who
  *  was sent what, and what they did about it — so the useful cut there is lavozim, and

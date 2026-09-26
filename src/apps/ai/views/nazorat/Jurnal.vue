@@ -15,6 +15,9 @@
             {{ personWord }}lar
          </button>
       </div>
+      <!-- Said once, because the times below are Makka's, not the browser's (see
+           fmtDateTime): the office reads them in Tashkent, two hours ahead. -->
+      <p class="px-1 text-[12px] text-[color:var(--n-muted)]">Vaqtlar Makka va Madina vaqtida.</p>
 
       <!-- LAVOZIM, not guruh/shahar (owner, 2026-08-20). The journal is read to find a
            PERSON, so the cut that helps here is "whose list am I reading" — a crew of

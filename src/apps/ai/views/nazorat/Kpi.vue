@@ -4,10 +4,10 @@
            lavozim filter (see kpiBoards in shared.ts). Only the leader-level board
            carries a ball — the reglament covers the ellikboshilar (§4.3); the crew's
            board shows the raw numbers their own document will one day score. -->
-      <div v-if="boards.length > 1" class="seg">
-         <button v-for="b in boards" :key="b.key" @click="kpiTab = b.key as any"
-            :class="kpiTab === b.key ? 'is-on' : ''">
-            {{ b.title }}
+      <div v-if="tabs.length > 1" class="seg">
+         <button v-for="t in tabs" :key="t.key" @click="kpiTab = t.key"
+            :class="activeTab === t.key ? 'is-on' : ''">
+            {{ t.title }}
          </button>
       </div>
 
@@ -27,6 +27,11 @@
          Kunlik / Haftalik / Oylik tanloviga bog'liq emas.
       </p>
 
+      <!-- ISHCHI GURUH — their own scheme since 26.09.2026 (60% doimiy + 40% KPI × Q × V,
+           trips, SAR): a board of its own, not the leaders' ball with the money left off. -->
+      <CrewKpi v-if="activeTab === 'staff'" />
+
+      <template v-else>
       <div v-if="s.kpiLoading" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
          Yuklanmoqda…
       </div>
@@ -416,6 +421,7 @@
             </div>
          </div>
       </section>
+      </template>
 
    </div>
 </template>
@@ -427,12 +433,27 @@ import { useAuthStore } from '../../../../stores/auth'
 import { useToast } from '../../../../composables/useToast'
 import { useNazoratStore, type Worker } from '../../stores/nazorat'
 import { dur, kpiTab, surveyStatus, useNazoratView } from './shared'
+import CrewKpi from './CrewKpi.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 const s = useNazoratStore()
 const { kpiBoards: boards, kpiBoard: board } = useNazoratView()
+
+/** The two boards, by who this login may see — NOT by who happened to have cards this
+ *  month: the crew's board is a pay list and stands whether or not anyone was busy. */
+const tabs = computed(() => {
+   const out: { key: 'ellikboshi' | 'staff'; title: string }[] = []
+   if (s.scope !== 'staff') {
+      out.push({ key: 'ellikboshi',
+                 title: boards.value.find((b) => b.key === 'ellikboshi')?.title || 'Ellikboshilar' })
+   }
+   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Ishchi guruh' })
+   return out
+})
+const activeTab = computed(() =>
+   tabs.value.find((t) => t.key === kpiTab.value)?.key || tabs.value[0]?.key || 'ellikboshi')
 
 /** The two writes of §3, mirroring the API's guards rather than trusting the client
  *  (owner, 2026-08-18):
