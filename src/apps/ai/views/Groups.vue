@@ -149,7 +149,12 @@
               </div>
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">Ellikboshi</label>
-                <input v-model="g.ellikboshi_username" type="text" placeholder="@username" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <!-- Picked from the «Ellikboshilar» list, not typed: a typed @username
+                     with one wrong letter reached nobody and nothing said so. -->
+                <select v-model="g.ellikboshi_username" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <option value="">— tanlanmagan —</option>
+                  <option v-for="u in leaderOptions(g)" :key="u" :value="u">{{ leaderLabel(u) }}</option>
+                </select>
                 <!-- This box sets ONE leader for the whole trip. A group split between
                      cities says so rather than pretending the box describes it: leaving
                      it silent would let somebody flatten a split by saving an unrelated
@@ -402,6 +407,50 @@ const savingId = ref<number | null>(null)
 const savedId = ref<number | null>(null)
 const errorId = ref<number | null>(null)
 const errorMsg = ref('')
+
+// ─── Ellikboshi picker ──────────────────────────────────────────────────────────
+// The same list the «Ellikboshilar» screen keeps. The qa login cannot read that list
+// (the API opens it to the mingboshi and up), so the leaders already standing on the
+// groups are offered too — qa can still move a group to any leader who runs one.
+
+interface PoolLeader { username: string; name: string | null }
+const pool = ref<PoolLeader[]>([])
+
+async function loadPool() {
+  try {
+    const { data } = await api.get('/ellikboshilar')
+    pool.value = (data as any[]).filter(e => e.is_active !== false)
+  } catch {
+    pool.value = []
+  }
+}
+
+function sameLeader(a: string, b: string): boolean {
+  const n = (u: string) => u.trim().replace(/^@/, '').toLowerCase()
+  return n(a) === n(b)
+}
+
+/** The group's own value first and VERBATIM — the select matches strings exactly, so
+ *  a stored «@Ali» must stay «@Ali» even where the list spells it «@ali», or the box
+ *  would show «tanlanmagan» and the next Saqlash would clear the leader. */
+function leaderOptions(g: Grp): string[] {
+  const opts: string[] = []
+  const add = (u: string | null | undefined) => {
+    if (u && u.trim() && !opts.some(o => sameLeader(o, u))) opts.push(u)
+  }
+  add(g.ellikboshi_username)
+  const rest: string[] = []
+  for (const e of pool.value) rest.push(e.username)
+  for (const x of groups.value) rest.push(x.ellikboshi_username, x.ellikboshi_makka, x.ellikboshi_madina)
+  rest.sort((a, b) => leaderLabel(a).localeCompare(leaderLabel(b)))
+  for (const u of rest) add(u)
+  return opts
+}
+
+function leaderLabel(username: string): string {
+  const e = pool.value.find(x => sameLeader(x.username, username))
+  return e?.name ? `${e.name} (${username})` : username
+}
 
 /** Two different people across the two cities. The legacy column is the fallback for a
  *  city that was never filled — the same rule the server resolves by. */
@@ -871,5 +920,5 @@ async function remint(g: Grp) {
   }
 }
 
-onMounted(() => { hotelsStore.fetch(); load(); loadPrograms() })
+onMounted(() => { hotelsStore.fetch(); load(); loadPrograms(); loadPool() })
 </script>
