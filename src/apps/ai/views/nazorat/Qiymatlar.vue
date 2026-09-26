@@ -1,5 +1,16 @@
 <template>
    <div class="space-y-3">
+      <!-- Two schemes, two sets of numbers. The workers' controller sees only the
+           crew's (and only part of those); the leaders' controller only the leaders';
+           the admin and the full nazoratchi switch between them. -->
+      <div v-if="tabs.length > 1" class="seg">
+         <button v-for="t in tabs" :key="t.key" :class="activeTab === t.key ? 'is-on' : ''"
+            @click="tab = t.key">{{ t.title }}</button>
+      </div>
+
+      <CrewQiymatlar v-if="activeTab === 'staff'" />
+
+      <template v-else>
       <!-- Every number the pay model reads, in one place and nowhere else. They were
            panels hanging off the KPI board, which put settings on a screen people open
            to READ a month — and a fund field beside somebody's payslip invites editing
@@ -59,17 +70,30 @@
             </div>
          </div>
       </section>
+      </template>
    </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useNazoratStore, type KpiSettings } from '../../stores/nazorat'
 import { useToast } from '../../../../composables/useToast'
 import { MAKKA_TZ, clockText } from './shared'
+import CrewQiymatlar from './CrewQiymatlar.vue'
 
 const s = useNazoratStore()
 const toast = useToast()
+
+/** Which scheme's numbers are on screen — see the template. */
+const tab = ref<'ellikboshi' | 'staff'>('ellikboshi')
+const tabs = computed(() => {
+   const out: { key: 'ellikboshi' | 'staff'; title: string }[] = []
+   if (s.scope !== 'staff') out.push({ key: 'ellikboshi', title: 'Ellikboshilar' })
+   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Ishchi guruh' })
+   return out
+})
+const activeTab = computed(() =>
+   tabs.value.find((t) => t.key === tab.value)?.key || tabs.value[0]?.key || 'ellikboshi')
 
 /** The Makka wall clock, live — so whoever moves a boundary can see which side of it
  *  «now» falls on without converting from Tashkent in their head. */

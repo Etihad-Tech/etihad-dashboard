@@ -112,6 +112,10 @@ const router = createRouter({
         { path: 'reyting', name: 'AiNazoratReyting', component: () => import('../apps/ai/views/nazorat/Reyting.vue') },
         { path: 'kpi', name: 'AiNazoratKpi', component: () => import('../apps/ai/views/nazorat/Kpi.vue') },
         { path: 'qiymatlar', name: 'AiNazoratQiymatlar', component: () => import('../apps/ai/views/nazorat/Qiymatlar.vue') },
+        // Ishchi guruh KPI — the airport / Makka ziyorati trips the workers' controller
+        // enters (owner, 26.09.2026). The API admits admin + the full and the workers'
+        // nazoratchi; the panel offers the link to the same logins.
+        { path: 'chiqishlar', name: 'AiNazoratChiqishlar', component: () => import('../apps/ai/views/nazorat/Chiqishlar.vue') },
         // §13 — closing the month. Admin + the full nazoratchi only; the API enforces
         // it, and the panel only offers the link to the same accounts.
         { path: 'yopish', name: 'AiNazoratYopish', component: () => import('../apps/ai/views/nazorat/Yopish.vue') },
