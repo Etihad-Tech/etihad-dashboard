@@ -485,8 +485,13 @@ const BLOCKS = [
       { k: 'q3_tashkent', label: 'Umumiy baho', type: 'scale' }] },
    { key: 'q4', title: "Guruh adminining Telegram'dagi ishi", who: 'guruh admini', rows: [
       { k: 'q4_admin', label: 'Umumiy baho', type: 'scale' }] },
-   { key: 'q5', title: 'Ishchi guruh (Makka / Madina)', who: 'ishchi guruh', rows: [
-      { k: 'q5_workgroup', label: 'Umumiy baho', type: 'scale' }] },
+   // One score per CITY (owner, 2026-09-26: «опрос раздели на макка и мадина») — the
+   // two crews are different people, and a single score let one city's bad week pull
+   // down the other's half of the ball. Surveys saved before keep their one
+   // `q5_workgroup` answer; it is not asked any more (see AFF_LABELS).
+   { key: 'q5', title: 'Ishchi guruh', who: 'ishchi guruh', rows: [
+      { k: 'q5_workgroup_md', label: 'Madinadagi ishchi guruh', type: 'scale' },
+      { k: 'q5_workgroup_mk', label: 'Makkadagi ishchi guruh', type: 'scale' }] },
    { key: 'q6', title: 'Shifokor xizmati', who: 'shifokorlar', rows: [
       { k: 'q6_doctor_md', label: 'Madinadagi shifokor', type: 'scale' },
       { k: 'q6_doctor_mk', label: 'Makkadagi shifokor', type: 'scale' }] },
@@ -869,7 +874,10 @@ const preview = computed(() => {
 
 const AFF_LABELS: Record<string, string> = {
    q2_otinoyi: 'Otinoyi', q3_tashkent: 'Toshkent jamoasi', q4_admin: 'Guruh admini',
-   q5_workgroup: 'Ishchi guruh', q6_doctor_md: 'Shifokor (Madina)', q6_doctor_mk: 'Shifokor (Makka)',
+   q5_workgroup_md: 'Ishchi guruh (Madina)', q5_workgroup_mk: 'Ishchi guruh (Makka)',
+   // Before the split: one score for both cities. Only surveys saved before 26.09 carry it.
+   q5_workgroup: 'Ishchi guruh (ikkala shahar)',
+   q6_doctor_md: 'Shifokor (Madina)', q6_doctor_mk: 'Shifokor (Makka)',
    q7_hotel_md: 'Mehmonxona (Madina)', q7_hotel_mk: 'Mehmonxona (Makka)', q7_hotel_jd: 'Mehmonxona (Jidda)',
    q8_food_mk: 'Taomlar (Makka)', q8_food_md: 'Taomlar (Madina)', q9_avia: 'Aviakompaniya',
 }
@@ -896,7 +904,9 @@ function open(p: any) {
    pickedGroup.value = p.chat_id
    isSaved.value = p.survey_status === 'saved'
    savedScore.value = p.ell_score ?? null
-   for (const k of ALL_KEYS) delete answers[k]
+   // EVERY key, not just the asked ones: an old draft's retired `q5_workgroup` is not in
+   // ALL_KEYS, and clearing only those would carry it into the next pilgrim's survey.
+   for (const k of Object.keys(answers)) delete answers[k]
    touched.clear()
    problems.value = []
    suggestion.value = ''
