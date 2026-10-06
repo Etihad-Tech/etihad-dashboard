@@ -11,23 +11,31 @@
          </button>
       </div>
 
-      <!-- WHICH MONTH. This tab does NOT answer the panel's Kunlik/Haftalik/Oylik
-           selector: that «Oylik» is the last 30 DAYS, and a payslip has to be the
-           calendar month the accountant means (owner, 2026-08-27 — after a freeze the
-           numbers did not start fresh, because a rolling window still carried the month
-           just closed). Twelve back covers any correction anyone will make. -->
-      <div class="no-bar flex gap-2 overflow-x-auto -mx-5 px-5 py-0.5 lg:mx-0 lg:px-0">
+      <!-- WHICH MONTH. This tab does NOT answer the panel's period picker: a payslip
+           has to be the calendar month the accountant means (owner, 2026-08-27 — after a
+           freeze the numbers did not start fresh, because the old rolling «Oylik» still
+           carried the month just closed). Twelve back covers any correction anyone will
+           make. On a phone the panel's picker is hidden on this tab; on a desktop it sits
+           above, over Holat, hence the line under the chips. -->
+      <!-- Tashkiliy guruh reads in Uzbek or Arabic (owner, 2026-10-06), and the month
+           chips and the line under them belong to its board, so they turn with it. -->
+      <CrewLangSwitch v-if="isCrew" />
+      <div class="no-bar flex gap-2 overflow-x-auto -mx-5 px-5 py-0.5 lg:mx-0 lg:px-0"
+         v-bind="isCrew ? crewDir() : {}">
          <button v-for="m in months" :key="m.period" class="fchip shrink-0"
             :class="s.kpiMonth === m.period ? 'is-on' : ''" @click="s.setKpiMonth(m.period)">
-            {{ m.label }}
+            {{ isCrew ? monthName(m.period) : m.label }}
          </button>
       </div>
-      <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
-         {{ monthLabel(s.kpiMonth) }} — to'liq kalendar oy. Bu sahifa yuqoridagi
-         Kunlik / Haftalik / Oylik tanloviga bog'liq emas.
+      <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]" v-bind="isCrew ? crewDir() : {}">
+         <template v-if="isCrew">{{ tr('month_note', { m: monthName(s.kpiMonth) }) }}</template>
+         <template v-else>
+            {{ monthLabel(s.kpiMonth) }} — to'liq kalendar oy. Bu bo'lim yuqoridagi
+            davr tanloviga bog'liq emas.
+         </template>
       </p>
 
-      <!-- ISHCHI GURUH — their own scheme since 26.09.2026 (60% doimiy + 40% KPI × Q × V,
+      <!-- TASHKILIY GURUH — their own scheme since 26.09.2026 (60% doimiy + 40% KPI × Q × V,
            trips, SAR): a board of its own, not the leaders' ball with the money left off. -->
       <CrewKpi v-if="activeTab === 'staff'" />
 
@@ -432,8 +440,12 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../../../stores/auth'
 import { useToast } from '../../../../composables/useToast'
 import { useNazoratStore, type Worker } from '../../stores/nazorat'
-import { dur, kpiTab, surveyStatus, useNazoratView } from './shared'
+import {
+   currentMonth, dur, kpiTab, lastMonths, monthLabel, surveyStatus, useNazoratView,
+} from './shared'
 import CrewKpi from './CrewKpi.vue'
+import CrewLangSwitch from './CrewLangSwitch.vue'
+import { crewDir, monthName, tr } from './crew'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -449,11 +461,13 @@ const tabs = computed(() => {
       out.push({ key: 'ellikboshi',
                  title: boards.value.find((b) => b.key === 'ellikboshi')?.title || 'Ellikboshilar' })
    }
-   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Ishchi guruh' })
+   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Tashkiliy guruh' })
    return out
 })
 const activeTab = computed(() =>
    tabs.value.find((t) => t.key === kpiTab.value)?.key || tabs.value[0]?.key || 'ellikboshi')
+/** The Tashkiliy guruh board is on screen. */
+const isCrew = computed(() => activeTab.value === 'staff')
 
 /** The two writes of §3, mirroring the API's guards rather than trusting the client
  *  (owner, 2026-08-18):
@@ -482,29 +496,10 @@ const gradable = (w: Worker) => w.completed + w.reopened + w.never_accepted
 // arrives with the period slice the store already loads.
 // The ladder is still needed here to render an unvon; the SCHEME's numbers moved
 // to Qiymatlar, which loads them itself.
-// Uzbek month names, the same list and wording «Oyni yopish» uses — the two screens name
-// the same month and must not do it two different ways.
-const UZ_MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul',
-   'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr']
-
-function monthLabel(p: string): string {
-   const [y, m] = (p || '').split('-')
-   return `${UZ_MONTHS[Number(m) - 1] || m} ${y}`
-}
-
 /** The last twelve months, newest first. A list rather than a date field, for the same
  *  reason «Oyni yopish» uses one: a typed month is a way to read somebody's pay for the
- *  wrong period without noticing. */
-const months = computed(() => {
-   const now = new Date()
-   const out: { period: string; label: string }[] = []
-   for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      out.push({ period, label: monthLabel(period) })
-   }
-   return out
-})
+ *  wrong period without noticing. The same list the panel's period picker offers. */
+const months = computed(() => lastMonths())
 
 onMounted(() => {
    void s.loadCategories()
@@ -652,7 +647,9 @@ function subline(r: { w: Worker; job: string }): string {
 /** WHO may write pay. The same accounts the endpoint allows — admin and the full
  *  nazoratchi — so a field is never offered to a login whose save would 403. The
  *  scoped controllers curate evidence; they do not set salaries. */
-const canWritePay = computed(() => s.scope === 'all' && s.period === 'month')
+// ...and only on the CURRENT month's board, because a save lands on the current month
+// (setManual). It used to read «Oylik is on» from the panel's picker, which is gone.
+const canWritePay = computed(() => s.scope === 'all' && s.kpiMonth === currentMonth())
 
 /** Every hand-written save goes through here: one place to report a refusal, and one
  *  place that knows the server's message is the useful one. The rules are the server's

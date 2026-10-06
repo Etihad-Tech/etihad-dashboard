@@ -126,12 +126,31 @@
             </div>
             <!-- ...nor over the freeze screen, which names its own month: two period
                  controls on one screen is two answers to "which month am I closing". -->
-            <div v-if="!isDetail && !isChat && !isValues && !isFreeze && !isTrips"
+            <!-- ...nor over the phone's KPI tab, which has its own month chips: two month
+                 pickers on one screen would be two answers to "which month is this". On a
+                 desktop the KPI sits in the one-scroll under Holat, so the picker stays. -->
+            <div v-if="!isDetail && !isChat && !isValues && !isFreeze && !isTrips && !isPhoneKpi"
                class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
                   {{ p.label }}
                </button>
+               <!-- «Oylik» used to be the last 30 days. It is a MONTH by name now, the
+                    calendar month, so every month starts from zero (owner, 2026-10-06).
+                    A native select: twelve months do not fit a phone as buttons, and the
+                    phone's own wheel is the best month picker it has. The empty option
+                    is what it reads while a day or a week is on, so picking ANY month —
+                    the current one included — is a change and lands. -->
+               <label class="seg-pick" :class="isMonthPeriod(s.period) ? 'is-on' : ''">
+                  <select :value="isMonthPeriod(s.period) ? s.period : ''" aria-label="Oy"
+                     @change="s.setPeriod(($event.target as HTMLSelectElement).value)">
+                     <option value="" disabled hidden>Oylar</option>
+                     <option v-for="m in MONTHS" :key="m.period" :value="m.period">
+                        {{ m.short }}
+                     </option>
+                  </select>
+                  <font-awesome-icon icon="chevron-down" class="w-2.5 h-2.5" aria-hidden="true" />
+               </label>
             </div>
          </div>
 
@@ -259,7 +278,7 @@ import Guruhlar from './nazorat/Guruhlar.vue'
 import Ogohlantirishlar from './nazorat/Ogohlantirishlar.vue'
 import { CHAT_ROLES, useNazoratStore } from '../stores/nazorat'
 import { useAuthStore } from '../../../stores/auth'
-import { PERIODS, useNazoratView } from './nazorat/shared'
+import { PERIODS, isMonthPeriod, lastMonths, useNazoratView } from './nazorat/shared'
 import './nazorat/nazorat.css'
 
 const s = useNazoratStore()
@@ -363,6 +382,12 @@ const isJournal = computed(() => route.path === '/ai/nazorat/jurnal')
 watch(isJournal, (on) => {
    if (on && (s.filterGroup || s.filterCity)) s.clearSlice()
 }, { immediate: true })
+/** The months the period picker offers — newest first, the same twelve the KPI tab
+ *  shows. Built once per visit; a panel left open across the 1st offers the new month
+ *  after a page reload. */
+const MONTHS = lastMonths()
+/** The phone's KPI tab: it brings its own month chips, so the panel's picker steps aside. */
+const isPhoneKpi = computed(() => !isDesktop.value && route.path === '/ai/nazorat/kpi')
 const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
 watch(isRating, (on) => {
    if (on && s.filterCity) {

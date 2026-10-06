@@ -1,11 +1,12 @@
 <template>
-   <div class="space-y-3">
+   <!-- The language switch lives on the KPI tab, above the month chips it also turns. -->
+   <div class="space-y-3" v-bind="crewDir()">
       <div v-if="loading && !board" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
-         Yuklanmoqda…
+         {{ tr('loading') }}
       </div>
       <div v-else-if="error" class="card py-10 text-center">
-         <p class="text-[15px] text-[color:var(--n-muted)] mb-4">Ma'lumot yuklanmadi.</p>
-         <button class="btn-primary" @click="load()">Qayta urinish</button>
+         <p class="text-[15px] text-[color:var(--n-muted)] mb-4">{{ tr('load_failed') }}</p>
+         <button class="btn-primary" @click="load()">{{ tr('retry') }}</button>
       </div>
 
       <template v-else-if="board">
@@ -13,32 +14,32 @@
               «для сентября тоже вывести было бы не плохо»). Said first, so nobody reads a
               trial sheet as a payslip. -->
          <div v-if="board.trial" class="card p-4 text-[13.5px] leading-snug">
-            <b>Sinov hisobi.</b> {{ monthName(board.period) }} to'lanmaydi — ma'lumot uchun.
-            To'lov {{ monthName(board.first_paid_period) }}dan boshlanadi.
+            <b>{{ tr('trial_title') }}</b>
+            {{ tr('trial_body', { month: monthName(board.period), first: monthName(board.first_paid_period) }) }}
          </div>
 
          <!-- THE MONTH: the plan share (V) is one number for everybody, so it is stated
               once, above the people, with where it came from. -->
          <section class="card p-5 n-enter">
             <div class="flex items-baseline gap-2.5">
-               <h3 class="n-h">Oylik reja</h3>
-               <span class="ml-auto text-[13px] text-[color:var(--n-muted)] tabular-nums">
-                  reja: {{ board.flown.plan.toLocaleString('ru-RU') }} kishi
+               <h3 class="n-h">{{ tr('plan_title') }}</h3>
+               <span class="ms-auto text-[13px] text-[color:var(--n-muted)] tabular-nums">
+                  {{ tr('plan_count', { n: num(board.flown.plan) }) }}
                </span>
             </div>
             <div class="mt-2 flex items-end gap-3">
                <span class="text-[34px] leading-none font-bold tabular-nums tracking-[-0.04em]">
-                  {{ board.flown.value === null ? '—' : board.flown.value.toLocaleString('ru-RU') }}
+                  {{ board.flown.value === null ? '—' : num(board.flown.value) }}
                </span>
                <span class="pb-1 text-[14px] text-[color:var(--n-muted)]">
-                  uchgan · bajarilishi {{ pct(board.flown.v) }}
+                  {{ tr('flown_line', { pct: pct(board.flown.v) }) }}
                </span>
             </div>
             <p class="mt-1.5 text-[12.5px] text-[color:var(--n-muted)] leading-snug">{{ flownSource }}</p>
 
             <details v-if="board.flown.crm && board.flown.crm.departures.length" class="mt-2">
                <summary class="text-[13px] font-semibold cursor-pointer">
-                  CRM bo'yicha reyslar ({{ board.flown.crm.departures.length }})
+                  {{ tr('crm_flights', { n: board.flown.crm.departures.length }) }}
                </summary>
                <div class="mt-2 space-y-1 text-[13px] tabular-nums">
                   <div v-for="d in board.flown.crm.departures" :key="d.departure_id" class="flex gap-3">
@@ -52,21 +53,21 @@
             <!-- The hand figure — for when the CRM is unreachable or its number is wrong.
                  Always wins over the CRM; a source is mandatory. -->
             <div class="mt-3 flex flex-wrap items-center gap-2">
-               <input v-model="flownInput" type="number" min="0" placeholder="Qo'lda: son"
+               <input v-model="flownInput" type="number" min="0" :placeholder="tr('flown_input')"
                   class="w-32 px-3 py-2 rounded-xl border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[14px] tabular-nums" />
-               <input v-model="flownNote" type="text" placeholder="Manba (masalan: manifest)"
+               <input v-model="flownNote" type="text" :placeholder="tr('flown_source')"
                   class="flex-1 min-w-[10rem] px-3 py-2 rounded-xl border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-[14px]" />
-               <button class="btn-ghost" :disabled="busy" @click="saveFlown()">Saqlash</button>
+               <button class="btn-ghost" :disabled="busy" @click="saveFlown()">{{ tr('save') }}</button>
                <button v-if="board.flown.manual !== null" class="btn-ghost" :disabled="busy"
-                  @click="clearFlown()">CRM soniga qaytarish</button>
+                  @click="clearFlown()">{{ tr('back_to_crm') }}</button>
             </div>
          </section>
 
          <!-- THE SURVEY HALF, per city: every crew member of a city shares it. -->
          <section class="card p-5 n-enter">
             <div class="flex items-baseline gap-2.5">
-               <h3 class="n-h">Ziyoratchilar so'rovi</h3>
-               <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">ballning {{ surveyPct }}%</span>
+               <h3 class="n-h">{{ tr('survey_title') }}</h3>
+               <span class="ms-auto text-[13px] text-[color:var(--n-muted)]">{{ tr('survey_share', { n: surveyPct }) }}</span>
             </div>
             <div class="mt-3 grid grid-cols-2 gap-3">
                <div v-for="c in (['makka', 'madina'] as const)" :key="c" class="card-inset p-3.5">
@@ -75,14 +76,14 @@
                      {{ board.survey[c].ball === null ? '—' : fmtBall(board.survey[c].ball) }}
                   </p>
                   <p class="text-[12px] text-[color:var(--n-muted)] leading-snug">
-                     {{ board.survey[c].used }} ta so'rov hisobga kirdi
+                     {{ tr('survey_used', { n: board.survey[c].used }) }}
                      <template v-if="board.survey[c].surveys !== board.survey[c].used">
-                        ({{ board.survey[c].surveys }} tadan)</template>
+                        {{ tr('survey_of', { n: board.survey[c].surveys }) }}</template>
                   </p>
                </div>
             </div>
             <p class="mt-2 text-[12.5px] text-[color:var(--n-muted)] leading-snug">
-               So'rov bo'lmasa yoki guruhning yarmidan kami so'ralgan bo'lsa, ball faqat bot va CRM bo'yicha.
+               {{ tr('survey_note') }}
             </p>
          </section>
 
@@ -91,73 +92,74 @@
          <section v-for="grp in groups" :key="grp.city" class="card p-5 n-enter">
             <div class="flex items-baseline gap-2.5">
                <h3 class="n-h">{{ cityName(grp.city) }}</h3>
-               <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">{{ grp.rows.length }} xodim</span>
+               <span class="ms-auto text-[13px] text-[color:var(--n-muted)]">{{ tr('staff_count', { n: grp.rows.length }) }}</span>
             </div>
             <div class="mt-2 space-y-0.5">
                <div v-for="r in grp.rows" :key="r.id">
                   <button type="button" class="row-tap w-full flex items-center gap-3 py-3 -mx-2 px-2 rounded-[1.125rem]"
                      @click="openId = openId === r.id ? null : r.id">
-                     <span class="min-w-0 flex-1 text-left">
+                     <span class="min-w-0 flex-1 text-start">
                         <span class="block text-[15px] font-semibold tracking-[-0.015em] truncate">{{ personName(r) }}</span>
                         <span class="block mt-0.5 text-[12.5px] text-[color:var(--n-faint)] tabular-nums truncate">
                            {{ subline(r) }}
                         </span>
                      </span>
-                     <span class="shrink-0 text-right">
+                     <span class="shrink-0 text-end">
                         <span class="block text-[20px] font-bold tabular-nums leading-none tracking-[-0.03em]">
                            {{ r.pay.total === null ? '—' : sar(r.pay.total) }}
                         </span>
                         <span class="block text-[12px] text-[color:var(--n-muted)] mt-1">
-                           {{ r.ball === null ? (r.min_sample ? 'ball kutilmoqda' : 'ball yo\'q') : `${r.ball} ball · Q ${r.q}%` }}
+                           {{ r.ball === null ? tr(r.min_sample ? 'ball_pending' : 'ball_none') : tr('ball_q', { ball: r.ball, q: r.q ?? '' }) }}
                         </span>
                      </span>
+                     <!-- Points to the reading direction's END: right in Uzbek, left in Arabic. -->
                      <font-awesome-icon icon="chevron-right"
                         class="w-3 h-3 text-[color:var(--n-faint)] shrink-0 transition-transform duration-200"
-                        :class="openId === r.id ? 'rotate-90' : ''" />
+                        :class="openId === r.id ? 'rotate-90' : 'rtl:rotate-180'" />
                   </button>
 
                   <div v-if="openId === r.id"
                      class="mx-1 mb-2 px-4 py-3 rounded-[1rem] bg-[color:var(--n-soft,rgba(0,0,0,0.04))] space-y-3 text-[13.5px]">
                      <!-- The ball, component by component. -->
                      <div v-if="r.ops" class="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5 tabular-nums">
-                        <span>Bajarilgani</span>
+                        <span>{{ tr('ops_done') }}</span>
                         <span class="text-[color:var(--n-muted)]">{{ r.ops.bajarish_pct }}%</span>
-                        <span class="font-semibold text-right">{{ r.ops.bajarish_ball }}/{{ r.ops.weights.bajarish }}</span>
-                        <span>Javob berilgani</span>
+                        <span class="font-semibold text-end">{{ r.ops.bajarish_ball }}/{{ r.ops.weights.bajarish }}</span>
+                        <span>{{ tr('ops_answered') }}</span>
                         <span class="text-[color:var(--n-muted)]">{{ hundred(r.ops.javobsiz_pct) }}%</span>
-                        <span class="font-semibold text-right">{{ r.ops.javobsiz_ball }}/{{ r.ops.weights.javobsiz }}</span>
-                        <span>Takrorlanmagani</span>
+                        <span class="font-semibold text-end">{{ r.ops.javobsiz_ball }}/{{ r.ops.weights.javobsiz }}</span>
+                        <span>{{ tr('ops_unrepeated') }}</span>
                         <span class="text-[color:var(--n-muted)]">{{ hundred(r.ops.takroriy_pct) }}%</span>
-                        <span class="font-semibold text-right">{{ r.ops.takroriy_ball }}/{{ r.ops.weights.takroriy }}</span>
-                        <span>Javob tezligi</span>
-                        <span class="text-[color:var(--n-muted)]">{{ r.ops.tezlik_measured ? dur(r.cards.day_avg_response_seconds) : '—' }}</span>
-                        <span class="font-semibold text-right">{{ r.ops.tezlik_ball }}/{{ r.ops.weights.tezlik }}</span>
-                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">Bot va CRM</span>
+                        <span class="font-semibold text-end">{{ r.ops.takroriy_ball }}/{{ r.ops.weights.takroriy }}</span>
+                        <span>{{ tr('ops_speed') }}</span>
+                        <span class="text-[color:var(--n-muted)]">{{ r.ops.tezlik_measured ? durL(r.cards.day_avg_response_seconds) : '—' }}</span>
+                        <span class="font-semibold text-end">{{ r.ops.tezlik_ball }}/{{ r.ops.weights.tezlik }}</span>
+                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))]">{{ tr('ops_bot') }}</span>
                         <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] text-[color:var(--n-muted)]">× {{ 100 - surveyPct }}%</span>
-                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-semibold text-right">{{ r.ops.total }}</span>
-                        <span>So'rov ({{ cityName(r.location) }})</span>
+                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-semibold text-end">{{ r.ops.total }}</span>
+                        <span>{{ tr('ops_survey', { city: cityName(r.location) }) }}</span>
                         <span class="text-[color:var(--n-muted)]">× {{ surveyPct }}%</span>
-                        <span class="font-semibold text-right">{{ r.survey_ball === null ? '—' : fmtBall(r.survey_ball) }}</span>
-                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-semibold">Umumiy ball</span>
+                        <span class="font-semibold text-end">{{ r.survey_ball === null ? '—' : fmtBall(r.survey_ball) }}</span>
+                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-semibold">{{ tr('ops_total') }}</span>
                         <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] text-[color:var(--n-muted)]">
-                           {{ r.q === null ? '' : `KPI ning ${r.q}%` }}
+                           {{ r.q === null ? '' : tr('ops_kpi_share', { q: r.q }) }}
                         </span>
-                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-bold text-right">
-                           {{ r.ball === null ? '—' : r.ball }}<template v-if="r.hand_ball"> (qo'lda)</template>
+                        <span class="pt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-bold text-end">
+                           {{ r.ball === null ? '—' : r.ball }}<template v-if="r.hand_ball"> {{ tr('by_hand') }}</template>
                         </span>
                      </div>
-                     <p v-else class="text-[color:var(--n-muted)]">Bu oyda baholanadigan murojaat yo'q.</p>
+                     <p v-else class="text-[color:var(--n-muted)]">{{ tr('no_graded') }}</p>
 
                      <!-- Under the minimum sample: the ball is written by hand. -->
                      <div v-if="r.min_sample" class="card-inset p-3 space-y-2">
                         <p class="leading-snug">
-                           Murojaatlar kam ({{ r.ops ? r.ops.base : 0 }} ta) — ballni Sifat nazorati qo'lda qo'yadi.
+                           {{ tr('min_sample', { n: r.ops ? r.ops.base : 0 }) }}
                         </p>
                         <div class="flex flex-wrap items-center gap-2">
-                           <input type="number" min="0" max="100" placeholder="ball"
-                              class="w-24 px-2 py-1.5 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent tabular-nums text-right"
+                           <input type="number" min="0" max="100" :placeholder="tr('ph_ball')"
+                              class="w-24 px-2 py-1.5 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent tabular-nums text-end"
                               :value="r.manual?.ball ?? ''" @change="saveBall(r, $event)" />
-                           <input type="text" placeholder="izoh"
+                           <input type="text" :placeholder="tr('ph_note')"
                               class="flex-1 min-w-[8rem] px-2 py-1.5 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent"
                               :value="r.manual?.ball_note ?? ''" @change="saveBallNote(r, $event)" />
                         </div>
@@ -165,69 +167,69 @@
 
                      <!-- The month in SAR. Every line that makes the total, in order. -->
                      <div class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 tabular-nums">
-                        <span>Maosh bazasi</span>
-                        <span class="text-right">
+                        <span>{{ tr('salary_base') }}</span>
+                        <span class="text-end">
                            <input v-if="board.can_set_pay" type="number" min="0" step="100"
-                              class="w-28 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-right"
+                              class="w-28 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-end"
                               :value="r.salary_sar ?? ''" @change="savePay(r, 'salary_sar', $event)" />
                            <template v-else>{{ sar(r.salary_sar) }}</template>
                         </span>
                         <template v-if="board.can_set_pay">
-                           <span>Ishga kelgan sana</span>
-                           <span class="text-right">
+                           <span>{{ tr('work_start') }}</span>
+                           <span class="text-end">
                               <input type="date" class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent"
                                  :value="r.work_start ?? ''" @change="savePay(r, 'work_start', $event)" />
                            </span>
-                           <span>Ishdan ketgan sana</span>
-                           <span class="text-right">
+                           <span>{{ tr('work_end') }}</span>
+                           <span class="text-end">
                               <input type="date" class="px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent"
                                  :value="r.work_end ?? ''" @change="savePay(r, 'work_end', $event)" />
                            </span>
                         </template>
                         <template v-if="r.pay.missing_salary">
                            <span class="col-span-2 text-[color:var(--n-muted)]">
-                              Maosh bazasi kiritilmagan — oylik hisoblanmaydi.
+                              {{ tr('salary_missing') }}
                            </span>
                         </template>
                         <template v-else>
                            <template v-if="r.pay.worked_days !== r.pay.month_days">
-                              <span>Ishlagan kunlar</span>
-                              <span class="text-right">{{ r.pay.worked_days }} / {{ r.pay.month_days }}</span>
+                              <span>{{ tr('worked_days') }}</span>
+                              <span class="text-end">{{ r.pay.worked_days }} / {{ r.pay.month_days }}</span>
                            </template>
-                           <span>Doimiy qism ({{ r.pay.doimiy_pct }}%)</span>
-                           <span class="text-right font-semibold">{{ sar(r.pay.doimiy) }}</span>
-                           <span>KPI ({{ 100 - r.pay.doimiy_pct }}%)</span>
-                           <span class="text-right font-semibold">{{ r.pay.kpi === null ? 'kutilmoqda' : sar(r.pay.kpi) }}</span>
+                           <span>{{ tr('fixed_part', { n: r.pay.doimiy_pct }) }}</span>
+                           <span class="text-end font-semibold">{{ sar(r.pay.doimiy) }}</span>
+                           <span>{{ tr('kpi_part', { n: 100 - r.pay.doimiy_pct }) }}</span>
+                           <span class="text-end font-semibold">{{ r.pay.kpi === null ? tr('pending') : sar(r.pay.kpi) }}</span>
                            <span class="col-span-2 -mt-1 text-[12.5px] text-[color:var(--n-muted)]">{{ kpiLine(r) }}</span>
                            <template v-if="r.pay.airport_trips">
-                              <span>Aeroport: {{ r.pay.airport_trips }} × {{ sar(r.pay.airport_sum) }}</span>
-                              <span class="text-right font-semibold">{{ sar(r.pay.airport) }}</span>
+                              <span>{{ tr('airport_line', { n: r.pay.airport_trips, sum: sar(r.pay.airport_sum) }) }}</span>
+                              <span class="text-end font-semibold">{{ sar(r.pay.airport) }}</span>
                            </template>
                            <template v-if="r.pay.ziyorat_trips">
-                              <span>Makka ziyorati: {{ r.pay.ziyorat_trips }} × {{ sar(r.pay.ziyorat_sum) }}</span>
-                              <span class="text-right font-semibold">{{ sar(r.pay.ziyorat) }}</span>
+                              <span>{{ tr('ziyorat_line', { n: r.pay.ziyorat_trips, sum: sar(r.pay.ziyorat_sum) }) }}</span>
+                              <span class="text-end font-semibold">{{ sar(r.pay.ziyorat) }}</span>
                            </template>
                            <template v-if="r.pay.jarima">
-                              <span>Jarima <span class="text-[color:var(--n-muted)]">— {{ fineWhy(r) }}</span></span>
-                              <span class="text-right font-semibold">{{ sar(-r.pay.jarima) }}</span>
+                              <span>{{ tr('fine') }} <span class="text-[color:var(--n-muted)]">— {{ fineWhy(r) }}</span></span>
+                              <span class="text-end font-semibold">{{ sar(-r.pay.jarima) }}</span>
                            </template>
-                           <span>Qo'lda tuzatish</span>
-                           <span class="text-right font-semibold">{{ r.pay.manual_adjust ? sar(r.pay.manual_adjust) : '—' }}</span>
+                           <span>{{ tr('adjust') }}</span>
+                           <span class="text-end font-semibold">{{ r.pay.manual_adjust ? sar(r.pay.manual_adjust) : '—' }}</span>
                            <!-- Amount and reason together: a non-zero correction without its
                                 reason is refused, so they are one save, not two. -->
                            <div class="col-span-2 flex flex-wrap items-center gap-2">
-                              <input v-model="adj(r).amount" type="number" step="10" placeholder="± SAR"
-                                 class="w-24 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-right" />
-                              <input v-model="adj(r).reason" type="text" placeholder="sababi (majburiy)"
+                              <input v-model="adj(r).amount" type="number" step="10" :placeholder="tr('ph_adjust')"
+                                 class="w-24 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-end" />
+                              <input v-model="adj(r).reason" type="text" :placeholder="tr('ph_reason')"
                                  class="flex-1 min-w-[8rem] px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent" />
-                              <button class="btn-ghost !py-1 !px-3 text-[13px]" @click="saveAdjust(r)">Saqlash</button>
+                              <button class="btn-ghost !py-1 !px-3 text-[13px]" @click="saveAdjust(r)">{{ tr('save') }}</button>
                            </div>
                            <p v-if="r.manual?.adjust && r.manual?.adjust_reason"
                               class="col-span-2 -mt-1 text-[12px] text-[color:var(--n-muted)]">
                               {{ r.manual.adjust_reason }}<template v-if="r.manual.updated_by"> · {{ r.manual.updated_by }}</template>
                            </p>
-                           <span class="pt-1.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-semibold">Jami</span>
-                           <span class="pt-1.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] text-right text-[16px] font-bold">{{ sar(r.pay.total) }}</span>
+                           <span class="pt-1.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] font-semibold">{{ tr('total') }}</span>
+                           <span class="pt-1.5 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] text-end text-[16px] font-bold">{{ sar(r.pay.total) }}</span>
                         </template>
                      </div>
                   </div>
@@ -236,7 +238,7 @@
          </section>
 
          <div v-if="!board.rows.length" class="card py-14 text-center text-[15px] text-[color:var(--n-muted)]">
-            Ishchi guruh ro'yxatida faol xodim yo'q.
+            {{ tr('no_staff') }}
          </div>
       </template>
    </div>
@@ -247,9 +249,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import api from '../../../../api'
 import { useToast } from '../../../../composables/useToast'
 import { useNazoratStore } from '../../stores/nazorat'
-import { dur } from './shared'
 import {
-   apiError, cityName, monthName, pct, personName, sar,
+   apiError, cityName, crewDir, crewLang, dec, durL, monthName, num, pct, personName, sar, tr,
    type CrewBoard, type CrewRow,
 } from './crew'
 
@@ -288,13 +289,11 @@ const flownSource = computed(() => {
    const f = board.value?.flown
    if (!f) return ''
    if (f.source === 'manual') {
-      return `Qo'lda kiritilgan${f.manual_note ? ` (${f.manual_note})` : ''}${f.manual_by ? ` · ${f.manual_by}` : ''}.`
-         + (f.crm ? ` CRM bo'yicha: ${f.crm.count}.` : '')
+      return `${tr('flown_manual')}${f.manual_note ? ` (${f.manual_note})` : ''}${f.manual_by ? ` · ${f.manual_by}` : ''}.`
+         + (f.crm ? ` ${tr('flown_manual_crm', { n: f.crm.count })}` : '')
    }
-   if (f.source === 'crm') return 'CRM bo\'yicha: shu oyda uchgan, guruhga joylashtirilgan ziyoratchilar.'
-   return f.crm_error === 'not_configured'
-      ? 'CRM ulanmagan — sonni qo\'lda kiriting. Son bo\'lmaguncha KPI hisoblanmaydi.'
-      : 'CRM javob bermadi — sonni qo\'lda kiriting. Son bo\'lmaguncha KPI hisoblanmaydi.'
+   if (f.source === 'crm') return tr('flown_crm')
+   return tr(f.crm_error === 'not_configured' ? 'flown_not_configured' : 'flown_crm_failed')
 })
 
 const groups = computed(() => {
@@ -304,28 +303,29 @@ const groups = computed(() => {
       .filter((g) => g.rows.length)
 })
 
-const fmtBall = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',')
+const fmtBall = (v: number) => dec(Math.round(v * 10) / 10)
 const hundred = (v: number) => Math.round((100 - v) * 10) / 10
 
 function subline(r: CrewRow): string {
    const n = r.ops ? r.ops.base : 0
    const trips = r.pay.airport_trips + r.pay.ziyorat_trips
-   return [`${n} murojaat`, trips ? `${trips} chiqish` : '', r.salary_sar === null ? 'maosh kiritilmagan' : '']
+   return [tr('sub_requests', { n }), trips ? tr('sub_trips', { n: trips }) : '',
+      r.salary_sar === null ? tr('sub_no_salary') : '']
       .filter(Boolean).join(' · ')
 }
 
 function kpiLine(r: CrewRow): string {
    const p = r.pay
-   if (p.pending.includes('ball')) return 'Ball qo\'lda qo\'yilishini kutmoqda.'
-   if (p.pending.includes('flown')) return 'Oylik reja soni yo\'q — CRM yoki qo\'lda kiritilgan son kerak.'
+   if (p.pending.includes('ball')) return tr('kpi_wait_ball')
+   if (p.pending.includes('flown')) return tr('kpi_wait_flown')
    return `${sar(p.kpi_target)} × ${p.q}% × ${pct(p.v)}`
 }
 
 function fineWhy(r: CrewRow): string {
    const p = r.pay
-   return [p.bot_block ? 'botni bloklagan' : '',
-      p.false_completions ? `${p.false_completions} ta soxta «Bajarildi»` : '',
-      p.xatolik_abuse ? 'ketma-ket asossiz «Xatolik»' : ''].filter(Boolean).join(', ')
+   return [p.bot_block ? tr('fine_block') : '',
+      p.false_completions ? tr('fine_false', { n: p.false_completions }) : '',
+      p.xatolik_abuse ? tr('fine_abuse') : ''].filter(Boolean).join(crewLang.value === 'ar' ? '، ' : ', ')
 }
 
 async function saveFlown() {
@@ -334,7 +334,7 @@ async function saveFlown() {
    busy.value = true
    try {
       await api.put(`/control/crew/month/${board.value!.period}/flown`, { value: raw, note: flownNote.value })
-      toast.success('Saqlandi')
+      toast.success(tr('saved'))
       await load()
    } catch (e) {
       toast.error(apiError(e))
@@ -347,7 +347,7 @@ async function clearFlown() {
    busy.value = true
    try {
       await api.put(`/control/crew/month/${board.value!.period}/flown`, { value: null, note: null })
-      toast.success('CRM soni qo\'llanadi')
+      toast.success(tr('crm_used'))
       await load()
    } catch (e) {
       toast.error(apiError(e))
@@ -356,10 +356,10 @@ async function clearFlown() {
    }
 }
 
-async function manual(r: CrewRow, patch: Record<string, unknown>, ok = 'Saqlandi') {
+async function manual(r: CrewRow, patch: Record<string, unknown>, ok?: string) {
    try {
       await api.put(`/control/crew/manual/${board.value!.period}/${encodeURIComponent(r.username)}`, patch)
-      toast.success(ok)
+      toast.success(ok ?? tr('saved'))
       await load()
       openId.value = r.id
    } catch (e) {
@@ -398,7 +398,7 @@ async function savePay(r: CrewRow, field: 'salary_sar' | 'work_start' | 'work_en
    const value = raw === '' ? null : field === 'salary_sar' ? Number(raw) : raw
    try {
       await api.put(`/control/crew/staff/${r.id}/pay`, { [field]: value })
-      toast.success('Saqlandi')
+      toast.success(tr('saved'))
       await load()
       openId.value = r.id
    } catch (e) {

@@ -141,7 +141,7 @@
                   <input v-model="form.reception_floor" type="text" placeholder="0" :class="inputCls" />
                 </div>
                 <div>
-                  <label :class="labelCls">Ishchi guruh</label>
+                  <label :class="labelCls">Tashkiliy guruh</label>
                   <input v-model="form.staff_floor" type="text" placeholder="1" :class="inputCls" />
                 </div>
               </div>
