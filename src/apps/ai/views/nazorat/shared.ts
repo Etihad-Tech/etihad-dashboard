@@ -120,7 +120,7 @@ const KIND_LABELS: Record<string, string> = {
 // numbers differ: the doctor is deliberately kept out of the whole-crew tag and only
 // receives health needs, the airport contact only airport ones.
 const JOB_LABELS: Record<string, string> = {
-   ishchi_guruh: 'Ishchi guruh',
+   ishchi_guruh: 'Tashkiliy guruh',
    doctor: 'Shifokor',
    airport: 'Aeroport',
 }
@@ -601,7 +601,7 @@ export function useNazoratView() {
 
       const groups = [
          { key: 'ellikboshi', title: leaderGroupTitle(people.filter((p) => p.leaderLevel)) },
-         { key: 'staff', title: 'Ishchi guruh' },
+         { key: 'staff', title: 'Tashkiliy guruh' },
       ].map((g) => ({
          ...g,
          cols: people
@@ -703,7 +703,7 @@ export function useNazoratView() {
          people: filteredWorkers.value.filter((w) => isLeaderLevel(w)),
       },
       {
-         key: 'staff', title: 'Ishchi guruh',
+         key: 'staff', title: 'Tashkiliy guruh',
          people: filteredWorkers.value.filter((w) => !isLeaderLevel(w)),
       },
    ].filter((b) => b.people.length).map((b) => ({ ...b, pies: pies(b.people) })))
@@ -759,7 +759,7 @@ export function useNazoratView() {
       return [
          { key: 'ellikboshi', title: leaderGroupTitle(leaders), scored: true,
            rows: mk(leaders, true) },
-         { key: 'staff', title: 'Ishchi guruh', scored: false, rows: mk(crew, false) },
+         { key: 'staff', title: 'Tashkiliy guruh', scored: false, rows: mk(crew, false) },
       ].filter((b) => b.rows.length)
    })
 
@@ -837,7 +837,7 @@ export function useNazoratView() {
       const ellRecs = reached.filter((rec: any) => rec.role === 'ellikboshi')
       const who = ellRecs.length
          ? ellRecs.map(nameOf).join(', ')
-         : (r.location ? `${cityLabel(r.location)} ishchi guruhi` : 'Ishchi guruh')
+         : (r.location ? `${cityLabel(r.location)} tashkiliy guruhi` : 'Tashkiliy guruh')
             + (reached.length > 1 ? ` (${reached.length})` : '')
       return { key: 'never_accepted', label: 'Javobsiz', color: BUCKET.never_accepted.color,
          icon: 'clock',

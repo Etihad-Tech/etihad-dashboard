@@ -89,7 +89,7 @@ const tab = ref<'ellikboshi' | 'staff'>('ellikboshi')
 const tabs = computed(() => {
    const out: { key: 'ellikboshi' | 'staff'; title: string }[] = []
    if (s.scope !== 'staff') out.push({ key: 'ellikboshi', title: 'Ellikboshilar' })
-   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Ishchi guruh' })
+   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Tashkiliy guruh' })
    return out
 })
 const activeTab = computed(() =>

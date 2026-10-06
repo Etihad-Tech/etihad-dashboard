@@ -467,6 +467,10 @@
    .nazorat .seg button, .nazorat .seg .seg-pick { flex: none; }
 }
 
+/* A small segment that never stretches — the Tashkiliy guruh screens' language switch. */
+.nazorat .seg.seg-sm { display: inline-flex; }
+.nazorat .seg.seg-sm button { flex: none; padding: 0.35rem 0.85rem; font-size: 13px; }
+
 /* Filter chips on the Jurnal feed - a pill with its own count, selected in ink. */
 .nazorat .fchip {
    display: inline-flex;
