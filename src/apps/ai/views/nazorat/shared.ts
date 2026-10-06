@@ -89,17 +89,15 @@ export function currentMonth(): string {
 }
 
 /** The last twelve months, newest first — the panel's month picker and the KPI tab's
- *  chips. `short` drops the year inside the current one, so the picker fits a phone. */
+ *  chips. `short` is the bare month name, so the picker fits a phone: twelve months back
+ *  never repeat a name, so the year adds nothing there. */
 export function lastMonths(n = 12): { period: string; label: string; short: string }[] {
    const now = new Date()
    const out: { period: string; label: string; short: string }[] = []
    for (let i = 0; i < n; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      out.push({
-         period, label: monthLabel(period),
-         short: d.getFullYear() === now.getFullYear() ? UZ_MONTHS[d.getMonth()] : monthLabel(period),
-      })
+      out.push({ period, label: monthLabel(period), short: UZ_MONTHS[d.getMonth()] })
    }
    return out
 }
