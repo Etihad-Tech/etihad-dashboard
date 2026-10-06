@@ -61,6 +61,7 @@ import {
    faStar,
    faSliders,
    faChevronLeft,
+   faChevronDown,
    faLanguage,
 } from '@fortawesome/free-solid-svg-icons'
 
@@ -75,7 +76,7 @@ library.add(
    faClockRotateLeft, faCircleCheck, faCircleExclamation, faCircleInfo,
    faGaugeHigh, faRankingStar, faListUl, faRotateRight, faBell, faCheck,
    faClock, faTriangleExclamation, faChevronRight, faMagnifyingGlass,
-   faSliders, faChevronLeft, faLanguage,
+   faSliders, faChevronLeft, faChevronDown, faLanguage,
    faStar,
 )
 
