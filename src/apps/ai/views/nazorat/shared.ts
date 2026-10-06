@@ -59,11 +59,48 @@ export function surveyStatus(s: { counted: boolean; surveys: number } | null | u
    return { label: 'qamrov yetarli emas', color: '#f59e0b' }
 }
 
+/** The rolling windows. «Oylik» (the last 30 days) is gone (owner, 2026-10-06: «замени
+ *  Oylik на месяцы и каждый месяц все начинается с нуля») — a month is now picked BY
+ *  NAME and is the calendar month, so on the 1st everything starts from zero. */
 export const PERIODS = [
    { value: 'day', label: 'Kunlik' },
    { value: 'week', label: 'Haftalik' },
-   { value: 'month', label: 'Oylik' },
 ]
+
+// Uzbek month names — the KPI tab and «Oyni yopish» spell the month the same way.
+export const UZ_MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul',
+   'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr']
+
+/** «2026-10» -> «Oktabr 2026». */
+export function monthLabel(p: string): string {
+   const [y, m] = (p || '').split('-')
+   return `${UZ_MONTHS[Number(m) - 1] || m} ${y}`
+}
+
+/** Is this panel period a named calendar month («YYYY-MM») rather than a rolling one. */
+export function isMonthPeriod(p: string): boolean {
+   return /^\d{4}-(0[1-9]|1[0-2])$/.test(p || '')
+}
+
+/** «YYYY-MM» of the month we are standing in. */
+export function currentMonth(): string {
+   const d = new Date()
+   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** The last twelve months, newest first — the panel's month picker and the KPI tab's
+ *  chips. `short` is the bare month name, so the picker fits a phone: twelve months back
+ *  never repeat a name, so the year adds nothing there. */
+export function lastMonths(n = 12): { period: string; label: string; short: string }[] {
+   const now = new Date()
+   const out: { period: string; label: string; short: string }[] = []
+   for (let i = 0; i < n; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      out.push({ period, label: monthLabel(period), short: UZ_MONTHS[d.getMonth()] })
+   }
+   return out
+}
 
 const CITY_LABELS: Record<string, string> = { makka: 'Makka', madina: 'Madina' }
 export function cityLabel(c: string | null): string {

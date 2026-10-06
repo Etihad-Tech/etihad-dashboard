@@ -413,11 +413,58 @@
    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12), 0 0 0 0.5px rgba(16, 24, 40, 0.04);
 }
 
+/* The month segment: a native select dressed as a segment. The select fills it, so a tap
+   anywhere opens the picker; the chevron sits on top and lets the tap through.
+   The label carries the buttons' side padding and the select reaches back over it: a
+   flex item's base size never drops below its padding, so a padless label got ~29px
+   less than each button and cut «Sentabr» on a phone. */
+.nazorat .seg .seg-pick {
+   position: relative;
+   flex: 1;
+   display: flex;
+   align-items: center;
+   padding: 0 0.9rem;
+   border-radius: 999px;
+   color: var(--n-ink-2);
+   transition: color 0.2s, background 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.nazorat .seg .seg-pick select {
+   appearance: none;
+   -webkit-appearance: none;
+   width: calc(100% + 1.8rem);
+   margin: 0 -0.9rem;
+   background: transparent;
+   border: 0;
+   outline: none;
+   cursor: pointer;
+   color: inherit;
+   font: inherit;
+   font-size: 14.5px;
+   font-weight: 600;
+   letter-spacing: -0.01em;
+   text-align: center;
+   text-align-last: center;
+   padding: 0.5rem 1.35rem 0.5rem 0.6rem;
+   border-radius: 999px;
+}
+.nazorat .seg .seg-pick select:focus-visible { box-shadow: 0 0 0 2px var(--n-accent); }
+.nazorat .seg .seg-pick svg {
+   position: absolute;
+   right: 0.65rem;
+   pointer-events: none;
+   opacity: 0.6;
+}
+.nazorat .seg .seg-pick.is-on {
+   background: #fff;
+   color: var(--n-ink);
+   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12), 0 0 0 0.5px rgba(16, 24, 40, 0.04);
+}
+
 /* Full-width on a phone, because a segment is a thumb target. On a desktop it shrinks to
    its labels: three buttons stretched across a 900px column read as a nav bar. */
 @media (min-width: 1024px) {
    .nazorat .seg { display: inline-flex; }
-   .nazorat .seg button { flex: none; }
+   .nazorat .seg button, .nazorat .seg .seg-pick { flex: none; }
 }
 
 /* Filter chips on the Jurnal feed - a pill with its own count, selected in ink. */
