@@ -17,18 +17,25 @@
            carried the month just closed). Twelve back covers any correction anyone will
            make. On a phone the panel's picker is hidden on this tab; on a desktop it sits
            above, over Holat, hence the line under the chips. -->
-      <div class="no-bar flex gap-2 overflow-x-auto -mx-5 px-5 py-0.5 lg:mx-0 lg:px-0">
+      <!-- Tashkiliy guruh reads in Uzbek or Arabic (owner, 2026-10-06), and the month
+           chips and the line under them belong to its board, so they turn with it. -->
+      <CrewLangSwitch v-if="isCrew" />
+      <div class="no-bar flex gap-2 overflow-x-auto -mx-5 px-5 py-0.5 lg:mx-0 lg:px-0"
+         v-bind="isCrew ? crewDir() : {}">
          <button v-for="m in months" :key="m.period" class="fchip shrink-0"
             :class="s.kpiMonth === m.period ? 'is-on' : ''" @click="s.setKpiMonth(m.period)">
-            {{ m.label }}
+            {{ isCrew ? monthName(m.period) : m.label }}
          </button>
       </div>
-      <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
-         {{ monthLabel(s.kpiMonth) }} — to'liq kalendar oy. Bu bo'lim yuqoridagi
-         davr tanloviga bog'liq emas.
+      <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]" v-bind="isCrew ? crewDir() : {}">
+         <template v-if="isCrew">{{ tr('month_note', { m: monthName(s.kpiMonth) }) }}</template>
+         <template v-else>
+            {{ monthLabel(s.kpiMonth) }} — to'liq kalendar oy. Bu bo'lim yuqoridagi
+            davr tanloviga bog'liq emas.
+         </template>
       </p>
 
-      <!-- ISHCHI GURUH — their own scheme since 26.09.2026 (60% doimiy + 40% KPI × Q × V,
+      <!-- TASHKILIY GURUH — their own scheme since 26.09.2026 (60% doimiy + 40% KPI × Q × V,
            trips, SAR): a board of its own, not the leaders' ball with the money left off. -->
       <CrewKpi v-if="activeTab === 'staff'" />
 
@@ -437,6 +444,8 @@ import {
    currentMonth, dur, kpiTab, lastMonths, monthLabel, surveyStatus, useNazoratView,
 } from './shared'
 import CrewKpi from './CrewKpi.vue'
+import CrewLangSwitch from './CrewLangSwitch.vue'
+import { crewDir, monthName, tr } from './crew'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -452,11 +461,13 @@ const tabs = computed(() => {
       out.push({ key: 'ellikboshi',
                  title: boards.value.find((b) => b.key === 'ellikboshi')?.title || 'Ellikboshilar' })
    }
-   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Ishchi guruh' })
+   if (s.scope !== 'ellikboshi') out.push({ key: 'staff', title: 'Tashkiliy guruh' })
    return out
 })
 const activeTab = computed(() =>
    tabs.value.find((t) => t.key === kpiTab.value)?.key || tabs.value[0]?.key || 'ellikboshi')
+/** The Tashkiliy guruh board is on screen. */
+const isCrew = computed(() => activeTab.value === 'staff')
 
 /** The two writes of §3, mirroring the API's guards rather than trusting the client
  *  (owner, 2026-08-18):

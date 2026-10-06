@@ -19,7 +19,7 @@
         <p class="font-medium mb-1">Qanday ishlaydi</p>
         <p class="text-amber-700">
           Bu — umumiy xodimlar ro'yxati (barcha guruhlar uchun bitta jamoa). Qaysi mavzuga qaysi xodim
-          biriktirilishini <b>Bilimlar bazasi</b> sahifasida har bir savol uchun belgilaysiz. Ishchi guruh
+          biriktirilishini <b>Bilimlar bazasi</b> sahifasida har bir savol uchun belgilaysiz. Tashkiliy guruh
           ikkala shaharda ham bitta jamoa (joylashuv: «Ikkala shahar»); shifokor va aeroport esa shahar bo'yicha.
           Xodim @mention orqali xabar olishi uchun u shu Telegram guruhining a'zosi bo'lishi shart.
         </p>
@@ -128,7 +128,7 @@
               </div>
             </div>
             <p class="text-[11px] text-gray-400">
-              Ishchi guruh uchun «Ikkala shahar» tanlang (bir jamoa); shifokor/aeroport uchun aniq shaharni tanlang.
+              Tashkiliy guruh uchun «Ikkala shahar» tanlang (bir jamoa); shifokor/aeroport uchun aniq shaharni tanlang.
             </p>
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1.5">
@@ -179,7 +179,7 @@ interface Staff {
 }
 
 const ROLES = [
-  { value: 'ishchi_guruh', label: 'Ishchi guruh' },
+  { value: 'ishchi_guruh', label: 'Tashkiliy guruh' },
   { value: 'doctor', label: 'Shifokor' },
   { value: 'airport', label: 'Aeroport' },
 ]
@@ -197,7 +197,7 @@ function roleMeta(role: string) {
     case 'airport':
       return { label: 'Aeroport', icon: 'plane-arrival', bg: 'bg-sky-50', fg: 'text-sky-600' }
     default:
-      return { label: 'Ishchi guruh', icon: 'broom', bg: 'bg-amber-50', fg: 'text-amber-600' }
+      return { label: 'Tashkiliy guruh', icon: 'broom', bg: 'bg-amber-50', fg: 'text-amber-600' }
   }
 }
 

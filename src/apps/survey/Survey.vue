@@ -377,7 +377,7 @@
                         <label>Mas'ul
                            <select v-model="pr.masul" :disabled="isSaved">
                               <option value="ellikboshi">Ellikboshi{{ groupInfo ? ' — ' + groupInfo.ellikboshi_username : '' }}</option>
-                              <option value="ishchi_guruh">Ishchi guruh</option>
+                              <option value="ishchi_guruh">Tashkiliy guruh</option>
                               <option value="shifokor">Shifokor</option>
                               <option value="otinoyi">Otinoyi</option>
                               <option value="hotel">Mehmonxona</option>
@@ -497,9 +497,9 @@ const BLOCKS = [
    // two crews are different people, and a single score let one city's bad week pull
    // down the other's half of the ball. Surveys saved before keep their one
    // `q5_workgroup` answer; it is not asked any more (see AFF_LABELS).
-   { key: 'q5', title: 'Ishchi guruh', who: 'ishchi guruh', rows: [
-      { k: 'q5_workgroup_md', label: 'Madinadagi ishchi guruh', type: 'scale' },
-      { k: 'q5_workgroup_mk', label: 'Makkadagi ishchi guruh', type: 'scale' }] },
+   { key: 'q5', title: 'Tashkiliy guruh', who: 'tashkiliy guruh', rows: [
+      { k: 'q5_workgroup_md', label: 'Madinadagi tashkiliy guruh', type: 'scale' },
+      { k: 'q5_workgroup_mk', label: 'Makkadagi tashkiliy guruh', type: 'scale' }] },
    { key: 'q6', title: 'Shifokor xizmati', who: 'shifokorlar', rows: [
       { k: 'q6_doctor_md', label: 'Madinadagi shifokor', type: 'scale' },
       { k: 'q6_doctor_mk', label: 'Makkadagi shifokor', type: 'scale' }] },
@@ -890,9 +890,9 @@ const preview = computed(() => {
 
 const AFF_LABELS: Record<string, string> = {
    q2_otinoyi: 'Otinoyi', q3_tashkent: 'Toshkent jamoasi', q4_admin: 'Guruh admini',
-   q5_workgroup_md: 'Ishchi guruh (Madina)', q5_workgroup_mk: 'Ishchi guruh (Makka)',
+   q5_workgroup_md: 'Tashkiliy guruh (Madina)', q5_workgroup_mk: 'Tashkiliy guruh (Makka)',
    // Before the split: one score for both cities. Only surveys saved before 26.09 carry it.
-   q5_workgroup: 'Ishchi guruh (ikkala shahar)',
+   q5_workgroup: 'Tashkiliy guruh (ikkala shahar)',
    q6_doctor_md: 'Shifokor (Madina)', q6_doctor_mk: 'Shifokor (Makka)',
    q7_hotel_md: 'Mehmonxona (Madina)', q7_hotel_mk: 'Mehmonxona (Makka)', q7_hotel_jd: 'Mehmonxona (Jidda)',
    q8_food_mk: 'Taomlar (Makka)', q8_food_md: 'Taomlar (Madina)', q9_avia: 'Aviakompaniya',
