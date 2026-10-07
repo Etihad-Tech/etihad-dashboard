@@ -11,23 +11,7 @@
       </div>
 
       <template v-else-if="data">
-         <!-- WHEN a change applies (owner, 26.09: from the next month). The main admin
-              alone may apply one to the current month. -->
-         <div class="card p-4 space-y-2">
-            <p class="text-[13.5px] leading-snug">
-               {{ tr('values_scope_a') }} <b>{{ tr('values_scope_team') }}</b> {{ tr('values_scope_b') }}
-               {{ tr('values_from_a') }} <b>{{ monthName(targetPeriod) }}</b>{{ tr('values_from_b') }}
-            </p>
-            <div v-if="data.can_apply_current" class="seg">
-               <button :class="mode === 'next' ? 'is-on' : ''" @click="setMode('next')">
-                  {{ tr('from_next', { m: monthName(data.next_period) }) }}
-               </button>
-               <button :class="mode === 'current' ? 'is-on' : ''" @click="setMode('current')">
-                  {{ tr('from_current', { m: monthName(data.period) }) }}
-               </button>
-            </div>
-         </div>
-
+         <!-- A change applies from the next month (owner, 26.09); no month picker (owner, 07.10). -->
          <section v-for="sec in visibleSections" :key="sec.key" class="card p-5 n-enter">
             <div class="flex items-baseline gap-2.5">
                <h3 class="n-h">{{ L(sec.title) }}</h3>
@@ -110,7 +94,6 @@ interface SettingsReply {
    current: SettingsBlock
    next: SettingsBlock
    editable: string[]
-   can_apply_current: boolean
 }
 
 const toast = useToast()
@@ -118,7 +101,6 @@ const data = ref<SettingsReply | null>(null)
 const loading = ref(false)
 const error = ref(false)
 const saving = ref(false)
-const mode = ref<'next' | 'current'>('next')
 const draft = ref<Record<string, any>>({})
 
 const FINE_ONCE = bi('Oyiga bir marta', 'مرة واحدة في الشهر')
@@ -216,16 +198,13 @@ const SECTIONS: Section[] = [
    ] },
 ]
 
-const targetPeriod = computed(() => data.value
-   ? (mode.value === 'current' ? data.value.period : data.value.next_period) : '')
-const targetValues = computed<Record<string, any>>(() => data.value
-   ? (mode.value === 'current' ? data.value.current.values : data.value.next.values) : {})
+const targetValues = computed<Record<string, any>>(() => data.value?.next.values || {})
 const currentValues = computed<Record<string, any>>(() => data.value?.current.values || {})
 
 const has = (k: string) => k in targetValues.value
 const canEdit = (k: string) => !!data.value?.editable.includes(k)
 const visibleSections = computed(() => SECTIONS.filter((sec) => sec.fields.some((f) => has(f.k))))
-const differs = (k: string) => mode.value === 'next' && k in currentValues.value
+const differs = (k: string) => k in currentValues.value
    && currentValues.value[k] !== targetValues.value[k]
 const show = (v: any) => (typeof v === 'boolean' ? tr(v ? 'yes' : 'no')
    : typeof v === 'number' ? num(v) : '—')
@@ -249,11 +228,6 @@ const tiersText = computed(() => {
 
 function reset() {
    draft.value = { ...targetValues.value }
-}
-
-function setMode(m: 'next' | 'current') {
-   mode.value = m
-   reset()
 }
 
 function changedKeys(sec: Section): string[] {
@@ -289,12 +263,9 @@ async function save(sec: Section) {
    }
    saving.value = true
    try {
-      await api.put('/control/crew/settings', { values, effective: mode.value })
-      toast.success(tr('saved_from', { m: monthName(targetPeriod.value) }))
-      const keepMode = mode.value
+      await api.put('/control/crew/settings', { values, effective: 'next' })
+      toast.success(tr('saved_from', { m: monthName(data.value!.next_period) }))
       await load()
-      mode.value = keepMode
-      reset()
    } catch (e) {
       toast.error(apiError(e))
    } finally {
