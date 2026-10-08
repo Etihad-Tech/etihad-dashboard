@@ -18,7 +18,8 @@
           Har bir reys bitta <b>hafta kuni</b>ga biriktirilgan va har hafta takrorlanadi; aniq sanani bot guruhning
           jo'nash sanasidan hisoblaydi. Doimiy o'zgarish bo'lsa kartochkadagi vaqtni tahrirlang. <b>Bitta reys kechiksa
           yoki boshqa kunga ko'chsa</b>, "Kechikish / o'zgarishlar" bo'limidan qo'shing — bot o'sha kuni uchadigan
-          guruhga <b>avtomatik xabar yuboradi</b>.
+          guruhga <b>avtomatik xabar yuboradi</b>. O'zgarishni <b>o'chirganda</b> esa guruhlarga hech qanday xabar
+          yuborilmaydi.
         </p>
         <p class="text-amber-700 mt-2">
           Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil safarlar
@@ -518,15 +519,15 @@ async function addExc(s: Flight) {
 async function removeExc(s: Flight, e: Exc) {
   if (!(await confirm({
     title: "O'zgarishni o'chirish",
-    message: "Bu o'zgarish o'chiriladi. Guruhlarga jadval o'z holiga qaytgani haqida xabar yuborilishi mumkin.",
+    // Deleting is silent (owner, 2026-10-08) — the server sends nothing to the groups.
+    message: "Bu o'zgarish o'chiriladi. Guruhlarga hech qanday xabar yuborilmaydi — so'ralsa, bot oddiy jadval bo'yicha javob beradi.",
   }))) return
   excDeletingId.value = e.id
   try {
-    const { data } = await api.delete(`/flights/exceptions/${e.id}`)
+    await api.delete(`/flights/exceptions/${e.id}`)
     excs.value[s.id] = (excs.value[s.id] || []).filter(x => x.id !== e.id)
     if (excEditId.value[s.id] === e.id) cancelEditExc(s)
-    const n = data?.notified ?? 0
-    excNotice.value[s.id] = n > 0 ? `✓ ${n} ta guruhga "jadval o'z holiga qaytdi" xabari yuborildi` : "✓ O'chirildi"
+    excNotice.value[s.id] = "✓ O'chirildi — guruhlarga xabar yuborilmadi"
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
   } catch {
     toast.error("O'chirishda xatolik yuz berdi")
