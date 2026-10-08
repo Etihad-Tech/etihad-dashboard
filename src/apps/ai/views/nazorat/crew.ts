@@ -251,13 +251,6 @@ const TEXT = {
 
    // Qiymatlar
    values_failed: { uz: 'Qiymatlar yuklanmadi.', ar: 'تعذّر تحميل القيم.' },
-   values_scope_a: { uz: 'Bu raqamlar faqat', ar: 'تؤثر هذه الأرقام على رواتب' },
-   values_scope_team: { uz: 'tashkiliy guruh', ar: 'الفريق التنظيمي' },
-   values_scope_b: { uz: "oyligiga ta'sir qiladi.", ar: 'فقط.' },
-   values_from_a: { uz: "O'zgartirish", ar: 'يسري التغيير اعتبارًا من' },
-   values_from_b: { uz: 'dan kuchga kiradi.', ar: '.' },
-   from_next: { uz: 'Keyingi oydan ({m})', ar: 'من الشهر القادم ({m})' },
-   from_current: { uz: 'Joriy oydan ({m})', ar: 'من الشهر الحالي ({m})' },
    value_in_month: { uz: '{m}da: {v}', ar: 'في {m}: {v}' },
    last_change: { uz: "Oxirgi o'zgartirish: {by}", ar: 'آخر تعديل: {by}' },
    ladder_ball: { uz: '{n} ball', ar: '{n} درجة' },
