@@ -22,6 +22,10 @@
           poyezdi, sotuv bo'limi...) va shu turga biriktirilgan xodimlarni guruhda belgilaydi hamda ularga shaxsiy
           xabar yuboradi. Xodimni @username yoki Telegram ID orqali kiritish mumkin.
         </p>
+        <p class="text-amber-700 mt-2">
+          Guruh Saudiyaga qo'nmaguncha esa bot barcha savollarni faqat «Mas'ul rahbar — sayohatdan oldin
+          (Toshkent)» bo'limidagi xodimga yo'naltiradi: ellikboshi, ishchi guruh va boshqa bo'limlar belgilanmaydi.
+        </p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">
