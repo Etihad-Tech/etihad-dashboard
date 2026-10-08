@@ -48,6 +48,10 @@
                   </button>
 
                   <div v-if="openGroup === g.chat_id" class="sn-gbody">
+                     <!-- The list fills itself from the CRM every time the group is
+                          opened (owner, 2026-10-07). This line says where it stands;
+                          the doors below stay for a group the CRM does not know. -->
+                     <p v-if="crmLine(g.chat_id)" class="sn-note">{{ crmLine(g.chat_id) }}</p>
                      <div class="sn-gtools">
                         <button class="sn-btn sn-ghost sn-add" @click="toggleImport(g.chat_id)">
                            + Ziyoratchilar qo'shish
@@ -195,8 +199,8 @@
                  a bucket that can never fill is a bucket that teaches the specialist
                  to look somewhere that is always empty. -->
 
-            <p class="sn-note">Guruh, sanalar va ellikboshi — dashboarddan. Jadvaldan
-               faqat ism va telefon olinadi.</p>
+            <p class="sn-note">Guruh, sanalar va ellikboshi — dashboarddan. Ro'yxat
+               CRMdan o'zi olinadi; jadvaldan faqat ism va telefon olinadi.</p>
          </aside>
 
          <!-- ─────────── FORM ─────────── -->
@@ -325,9 +329,9 @@
                   </div>
                   <p v-if="b.hint" class="sn-qhint">{{ b.hint }}</p>
 
-                  <div v-for="r in b.rows" :key="r.k" class="sn-rowline"
+                  <div v-for="r in b.rows.filter(showRow)" :key="r.k" class="sn-rowline"
                      :class="{ focus: focusKey === r.k }" @click="focusKey = r.k">
-                     <span class="sn-rowlabel">{{ r.label }}
+                     <span class="sn-rowlabel">{{ rowLabel(r) }}
                         <small v-if="r.hint" class="sn-rowhint">{{ r.hint }}</small>
                      </span>
                      <!-- 1–5 only on a survey STARTED before the switch to 0–10
@@ -424,8 +428,8 @@
             </div>
          </main>
          <main v-else class="sn-panel sn-empty">
-            Chapdan guruhni oching va ziyoratchini tanlang — ro'yxat bo'lmasa,
-            «+» orqali Excel fayl, bufer yoki qo'lda qo'shing.
+            Chapdan guruhni oching va ziyoratchini tanlang — ro'yxat CRMdan o'zi
+            olinadi. CRMda bo'lmasa, «+» orqali Excel fayl yoki qo'lda qo'shing.
          </main>
 
          <!-- ─────────── LIVE IMPACT (preview; the SAVED score is the server's) ── -->
@@ -503,13 +507,16 @@ const BLOCKS = [
    { key: 'q6', title: 'Shifokor xizmati', who: 'shifokorlar', rows: [
       { k: 'q6_doctor_md', label: 'Madinadagi shifokor', type: 'scale' },
       { k: 'q6_doctor_mk', label: 'Makkadagi shifokor', type: 'scale' }] },
+   // By HOTEL NAME, not by city (owner, 2026-10-07): `city` says whose hotel the row
+   // is, and rowLabel() shows that hotel's name — the pilgrim's own from the CRM, else
+   // the group's on the dashboard. `label` is only the fallback for a hotel nobody knows.
    { key: 'q7', title: 'Mehmonxonalar', who: 'yetkazib beruvchi', rows: [
-      { k: 'q7_hotel_md', label: 'Madina', type: 'scale' },
-      { k: 'q7_hotel_mk', label: 'Makka', type: 'scale' },
-      { k: 'q7_hotel_jd', label: 'Jidda', type: 'scale' }] },
+      { k: 'q7_hotel_md', label: 'Madina', city: 'madina', type: 'scale' },
+      { k: 'q7_hotel_mk', label: 'Makka', city: 'makka', type: 'scale' },
+      { k: 'q7_hotel_jd', label: 'Jidda', city: 'jidda', type: 'scale' }] },
    { key: 'q8', title: 'Taomlar sifati', who: 'oshxona', rows: [
-      { k: 'q8_food_mk', label: 'Makka', type: 'scale' },
-      { k: 'q8_food_md', label: 'Madina', type: 'scale' }] },
+      { k: 'q8_food_mk', label: 'Makka', city: 'makka', type: 'scale' },
+      { k: 'q8_food_md', label: 'Madina', city: 'madina', type: 'scale' }] },
    { key: 'q9', title: 'Aviakompaniya va parvoz', who: 'charter', rows: [
       { k: 'q9_avia', label: 'Umumiy baho', type: 'scale' }] },
    { key: 'q10', title: "Umra safarini boshqalarga tavsiya qilasizmi?", who: 'kompaniya (NPS)', rows: [
@@ -517,16 +524,34 @@ const BLOCKS = [
         choices: [{ v: 'ha', l: 'Ha' }, { v: 'bilmayman', l: 'Bilmayman' }, { v: 'yoq', l: "Yo'q" }] }] },
 ] as any[]
 
-const ALL_KEYS: string[] = BLOCKS.flatMap((b: any) => b.rows.map((r: any) => r.k))
-const totalKeys = ALL_KEYS.length
-
 const queue = ref<any[]>([])
+const current = ref<any>(null)
+const answers = reactive<Record<string, any>>({})
+
+/** The hotel the open pilgrim stayed in, per city — sent by the server (a SAVED survey
+ *  sends the hotels it was asked about). */
+function hotelOf(city: string): string {
+   return (current.value?.hotels?.[city] || '').trim()
+}
+function rowLabel(r: any): string {
+   return (r.city && hotelOf(r.city)) || r.label
+}
+/** Jidda only when the pilgrim had a Jidda hotel. Hidden when the other hotels are known
+ *  and Jidda is not — the trip had no Jidda stay — unless it was already answered.
+ *  With no hotel known at all the row stays, as before. */
+function showRow(r: any): boolean {
+   if (r.city !== 'jidda' || hotelOf('jidda') || answers[r.k] != null) return true
+   return !(hotelOf('makka') || hotelOf('madina'))
+}
+/** The rows actually asked of THIS pilgrim, in order — progress and the keyboard walk them. */
+const ALL_KEYS = computed<string[]>(() =>
+   BLOCKS.flatMap((b: any) => b.rows.filter(showRow).map((r: any) => r.k)))
+const totalKeys = computed(() => ALL_KEYS.value.length)
+
 const groups = ref<any[]>([])
 const search = ref('')
 const statusFilter = ref('')
-const current = ref<any>(null)
 const pickedGroup = ref<number | null>(null)
-const answers = reactive<Record<string, any>>({})
 const problems = ref<any[]>([])
 const suggestion = ref('')
 const choiceReason = ref('')
@@ -601,6 +626,43 @@ function coverPct(g: any) {
 function toggleGroup(chatId: number) {
    openGroup.value = openGroup.value === chatId ? null : chatId
    if (openGroup.value !== chatId) closeImport()
+   else void syncFromCrm(chatId)
+}
+
+/** Where each opened group's CRM list stands: loading, not bound to a CRM group, CRM
+ *  unreachable, or how many pilgrims the CRM has for it. */
+const crmState = reactive<Record<number, any>>({})
+
+/** Fill the group's list from the CRM — on EVERY open, so a late booking or a
+ *  re-roomed pilgrim shows up without anybody importing anything. The server merges:
+ *  a second run adds nobody, and a corrected name or number is never overwritten. */
+async function syncFromCrm(chatId: number) {
+   if (crmState[chatId]?.loading) return
+   crmState[chatId] = { ...(crmState[chatId] || {}), loading: true }
+   try {
+      const { data } = await api.post(`/survey/groups/${chatId}/crm-sync`)
+      crmState[chatId] = { loading: false, ...data }
+      if (data.added || data.adopted || data.updated || data.removed) {
+         await Promise.all([loadQueue(), loadGroups()])
+         if (current.value) {
+            const fresh = queue.value.find((p) => p.id === current.value.id)
+            if (fresh) current.value.hotels = fresh.hotels
+         }
+      }
+      if (data.added) toast.success(`CRMdan ${data.added} ta ziyoratchi qo'shildi`)
+   } catch {
+      crmState[chatId] = { loading: false, linked: true, ok: false }
+   }
+}
+
+function crmLine(chatId: number): string {
+   const st = crmState[chatId]
+   if (!st) return ''
+   if (st.loading) return "CRMdan ro'yxat olinmoqda…"
+   if (st.linked === false) return "Guruh CRMga bog'lanmagan — ro'yxatni Excel fayl yoki qo'lda qo'shing."
+   if (!st.ok && st.crm_total === undefined) return "CRMdan ro'yxat olinmadi — guruhni keyinroq qayta oching."
+   return `CRMda bu guruhda ${st.crm_total ?? 0} ta ziyoratchi`
+      + (st.ok ? '' : " (bir qismi olinmadi — keyinroq qayta oching)")
 }
 
 function toggleImport(chatId: number) {
@@ -861,7 +923,7 @@ const splitGroup = computed(() => {
    const md = (g.ellikboshi_madina || '').trim().toLowerCase()
    return !!md && md !== (g.ellikboshi_username || '').trim().toLowerCase()
 })
-const answeredCount = computed(() => ALL_KEYS.filter((k) => touched.has(k)).length)
+const answeredCount = computed(() => ALL_KEYS.value.filter((k) => touched.has(k)).length)
 
 /** Client-side PREVIEW of the §6.2 arithmetic — the saved score is the server's.
  *  Math.round matches kpi.py's `_half_up`: both send .5 up, so the number a pilgrim
@@ -897,10 +959,21 @@ const AFF_LABELS: Record<string, string> = {
    q7_hotel_md: 'Mehmonxona (Madina)', q7_hotel_mk: 'Mehmonxona (Makka)', q7_hotel_jd: 'Mehmonxona (Jidda)',
    q8_food_mk: 'Taomlar (Makka)', q8_food_md: 'Taomlar (Madina)', q9_avia: 'Aviakompaniya',
 }
+/** A hotel or food row names the hotel when it is known (owner, 2026-10-07). */
+const AFF_CITY: Record<string, [string, string]> = {
+   q7_hotel_md: ['Mehmonxona', 'madina'], q7_hotel_mk: ['Mehmonxona', 'makka'],
+   q7_hotel_jd: ['Mehmonxona', 'jidda'],
+   q8_food_mk: ['Taomlar', 'makka'], q8_food_md: ['Taomlar', 'madina'],
+}
+function affLabel(k: string, fallback: string): string {
+   const c = AFF_CITY[k]
+   const h = c ? hotelOf(c[1]) : ''
+   return h ? `${c![0]} (${h})` : fallback
+}
 const affected = computed(() => {
    const out: string[] = []
    for (const [k, l] of Object.entries(AFF_LABELS))
-      if (answers[k] != null) out.push(`${l} — ${answers[k]} / ${scale.value}`)
+      if (answers[k] != null) out.push(`${affLabel(k, l)} — ${answers[k]} / ${scale.value}`)
    for (const p of problems.value)
       if (p.masul && p.masul !== 'ellikboshi' && p.masul !== 'none')
          out.push(`Muammo → ${p.masul} (${p.jiddiylik})`)
@@ -921,14 +994,14 @@ function open(p: any) {
    isSaved.value = p.survey_status === 'saved'
    savedScore.value = p.ell_score ?? null
    // EVERY key, not just the asked ones: an old draft's retired `q5_workgroup` is not in
-   // ALL_KEYS, and clearing only those would carry it into the next pilgrim's survey.
+   // the questionnaire, and clearing only those would carry it into the next pilgrim's survey.
    for (const k of Object.keys(answers)) delete answers[k]
    scale.value = 10
    touched.clear()
    problems.value = []
    suggestion.value = ''
    choiceReason.value = ''
-   focusKey.value = ALL_KEYS[0]
+   focusKey.value = ALL_KEYS.value[0]
    // Draft resume comes with the queue row's survey; simplest correct source is a
    // fresh queue fetch on save — drafts live server-side via autosave below.
    void resumeDraft(p.id)
@@ -952,8 +1025,9 @@ async function resumeDraft(pid: number) {
 function setAns(k: string, v: any) {
    answers[k] = v
    touched.add(k)
-   const i = ALL_KEYS.indexOf(k)
-   focusKey.value = ALL_KEYS[Math.min(i + 1, ALL_KEYS.length - 1)]
+   const keys = ALL_KEYS.value
+   const i = keys.indexOf(k)
+   focusKey.value = keys[Math.min(i + 1, keys.length - 1)]
 }
 
 /** Number keys answer the highlighted row, ↓/Enter and ↑ move — the operator is on a
@@ -983,9 +1057,11 @@ function onKey(e: KeyboardEvent) {
    } else if (e.key === '0' || e.key === '-') {
       setAns(k, null); e.preventDefault()
    } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
-      focusKey.value = ALL_KEYS[Math.min(ALL_KEYS.indexOf(k) + 1, ALL_KEYS.length - 1)]; e.preventDefault()
+      const keys = ALL_KEYS.value
+      focusKey.value = keys[Math.min(keys.indexOf(k) + 1, keys.length - 1)]; e.preventDefault()
    } else if (e.key === 'ArrowUp') {
-      focusKey.value = ALL_KEYS[Math.max(ALL_KEYS.indexOf(k) - 1, 0)]; e.preventDefault()
+      const keys = ALL_KEYS.value
+      focusKey.value = keys[Math.max(keys.indexOf(k) - 1, 0)]; e.preventDefault()
    }
 }
 
