@@ -268,12 +268,18 @@
         </div>
 
         <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up">
-          <div v-for="d in editing.days_list" :key="d.day" class="flex gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0"
-            :class="d.city === 'jidda' ? 'bg-amber-50/30' : d.city === 'madina' ? 'bg-sky-50/30' : ''">
+          <div v-for="(d, di) in editing.days_list" :key="d.day" class="flex gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-700"
+            :class="movedDay === d.day ? 'bg-amber-100/70' : d.city === 'jidda' ? 'bg-amber-50/30' : d.city === 'madina' ? 'bg-sky-50/30' : ''">
             <div class="w-16 shrink-0 pt-1.5">
               <p class="text-sm font-semibold text-gray-900 tabular-nums">{{ d.day }}-kun</p>
               <p class="text-[11px] text-gray-500">{{ weekdayName(d.weekday) }}</p>
               <p class="text-[11px] text-gray-400 tabular-nums">{{ fmtDate(d.date) }}</p>
+              <!-- The whole day's lines change places with the neighbouring day's. The
+                   number, date and city stay put: they are the trip's shape, not content. -->
+              <div class="flex gap-0.5 mt-1 -ml-1">
+                <button @click="moveDay(di, -1)" :disabled="di === 0" class="p-1 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:hover:bg-transparent" title="Kunni yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
+                <button @click="moveDay(di, 1)" :disabled="di === editing.days_list.length - 1" class="p-1 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:hover:bg-transparent" title="Kunni pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
+              </div>
             </div>
             <div class="w-[4.5rem] shrink-0 pt-1.5">
               <span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
@@ -312,8 +318,9 @@
           <option v-for="p in places" :key="p.id" :value="p.name">{{ cityName(p.city) }}</option>
         </datalist>
         <p class="text-[11px] text-gray-400">
-          Joyni ro'yxatdan tanlang yoki yangisini yozing — u «Joylar» lug'atiga o'zi qo'shiladi. Tartib — strelkalar bilan.
-          Kun shahri Guruhlar sahifasidagi kechalardan olinadi, bu yerda o'zgarmaydi.
+          Joyni ro'yxatdan tanlang yoki yangisini yozing — u «Joylar» lug'atiga o'zi qo'shiladi. Tartib — strelkalar bilan:
+          band yonidagisi bandni kun ichida, kun raqami ostidagisi kunning hamma bandlarini qo'shni kun bilan almashtiradi.
+          Kun sanasi va shahri Guruhlar sahifasidagi kechalardan olinadi, bu yerda o'zgarmaydi.
         </p>
       </template>
     </div>
@@ -687,6 +694,27 @@ function moveItem(d: Day, idx: number, delta: number) {
   const [it] = d.items.splice(idx, 1)
   d.items.splice(j, 0, it)
   dirty.value = true
+}
+
+/** Swap a whole day's lines with the neighbouring day's (owner, 2026-10-09: lines could
+ *  be reordered inside a day, the days themselves could not). Only the CONTENT moves —
+ *  day number, date and city are the trip's shape. The Russian travels with each line. */
+const movedDay = ref<number | null>(null)
+let movedTimer: ReturnType<typeof setTimeout> | null = null
+function moveDay(idx: number, delta: number) {
+  const list = editing.value?.days_list
+  if (!list) return
+  const j = idx + delta
+  if (j < 0 || j >= list.length) return
+  const a = list[idx], b = list[j]
+  ;[a.items, b.items] = [b.items, a.items]
+  dirty.value = true
+  // A Makka visit landing on a Madina day is usually a slip — say so, do not refuse.
+  if (a.city !== b.city && b.items.length)
+    toast.info(`${b.day}-kun — ${cityName(b.city) || 'boshqa shahar'} kuni. Joylarni tekshiring`)
+  movedDay.value = b.day
+  if (movedTimer) clearTimeout(movedTimer)
+  movedTimer = setTimeout(() => { movedDay.value = null }, 900)
 }
 
 async function saveItems() {
