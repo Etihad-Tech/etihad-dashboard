@@ -550,6 +550,7 @@ import api from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
 import { useConfirm } from '../../composables/useConfirm'
+import { groupNumber } from '../../utils/groupOrder'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -1231,8 +1232,19 @@ const affected = computed(() => {
 async function loadQueue() {
    queue.value = (await api.get('/survey/queue')).data
 }
+/** Highest «#NNN» first (owner, 2026-10-12: «сортируй по убыванию») — the newest groups
+ *  on top. A group with no number sinks to the bottom; equal numbers keep the later trip
+ *  first. The left list and the group picker on the card read the same order. */
+function byNumberDesc(a: any, b: any): number {
+   const na = groupNumber(a.title), nb = groupNumber(b.title)
+   const fa = Number.isFinite(na), fb = Number.isFinite(nb)
+   if (fa !== fb) return fa ? -1 : 1
+   if (fa && na !== nb) return nb - na
+   return (b.trip_start_date || '').localeCompare(a.trip_start_date || '')
+      || (a.title || '').localeCompare(b.title || '')
+}
 async function loadGroups() {
-   groups.value = (await api.get('/survey/groups')).data
+   groups.value = ((await api.get('/survey/groups')).data as any[]).slice().sort(byNumberDesc)
 }
 
 function open(p: any) {
