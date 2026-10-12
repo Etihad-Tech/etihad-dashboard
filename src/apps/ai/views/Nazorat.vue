@@ -128,8 +128,10 @@
                  controls on one screen is two answers to "which month am I closing". -->
             <!-- ...nor over the phone's KPI tab, which has its own month chips: two month
                  pickers on one screen would be two answers to "which month is this". On a
-                 desktop the KPI sits in the one-scroll under Holat, so the picker stays. -->
-            <div v-if="!isDetail && !isChat && !isValues && !isFreeze && !isTrips && !isPhoneKpi"
+                 desktop the KPI sits in the one-scroll under Holat, so the picker stays.
+                 Same for the phone's Guruhlar tab (owner, 2026-10-12: «remove all
+                 filters and leave only per month») — it brings its own month chips. -->
+            <div v-if="!isDetail && !isChat && !isValues && !isFreeze && !isTrips && !isPhoneKpi && !isPhoneGroups"
                class="seg mt-3.5 lg:inline-flex lg:w-auto">
                <button v-for="p in PERIODS" :key="p.value" @click="s.setPeriod(p.value)"
                   :class="s.period === p.value ? 'is-on' : ''">
@@ -162,7 +164,9 @@
                  paid this month», which has no per-city version — the salary is one
                  number for the whole month. Leaving the controls there let somebody
                  slice a payslip and read the fragment as pay. -->
-            <div v-if="!isDetail && !isChat && !isKpiScreen && !isJournal"
+            <!-- Nor on the phone's Guruhlar tab: groups per ellikboshi per month has no
+                 per-group or per-city version, and a control there would change nothing. -->
+            <div v-if="!isDetail && !isChat && !isKpiScreen && !isJournal && !isPhoneGroups"
                class="flex flex-wrap items-center gap-2 mb-4">
                <select v-model="s.filterGroup" @change="s.setSlice()"
                   class="filter-select flex-1 min-w-0 lg:flex-none lg:max-w-[280px]">
@@ -233,7 +237,7 @@
                   <Kpi />
                </section>
                <section v-if="auth.role !== 'nazoratchi_staff'">
-                  <h3 class="n-group-h mb-3">Guruhlar taqsimoti</h3>
+                  <h3 class="n-group-h mb-3">Guruhlar</h3>
                   <Guruhlar />
                </section>
                <!-- Named so an outcome row on the overview can scroll to it: on a
@@ -388,6 +392,8 @@ watch(isJournal, (on) => {
 const MONTHS = lastMonths()
 /** The phone's KPI tab: it brings its own month chips, so the panel's picker steps aside. */
 const isPhoneKpi = computed(() => !isDesktop.value && route.path === '/ai/nazorat/kpi')
+/** The phone's Guruhlar tab: its month chips are its only control. */
+const isPhoneGroups = computed(() => !isDesktop.value && route.path === '/ai/nazorat/guruhlar')
 const isRating = computed(() => !isDesktop.value && route.path === '/ai/nazorat/reyting')
 watch(isRating, (on) => {
    if (on && s.filterCity) {
