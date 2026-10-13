@@ -166,41 +166,9 @@ export interface Worker {
    manual?: ManualEntry | null
 }
 
-// One leader's standing assignment — every group pinned to them, with no period at all.
-// It is NOT on Worker any more (owner, 2026-08-05): a Worker row only exists for someone
-// who got a DM inside the selected window, so on "Kunlik" a leader with a quiet day drops
-// off the page and their group total goes with them. A fact that does not depend on the
-// period cannot live in a list that does.
-export interface LeaderGroups {
-   username: string; name: string | null
-   // Always true: the API sends pool members only (owner, 2026-08-15). A group still
-   // pinned to a deleted leader is not thereby hidden — the readiness bell names it.
-   in_pool: boolean
-   // A leader holds a group-LEG, not a group (owner, 2026-08-16): one group can be led
-   // by different people in Makka and Madina, so it appears under both. `group_count`
-   // counts legs; `weighted_units` weights them (Makka 0.6 / Madina 0.4), so a group is
-   // exactly 1.0 however it is split and a leader holding both legs is unchanged.
-   group_count: number
-   weighted_units: number
-   // §4.1 — the same figure the KPI payslip pays on: guruh turi × shahar koeffitsienti.
-   // `weighted_units` splits a group between its two city leaders and stops there; `sg`
-   // additionally applies the Daraja, so two PREMIUM groups are 2 · 2,0 · 1,0 across the
-   // three fields. Both are shown (owner, 2026-08-26): until then this screen sent only
-   // the first two and the payslip only the third, and the panel answered «how many
-   // groups does this ellikboshi have» two different ways depending on the tab.
-   sg: number
-   // How many of those groups have NO Daraja set. Counted as WHOLE groups, the same
-   // rule the payslip follows — an unanswered question is not a premium group.
-   tier_unset: number
-   groups: { telegram_id: number; title: string | null
-             cities: string[]; weight: number
-             tier: string | null; tier_set: boolean; sg: number }[]
-}
-
-/** One ellikboshi's WORKLOAD in an arbitrary window — how many of their groups were on
- *  the road during it. A different question from LeaderGroups above, which is the
- *  standing roster and answers to no period at all; both live on the Guruhlar screen and
- *  the screen has to say which is which. */
+/** One ellikboshi's WORKLOAD in a calendar month — how many of their groups were on the
+ *  road during it. The whole Guruhlar screen since 2026-10-12: the all-time roster it
+ *  used to sit under is gone (owner: per month, not the overall number). */
 export interface LeaderPeriodCount {
    username: string; name: string | null
    in_pool: boolean
@@ -359,22 +327,11 @@ export const useNazoratStore = defineStore('nazorat', () => {
    const chatUnread = ref(0)
    const chatLoading = ref(false)
    const chatSending = ref(false)
-   // The roster screen. Kept OUT of load(): it takes no period and no group/city slice,
-   // so re-pulling it whenever the window changes would be pure waste — and worse, it
-   // would imply to the reader that it answers to the selector like everything else does.
-   const leaderGroups = ref<LeaderGroups[]>([])
-   const leaderGroupsLoading = ref(false)
-   const leaderGroupsError = ref<'' | 'forbidden' | 'failed'>('')
-
-   // The PERIOD workload on the same screen (owner, 2026-08-10: "number of groups per
-   // ellikboshi weekly and monthly"). It has its OWN week/month switch rather than
-   // reading the panel's Kunlik/Haftalik/Oylik selector: the roster above it is
-   // deliberately period-free and says so, and one screen answering to two different
-   // period controls at once is how a reader ends up misreading both numbers. Also kept
-   // out of load() for the same reason as the roster.
-   const groupPeriod = ref<'week' | 'month'>('week')
+   // The Guruhlar screen: groups per ellikboshi in ONE calendar month (owner,
+   // 2026-10-12 — «leave only per month», no week switch, no all-time total). It has its
+   // own month (`groupMonth`, below) and is kept OUT of load(): it takes no slice, and the
+   // panel's Kunlik/Haftalik picker is not shown over it.
    const periodCounts = ref<LeaderPeriodCount[]>([])
-   const periodRange = ref<{ from: string; to: string }>({ from: '', to: '' })
    const periodUnscheduled = ref(0)
    const periodCountsLoading = ref(false)
    const periodCountsError = ref<'' | 'forbidden' | 'failed'>('')
@@ -482,6 +439,7 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
    }
    const kpiMonth = ref<string>(thisMonth())
+   const groupMonth = ref<string>(thisMonth())
    const kpiWorkers = ref<Worker[]>([])
    const kpiLoading = ref(false)
    const kpiError = ref(false)
@@ -584,63 +542,39 @@ export const useNazoratStore = defineStore('nazorat', () => {
       return loadRequests(true)
    }
 
-   /** The leader roster — every ellikboshi and how many groups they hold. No period.
-    *  A nazoratchi_staff token is refused by the API (their scope is the crew), which is
-    *  told apart from a real failure so the screen can say which happened. */
-   async function loadLeaderGroups() {
-      leaderGroupsLoading.value = true
-      leaderGroupsError.value = ''
-      try {
-         const { data } = await api.get('/control/leader-groups')
-         leaderGroups.value = data
-      } catch (e: any) {
-         leaderGroups.value = []
-         leaderGroupsError.value = e?.response?.status === 403 ? 'forbidden' : 'failed'
-      } finally {
-         leaderGroupsLoading.value = false
-      }
-   }
-
-   /** YYYY-MM-DD in the READER's own day, which is what they mean by "this week". The
-    *  server counts trips by calendar date, so a day either side of midnight is the whole
-    *  error — not worth a timezone conversion that would then disagree with the date the
-    *  reader sees on their phone. */
-   function isoDay(d: Date) {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-   }
-
-   /** The window's per-ellikboshi group count. WORKLOAD, not activity: the server counts
-    *  every group whose trip RAN inside the window, whether or not it produced a single
+   /** Groups per ellikboshi in `groupMonth`. WORKLOAD, not activity: the server counts
+    *  every group whose trip RAN inside the month, whether or not it produced a single
     *  message — counting only groups that generated needs would pay a leader LESS when
-    *  their groups went well. The dates come back in the response, so the screen always
-    *  states the window it actually got rather than the one it asked for. */
+    *  their groups went well. A trip over the 1st belongs to both months.
+    *
+    *  Read from /control (not /ellikboshilar/group-counts, which refuses the controller
+    *  logins). The crew's controller is refused here too, and told apart from a failure.
+    *  `seq` drops a slow answer for a month the reader has already left. */
+   let periodSeq = 0
    async function loadPeriodCounts() {
-      const days = groupPeriod.value === 'week' ? 7 : 30
-      const to = new Date()
-      const from = new Date()
-      from.setDate(from.getDate() - (days - 1))
+      const seq = ++periodSeq
       periodCountsLoading.value = true
       periodCountsError.value = ''
       try {
-         const { data } = await api.get('/ellikboshilar/group-counts', {
-            params: { date_from: isoDay(from), date_to: isoDay(to) },
-         })
+         const { data } = await api.get('/control/leader-groups/month',
+            { params: { month: groupMonth.value } })
+         if (seq !== periodSeq) return
          periodCounts.value = data?.leaders || []
          periodUnscheduled.value = data?.unscheduled_groups || 0
-         periodRange.value = { from: data?.date_from || '', to: data?.date_to || '' }
       } catch (e: any) {
+         if (seq !== periodSeq) return
          periodCounts.value = []
          periodUnscheduled.value = 0
          periodCountsError.value = e?.response?.status === 403 ? 'forbidden' : 'failed'
       } finally {
-         periodCountsLoading.value = false
+         if (seq === periodSeq) periodCountsLoading.value = false
       }
    }
 
-   function setGroupPeriod(p: 'week' | 'month') {
-      if (groupPeriod.value === p && periodCounts.value.length) return
-      groupPeriod.value = p
-      loadPeriodCounts()
+   function setGroupMonth(m: string) {
+      if (groupMonth.value === m && periodCounts.value.length) return
+      groupMonth.value = m
+      void loadPeriodCounts()
    }
 
    /** A slice change invalidates everything, so both reads restart. */
@@ -937,9 +871,8 @@ export const useNazoratStore = defineStore('nazorat', () => {
       report, workers, groupOptions, aggressive, scope,
       // The KPI tab's own calendar-month slice — see loadKpiWorkers.
       kpiMonth, kpiWorkers, kpiLoading, kpiError, loadKpiWorkers, setKpiMonth,
-      leaderGroups, leaderGroupsLoading, leaderGroupsError, loadLeaderGroups,
-      groupPeriod, periodCounts, periodRange, periodUnscheduled,
-      periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupPeriod,
+      groupMonth, periodCounts, periodUnscheduled,
+      periodCountsLoading, periodCountsError, loadPeriodCounts, setGroupMonth,
       filterGroup, filterCity, filterRole, filterName,
       requests, requestsLoading, requestsLoaded, reqLimit, requestsTruncated,
       form, sliceQuery, dismissed,
