@@ -187,7 +187,7 @@ const TEXT = {
    flown_source: { uz: 'Manba (masalan: manifest)', ar: 'المصدر (مثلًا: كشف الركاب)' },
    back_to_crm: { uz: 'CRM soniga qaytarish', ar: 'العودة إلى عدد CRM' },
    crm_used: { uz: "CRM soni qo'llanadi", ar: 'يُعتمد عدد CRM' },
-   survey_title: { uz: "Ziyoratchilar so'rovi", ar: 'استبيان المعتمرين' },
+   survey_title: { uz: 'Sifat nazorati', ar: 'مراقبة الجودة' },
    survey_share: { uz: 'ballning {n}%', ar: '{n}% من الدرجة' },
    survey_used: { uz: "{n} ta so'rov hisobga kirdi", ar: 'استبيانات محتسبة: {n}' },
    survey_of: { uz: '({n} tadan)', ar: '(من أصل {n})' },
