@@ -216,7 +216,7 @@ const TEXT = {
    tile_done: { uz: 'Bajarildi', ar: 'المنجزة' },
    tile_trips: { uz: 'Chiqishlar', ar: 'المهام الميدانية' },
    month_pay: { uz: 'Oylik', ar: 'الراتب الشهري' },
-   bonus: { uz: "Qo'shimcha to'lov", ar: 'مبلغ إضافي' },
+   bonus: { uz: 'Mukofot', ar: 'مكافأة' },
    not_found: { uz: 'Xodim topilmadi', ar: 'الموظف غير موجود' },
    ops_done: { uz: 'Bajarilgani', ar: 'نسبة الإنجاز' },
    ops_answered: { uz: 'Javob berilgani', ar: 'نسبة الاستجابة' },

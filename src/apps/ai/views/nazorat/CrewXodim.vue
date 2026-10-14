@@ -99,7 +99,7 @@
                      <input v-if="board.can_set_manual" type="number" min="0" step="10" placeholder="0"
                         class="w-28 px-2 py-1 rounded-lg border border-[color:var(--n-line,rgba(0,0,0,0.15))] bg-transparent text-end font-semibold"
                         :value="pay.bonus || ''" @change="saveBonus($event)" />
-                     <template v-else>{{ pay.bonus ? sar(pay.bonus) : '—' }}</template>
+                     <span v-else class="font-semibold">{{ pay.bonus ? sar(pay.bonus) : '—' }}</span>
                   </span>
                   <template v-if="pay.jarima">
                      <span>{{ tr('fine') }} <span class="text-[color:var(--n-muted)]">— {{ fineWhy }}</span></span>
