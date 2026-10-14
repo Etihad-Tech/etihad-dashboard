@@ -123,6 +123,8 @@ const router = createRouter({
         { path: 'guruhlar', name: 'AiNazoratGuruhlar', component: () => import('../apps/ai/views/nazorat/Guruhlar.vue') },
         { path: 'suhbat', name: 'AiNazoratSuhbat', component: () => import('../apps/ai/views/nazorat/Suhbat.vue') },
         { path: 'xodim/:id', name: 'AiNazoratXodim', component: () => import('../apps/ai/views/nazorat/Xodim.vue') },
+        // A Tashkiliy guruh member's month — by staff id (a crew member may have no Telegram id).
+        { path: 'xodim/tashkiliy/:id', name: 'AiNazoratCrewXodim', component: () => import('../apps/ai/views/nazorat/CrewXodim.vue') },
       ],
     },
 
