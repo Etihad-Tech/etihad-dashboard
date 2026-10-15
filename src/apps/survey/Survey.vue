@@ -117,19 +117,26 @@
                        the mouse, and a name or a number is picked straight off this
                        list (owner, 2026-09-08: «allow copy pasting»). Enter / Space
                        open; the ✕ is a sibling so its click does not open the row. -->
-                  <div v-for="p in groupPilgrims" :key="p.id" class="sn-prow"
-                     :class="{ on: current && current.id === p.id, saved: p.survey_status === 'saved' }">
+                  <!-- By CRM booking (owner, 2026-10-15): the booking's primary passenger,
+                       with the rest of the booking folded under them. -->
+                  <div v-for="{ p, sub, unit, dim } in groupRows" :key="p.id" class="sn-prow"
+                     :class="{ on: current && current.id === p.id, saved: p.survey_status === 'saved', sub, dim }">
                      <div class="sn-prow-main" role="button" tabindex="0" @click="open(p)"
                         @keydown.enter.prevent="open(p)" @keydown.space.prevent="open(p)">
                         <span class="sn-dot" :class="dotClass(p)"></span>
                         <span class="sn-prow-text">
                            <b>{{ p.full_name }}</b>
-                           <small :class="{ 'sn-warn-text': !p.phone }">{{ p.phone ? '+' + p.phone : NO_PHONE }}</small>
+                           <small v-if="!sub" :class="{ 'sn-warn-text': !p.phone }">{{ p.phone ? '+' + p.phone : NO_PHONE }}</small>
+                           <small v-else-if="p.phone && p.phone !== unit.head.phone">+{{ p.phone }}</small>
                         </span>
                         <span class="sn-pstatus" :class="'cs-' + p.call_status">
                            {{ p.survey_status === 'saved' ? 'Saqlangan' : (CALL_LABELS[p.call_status] || p.call_status) }}
                         </span>
                      </div>
+                     <button v-if="!sub && unit.members.length" type="button" class="sn-fam" :class="{ open: unit.open }"
+                        :aria-expanded="unit.open" @click="toggleUnit(unit)">
+                        +{{ unit.members.length }}<Icon name="chevron" :size="12" />
+                     </button>
                      <button type="button" class="sn-iconbtn sn-prow-x" :disabled="p.survey_status === 'saved'"
                         :title="p.survey_status === 'saved' ? SAVED_NO_DELETE : 'Ro\'yxatdan o\'chirish'"
                         @click="removePilgrim(p)"><Icon name="x" :size="14" /></button>
@@ -807,13 +814,61 @@ const groupPilgrims = computed(() => groupAll.value
    .sort((a, b) => Number(a.survey_status === 'saved') - Number(b.survey_status === 'saved')
       || a.full_name.localeCompare(b.full_name)))
 
-/** The next person to call after the open one — in their group, in the list's order. */
+/** A booking's people in the CRM's own order: the primary, then by place on the booking. */
+function byPax(a: any, b: any): number {
+   return Number(!a.booking_primary) - Number(!b.booking_primary)
+      || (a.booking_pax ?? 32768) - (b.booking_pax ?? 32768) || a.full_name.localeCompare(b.full_name)
+}
+/** One group's people by CRM booking (owner, 2026-10-15: «показывались только главные в
+ *  брони и внутри списком остальные»): the head the server marks — the booking's primary
+ *  passenger — with the rest under them. A pilgrim with no booking stands alone. A booking
+ *  goes to the bottom once everybody in it is saved. */
+function bookingUnits(people: any[]) {
+   const byKey = new Map<string, any[]>()
+   for (const p of people) {
+      const key = p.booking_id ? 'b:' + p.booking_id : 'p:' + p.id
+      if (!byKey.has(key)) byKey.set(key, [])
+      byKey.get(key)!.push(p)
+   }
+   return [...byKey.entries()].map(([key, list]) => {
+      const head = list.find((p) => p.booking_head) || list.slice().sort(byPax)[0]
+      return { key, head, members: list.filter((p) => p !== head).sort(byPax),
+         done: list.every((p) => p.survey_status === 'saved') }
+   }).sort((a, b) => Number(a.done) - Number(b.done) || a.head.full_name.localeCompare(b.head.full_name))
+}
+const openUnits = reactive(new Set<string>())
+function toggleUnit(u: any) {
+   if (openUnits.has(u.key)) openUnits.delete(u.key)
+   else openUnits.add(u.key)
+}
+/** The rows on screen. A search or a call-status filter shows a booking when anybody in
+ *  it matches — the head always, the matching members open under them. */
+const groupRows = computed(() => {
+   const filtering = !!needle.value || !!statusFilter.value
+   const shown = new Set(groupPilgrims.value.map((p) => p.id))
+   const out: any[] = []
+   for (const u of bookingUnits(groupAll.value)) {
+      if (!shown.has(u.head.id) && !u.members.some((m) => shown.has(m.id))) continue
+      const subs = filtering ? u.members.filter((m) => shown.has(m.id)) : u.members
+      const open = (filtering && subs.length > 0) || openUnits.has(u.key)
+         || u.members.some((m) => m.id === current.value?.id)
+      const unit = { ...u, open }
+      out.push({ p: u.head, sub: false, unit, dim: filtering && !shown.has(u.head.id) })
+      if (open) for (const m of subs) out.push({ p: m, sub: true, unit, dim: false })
+   }
+   return out
+})
+
+/** The next person to call after the open one — the rest of the same booking first (the
+ *  family is on the same call), then the group in the list's order. */
 const nextPilgrim = computed(() => {
-   const list = queue.value.filter((p) => p.chat_id === current.value?.chat_id)
-      .sort((a, b) => Number(a.survey_status === 'saved') - Number(b.survey_status === 'saved')
-         || a.full_name.localeCompare(b.full_name))
-      .filter((p) => p.survey_status !== 'saved' && p.id !== current.value?.id)
-   return list[0] || null
+   const cur = current.value
+   const todo = (p: any) => p.survey_status !== 'saved' && p.id !== cur?.id
+   const units = bookingUnits(queue.value.filter((p) => p.chat_id === cur?.chat_id))
+   const own = units.find((u) => [u.head, ...u.members].some((p) => p.id === cur?.id))
+   const family = own ? [own.head, ...own.members].filter(todo) : []
+   if (family.length) return family[0]
+   return units.flatMap((u) => [u.head, ...u.members]).filter(todo)[0] || null
 })
 
 /** Groups the search still matches — by their OWN name, or by a pilgrim inside them,
@@ -1623,6 +1678,18 @@ onUnmounted(() => {
 .sn-pstatus { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .sn-prow.saved .sn-pstatus { color: var(--good); }
 .sn-pstatus.cs-qayta { color: #8a5408; }
+.sn-prow.sub { margin-left: 16px; padding-left: 6px; border-left: 2px solid var(--line); border-radius: 0 10px 10px 0; }
+.sn-prow.sub .sn-prow-main { padding-top: 5px; padding-bottom: 5px; }
+.sn-prow.sub .sn-prow-text b { font-weight: 500; font-size: 13px; }
+.sn-prow.dim .sn-prow-main { opacity: .55; }
+.sn-fam { display: inline-flex; align-items: center; gap: 1px; flex: none; border: 0; background: transparent; cursor: pointer;
+   font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 4px 4px 6px; border-radius: 8px;
+   font-variant-numeric: tabular-nums; }
+.sn-fam:hover { background: var(--line-soft); color: var(--ink); }
+.sn-fam:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.sn-fam svg { display: inline-block; transition: transform .15s ease; }
+.sn-fam.open svg { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .sn-fam svg { transition: none; } }
 .sn-prow-x { opacity: 0; }
 .sn-prow:hover .sn-prow-x, .sn-prow-x:focus-visible { opacity: 1; }
 .sn-prow-x:disabled { opacity: 0 !important; }
