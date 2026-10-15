@@ -10,6 +10,7 @@
          <span class="sn-brand-sub">Qaytgan ziyoratchilar so'rovnomasi</span>
          <div class="sn-topright">
             <span v-if="doneToday" class="sn-topstat"><Icon name="check" :size="14" /> {{ doneToday }} ta saqlangan</span>
+            <button type="button" class="sn-topbtn" @click="openReport"><Icon name="download" :size="14" /> Excel</button>
             <button type="button" class="sn-topbtn" @click="logout">Chiqish</button>
          </div>
       </header>
@@ -540,6 +541,33 @@
             </template>
          </div>
       </div>
+
+      <!-- ─────────── EXCEL REPORT of a month (owner, 2026-10-15) ─────────── -->
+      <div v-if="reportOpen" class="sn-modal" @click.self="closeReport">
+         <div class="sn-modal-card sn-modal-sm" role="dialog" aria-modal="true" aria-labelledby="sn-report-title">
+            <header class="sn-modal-head">
+               <h2 id="sn-report-title">Excel hisobot</h2>
+               <button type="button" class="sn-iconbtn" title="Yopish" @click="closeReport"><Icon name="x" :size="16" /></button>
+            </header>
+            <label class="sn-field">Oy
+               <select id="sn-report-month" v-model="reportMonth" class="sn-select">
+                  <option v-for="m in reportMonths" :key="m.period" :value="m.period">{{ m.label }}</option>
+               </select>
+            </label>
+            <label class="sn-field">Guruh
+               <select id="sn-report-group" v-model="reportGroup" class="sn-select">
+                  <option :value="null">Barcha guruhlar</option>
+                  <option v-for="g in groups" :key="g.chat_id" :value="g.chat_id">{{ g.title || g.chat_id }}</option>
+               </select>
+            </label>
+            <footer class="sn-modal-foot">
+               <button type="button" class="sn-btn sn-btn-quiet" @click="closeReport">Bekor</button>
+               <button type="button" class="sn-btn sn-btn-primary" :disabled="reportBusy" @click="downloadReport">
+                  <Icon name="download" :size="14" /> {{ reportBusy ? "Tayyorlanmoqda…" : "Yuklab olish" }}
+               </button>
+            </footer>
+         </div>
+      </div>
    </div>
 </template>
 
@@ -570,6 +598,7 @@ const PATHS: Record<string, string> = {
    check: 'M5 12.5l4.5 4.5L19 7.5',
    search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
    upload: 'M12 15V4M7.5 8.5L12 4l4.5 4.5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4',
+   download: 'M12 4v11M7.5 10.5L12 15l4.5-4.5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4',
    alert: 'M12 9v4M12 17h.01M10.3 3.9L2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
    sync: 'M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M20 4v4h-4M4 20v-4h4',
 }
@@ -1314,7 +1343,7 @@ function setAns(k: string, v: any) {
  *  and a zero are different facts — one keeps the survey out of the mean, the other
  *  scores it at nothing. */
 function onKey(e: KeyboardEvent) {
-   if (!current.value || isSaved.value || importFor.value !== null) return
+   if (!current.value || isSaved.value || importFor.value !== null || reportOpen.value) return
    const tag = (e.target as HTMLElement)?.tagName
    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
    const k = focusKey.value
@@ -1469,12 +1498,76 @@ async function save() {
    } finally { saving.value = false }
 }
 
+// ── Excel report (owner, 2026-10-15) — the month is the KPI's: surveys SAVED in it. ──
+// Month names spelled as the Nazorat panel spells them (nazorat/shared.ts UZ_MONTHS).
+const UZ_MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul',
+   'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr']
+const reportOpen = ref(false)
+const reportBusy = ref(false)
+const reportMonth = ref('')
+const reportGroup = ref<number | null>(null)
+const reportMonths = computed(() => {
+   const now = new Date()
+   return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      return {
+         period: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+         label: `${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+      }
+   })
+})
+
+function openReport() {
+   reportMonth.value = reportMonths.value[0]!.period
+   reportGroup.value = openGroupObj.value ? openGroupObj.value.chat_id : null
+   reportOpen.value = true
+}
+
+function closeReport() {
+   if (!reportBusy.value) reportOpen.value = false
+}
+
+async function downloadReport() {
+   if (reportBusy.value) return
+   reportBusy.value = true
+   try {
+      const params: Record<string, any> = { month: reportMonth.value }
+      if (reportGroup.value !== null) params.chat_id = reportGroup.value
+      const res = await api.get('/survey/report.xlsx', { params, responseType: 'blob' })
+      const g = groups.value.find((x) => x.chat_id === reportGroup.value)
+      const num = g ? ((g.title || '').match(/#\s*(\d+)/) || [])[1] || String(Math.abs(g.chat_id)) : ''
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Sifat_nazorati_${reportMonth.value}${num ? '_' + num : ''}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      reportOpen.value = false
+   } catch (e: any) {
+      // A blob request brings its error back as a blob too — the server's reason is inside.
+      let msg = 'Hisobot yuklanmadi'
+      const data = e?.response?.data
+      if (data instanceof Blob) {
+         try {
+            const d = JSON.parse(await data.text())?.detail
+            if (typeof d === 'string') msg = d
+         } catch { /* not JSON — keep the fallback */ }
+      }
+      toast.error(msg)
+   } finally {
+      reportBusy.value = false
+   }
+}
+
 function logout() {
    auth.logout()
    router.push('/login')
 }
 
 function onEsc(e: KeyboardEvent) {
+   if (e.key === 'Escape' && reportOpen.value) closeReport()
    if (e.key === 'Escape' && importFor.value !== null) closeImport()
 }
 
@@ -1531,7 +1624,7 @@ onUnmounted(() => {
 .sn-topstat { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, .85);
    background: rgba(255, 255, 255, .08); padding: 5px 10px; border-radius: 999px; }
 .sn-topbtn { font: inherit; font-size: 13px; color: #fff; background: transparent; border: 1px solid rgba(255, 255, 255, .28);
-   border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+   border-radius: 8px; padding: 5px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .sn-topbtn:hover { background: rgba(255, 255, 255, .1); }
 
 /* ── layout ── */
@@ -1855,6 +1948,8 @@ textarea.sn-input { resize: vertical; min-height: 44px; }
 .sn-field small { font-weight: 500; color: var(--muted); }
 .sn-field .sn-input { font-weight: 400; font-size: 14px; }
 .sn-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.sn-modal-sm { max-width: 400px; }
+.sn-modal-foot .sn-btn { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ── narrower screens ── */
 /* Below 1360 the summary column goes; the save bar keeps the one number from it. */
