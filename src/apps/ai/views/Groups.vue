@@ -142,6 +142,7 @@
                 <select v-model="g.order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                   <option value="makka_madina">{{ routeLabel(g, 'makka_madina') }}</option>
                   <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
+                  <option value="makka_only">{{ routeLabel(g, 'makka_only') }}</option>
                 </select>
                 <p v-if="routeLooksWrong(g)" class="text-[11px] text-amber-600 mt-1">
                   {{ routeWarning(g) }}
@@ -281,7 +282,7 @@ function applyHotelTier(g: Grp) {
   if (h?.default_tier) g.hotel_tier = h.default_tier
 }
 
-type Order = 'madina_makka' | 'makka_madina'
+type Order = 'madina_makka' | 'makka_madina' | 'makka_only'
 
 interface Grp {
   id: number
@@ -347,7 +348,7 @@ const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 
 const silentSavingId = ref<number | null>(null)
 
 // ─── Umra dasturi per group (admin only — the API is admin-only too) ──────────────
-interface ProgramRes { source: 'group' | 'template' | 'none'; program_id: number | null; program_name: string | null; shape: { days: number; tier: string } | null; warnings: string[] }
+interface ProgramRes { source: 'group' | 'template' | 'none'; program_id: number | null; program_name: string | null; shape: { days: number; tier: string; order?: string } | null; warnings: string[] }
 const programs = ref<Record<string, ProgramRes>>({})
 const programSavingId = ref<number | null>(null)
 
@@ -361,7 +362,10 @@ async function loadPrograms() {
 function programNone(r: ProgramRes): string {
   if (r.warnings.includes('no_day_map')) return 'kechalar kiritilmagan'
   const t = r.shape?.tier === 'comfort' ? 'comfort' : 'lux'
-  return `${r.shape?.days} kun · ${t} uchun shablon yo'q`
+  // The route is part of the cell: a Makka-only trip has its own template even when a
+  // classic one of the same length exists.
+  const route = r.shape?.order === 'makka_only' ? ' · Jidda → Makka → Jidda' : ''
+  return `${r.shape?.days} kun · ${t}${route} uchun shablon yo'q`
 }
 async function customizeProgram(g: Grp) {
   programSavingId.value = g.id
@@ -518,7 +522,11 @@ function computeRanges(g: Grp) {
     cur += days
   }
   place('jidda', jd)
-  if (g.order === 'makka_madina') {
+  if (g.order === 'makka_only') {
+    // Jidda → Makka → Jidda (owner, 2026-10-15): no Madina stay — its range stays 0/0,
+    // which also clears one left over from before the route was changed.
+    place('makka', mk)
+  } else if (g.order === 'makka_madina') {
     place('makka', mk)
     place('madina', md)
   } else {
@@ -579,6 +587,8 @@ function defaultOrder(iso: string): Order {
  *  corrected. Left alone it is invisible: the day map still looks filled in, and the bot
  *  quietly tags the other city's crew. */
 function routeLooksWrong(g: Grp): boolean {
+  // The Makka-only route has no weekday of its own here — no claim is made about it.
+  if (g.order === 'makka_only') return false
   const route = routeForWeekday(g.trip_start_date)
   return route !== null && g.order !== route
 }
@@ -605,12 +615,15 @@ function totalNights(g: Grp): number {
 /** Cities in travel order: Jidda is the arrival airport, so it always comes first when
  *  there is a night there; the select then orders the two holy cities. */
 function cityOrder(g: Grp): City[] {
+  if (g.order === 'makka_only') return ['jidda', 'makka']
   return g.order === 'makka_madina'
     ? ['jidda', 'makka', 'madina']
     : ['jidda', 'madina', 'makka']
 }
 
 function routeLabel(g: Grp, order: Order): string {
+  // Lands in Jidda, stays in Makka, flies home from Jidda — both ends are named.
+  if (order === 'makka_only') return 'Jidda → Makka → Jidda'
   const seq: City[] = order === 'makka_madina'
     ? ['jidda', 'makka', 'madina']
     : ['jidda', 'madina', 'makka']
@@ -715,10 +728,12 @@ async function load() {
       // Both legs must really exist for the map to settle the question: a missing leg
       // reads as 0, and 0 < anything would call a Makka-only group Madina-first. When
       // the map cannot say, the departure weekday does — see defaultOrder().
+      // A map with a Makka stay and no Madina one IS the Makka-only route (Jidda →
+      // Makka → Jidda) — that is how the bot reads it too, so the card says the same.
       const msN = Number(ms), ksN = Number(ks)
       const order: Order = (msN > 0 && ksN > 0)
         ? (msN < ksN ? 'madina_makka' : 'makka_madina')
-        : defaultOrder(g.trip_start_date || '')
+        : (ksN > 0 ? 'makka_only' : defaultOrder(g.trip_start_date || ''))
       return {
         id: g.id,
         // The name the trip is REGISTERED under in Turon, not the Telegram chat's.
