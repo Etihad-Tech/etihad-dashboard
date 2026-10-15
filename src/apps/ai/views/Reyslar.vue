@@ -6,7 +6,7 @@
           <h2 class="text-2xl font-bold text-gray-900">Reyslar</h2>
           <p class="text-sm text-gray-500 mt-1">Haftalik reyslar — vaqt, yo'nalish va o'zgarishlarni shu yerdan boshqaring</p>
         </div>
-        <button @click="adding ? cancelAdd() : openAdd()" :disabled="!adding && !availableWeekdays.length" class="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
+        <button @click="adding ? cancelAdd() : openAdd()" class="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
           <font-awesome-icon :icon="adding ? 'xmark' : 'plus'" class="w-3.5 h-3.5" />
           {{ adding ? 'Bekor qilish' : 'Yangi reys' }}
         </button>
@@ -41,13 +41,19 @@
           </div>
         </div>
 
-        <div class="grid sm:grid-cols-2 gap-3">
+        <div class="grid sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs text-gray-400 mb-1">Hafta kuni</label>
             <select v-model.number="newWeekday" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-              <option v-for="w in availableWeekdays" :key="w" :value="w">{{ weekdayLabel(w) }}</option>
+              <option v-for="w in WEEKDAY_IDS" :key="w" :value="w">{{ weekdayLabel(w) }}{{ usedWeekdays.has(w) ? ' — reys bor' : '' }}</option>
             </select>
             <p class="text-xs text-gray-400 mt-1" v-if="newWeekday !== null">Keyingi jo'nash: <b>{{ humanDate(nextISOForWeekday(newWeekday)) }}</b></p>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Yo'nalish</label>
+            <select v-model="newRoute" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option v-for="r in ROUTES" :key="r.key" :value="r.key" :disabled="routeTaken(newWeekday, r)">{{ r.label }}{{ routeTaken(newWeekday, r) ? ' — bor' : '' }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs text-gray-400 mb-1">Tunlar soni</label>
@@ -63,7 +69,7 @@
             {{ creating ? 'Saqlanmoqda...' : "Qo'shish" }}
           </button>
         </div>
-        <p class="text-xs text-gray-400 mt-3">Qo'shilgandan so'ng yo'nalish va vaqtlarni shu reysning kartochkasida to'ldiring.</p>
+        <p class="text-xs text-gray-400 mt-3">Qo'shilgandan so'ng vaqtlarni shu reysning kartochkasida to'ldiring.</p>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">
@@ -81,7 +87,10 @@
               <font-awesome-icon icon="plane" class="w-4 h-4 text-sky-600" />
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="text-base font-semibold text-gray-900 truncate">{{ s.name }}</h3>
+              <div class="flex items-center gap-2 min-w-0">
+                <h3 class="text-base font-semibold text-gray-900 truncate">{{ s.name }}</h3>
+                <span class="shrink-0 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-100 text-sky-700 text-[11px] font-medium">{{ routeLabel(s.outbound_to, s.return_from) }}</span>
+              </div>
               <p class="text-xs text-gray-400">Har {{ weekdayLabel(s.departure_weekday) }} kuni · {{ s.nights }} kecha (zaxira)</p>
             </div>
             <button @click="deleteDay(s)" :disabled="deletingId === s.id" title="O'chirish" class="shrink-0 w-8 h-8 rounded-xl text-gray-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors">
@@ -94,6 +103,11 @@
             <span class="text-xs text-gray-500">Keyingi jo'nash:</span>
             <span class="text-xs font-semibold text-gray-700">{{ humanDate(nextISOForWeekday(s.departure_weekday)) }}</span>
           </div>
+
+          <p v-if="routeTwin(s)" class="mb-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-2xl px-3 py-2">
+            {{ weekdayLabel(s.departure_weekday) }} kuni «{{ routeTwin(s)?.name }}» ham shu yo'nalishda — bot ulardan faqat bittasini ishlatadi.
+            Borishdagi «Qayerga» yoki qaytishdagi «Qayerdan»ni to'g'rilang.
+          </p>
 
           <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🛫 Borish</p>
           <div class="grid grid-cols-2 gap-3 mb-4">
@@ -286,7 +300,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
@@ -356,10 +370,35 @@ const savingId = ref<number | null>(null)
 const savedId = ref<number | null>(null)
 const deletingId = ref<number | null>(null)
 
-const availableWeekdays = computed(() => {
-  const used = new Set(schedules.value.map(s => s.departure_weekday))
-  return [0, 1, 2, 3, 4, 5, 6].filter(w => !used.has(w))
-})
+// A weekday may carry a SECOND row — another route the same day (owner, 2026-10-15:
+// Jidda → Makka → Jidda beside a classic route). The bot gives each group the row whose
+// airports match the group's own nights (Guruhlar), so the two never mix.
+const WEEKDAY_IDS = [0, 1, 2, 3, 4, 5, 6]
+const usedWeekdays = computed(() => new Set(schedules.value.map(s => s.departure_weekday)))
+const availableWeekdays = computed(() => WEEKDAY_IDS.filter(w => !usedWeekdays.value.has(w)))
+
+// The route a row flies, read off the two Saudi airports the bot matches a group by:
+// where the plane LANDS (borish → qayerga) and where it flies HOME from (qaytish →
+// qayerdan). Shown on every card, so «Shanba» and «Shanba 2» are told apart at a glance.
+const ROUTES = [
+  { key: 'madina-jidda', land: 'madina', home: 'jidda', label: 'Madina → Makka → Jidda' },
+  { key: 'jidda-madina', land: 'jidda', home: 'madina', label: 'Jidda → Makka → Madina' },
+  { key: 'jidda-jidda', land: 'jidda', home: 'jidda', label: 'Jidda → Makka → Jidda' },
+]
+type Route = typeof ROUTES[number]
+function routeLabel(land: string, home: string) {
+  const r = ROUTES.find(x => x.land === land && x.home === home)
+  return r ? r.label : `${cityLabel(land)} … ${cityLabel(home)}`
+}
+function routeTaken(w: number | null, r: Route) {
+  return schedules.value.some(x => x.departure_weekday === w && x.outbound_to === r.land && x.return_from === r.home)
+}
+// Another row of the same weekday on the same airports: the bot cannot tell them apart
+// and always takes the first one, so the second one's times would never be used.
+function routeTwin(s: Flight) {
+  return schedules.value.find(x => x.id !== s.id && x.departure_weekday === s.departure_weekday
+    && x.outbound_to === s.outbound_to && x.return_from === s.return_from) || null
+}
 
 // --- Add a weekly flight ---
 const adding = ref(false)
@@ -367,16 +406,43 @@ const creating = ref(false)
 const addError = ref('')
 const newWeekday = ref<number | null>(null)
 const newNights = ref(9)
+const newRoute = ref(ROUTES[0].key)
 
-function openAdd() { addError.value = ''; newWeekday.value = availableWeekdays.value[0] ?? null; newNights.value = 9; adding.value = true }
+function firstFreeRoute(w: number | null) { return (ROUTES.find(r => !routeTaken(w, r)) || ROUTES[0]).key }
+watch(newWeekday, w => { newRoute.value = firstFreeRoute(w) })
+
+function openAdd() {
+  addError.value = ''
+  newWeekday.value = availableWeekdays.value[0] ?? WEEKDAY_IDS[0]
+  newRoute.value = firstFreeRoute(newWeekday.value)
+  newNights.value = 9
+  adding.value = true
+}
 function cancelAdd() { adding.value = false; addError.value = '' }
 
 async function createDay() {
   addError.value = ''
   if (newWeekday.value === null) { addError.value = 'Hafta kunini tanlang.'; return }
+  const route = ROUTES.find(r => r.key === newRoute.value) || ROUTES[0]
+  if (routeTaken(newWeekday.value, route)) {
+    addError.value = `${weekdayLabel(newWeekday.value)} kuni «${route.label}» reysi allaqachon bor.`
+    return
+  }
   creating.value = true
   try {
-    const { data } = await api.post('/flights', { name: weekdayLabel(newWeekday.value), departure_weekday: newWeekday.value, nights: newNights.value })
+    // A second row on a weekday is named apart from the first one: «Shanba 2».
+    const same = schedules.value.filter(x => x.departure_weekday === newWeekday.value).length
+    const name = weekdayLabel(newWeekday.value) + (same ? ` ${same + 1}` : '')
+    let { data } = await api.post('/flights', { name, departure_weekday: newWeekday.value, nights: newNights.value })
+    // The server creates a row on fixed default airports; the chosen route is set right
+    // away, so a second row of a weekday never starts on the first one's airports.
+    if (data.outbound_to !== route.land || data.return_from !== route.home) {
+      try {
+        data = (await api.put(`/flights/${data.id}`, { outbound_to: route.land, return_from: route.home })).data
+      } catch {
+        toast.error("Reys qo'shildi, lekin yo'nalishi saqlanmadi — kartochkada «Qayerga» / «Qayerdan»ni tanlang.")
+      }
+    }
     schedules.value.push(data)
     schedules.value.sort((a, b) => a.departure_weekday - b.departure_weekday)
     excs.value[data.id] = []

@@ -19,11 +19,11 @@
             </template>
             <template v-else-if="editing">
               Guruhning o'z dasturi · {{ editing.group?.title || editing.group_telegram_id }}
-              <span v-if="editing.group?.shape"> · {{ cellLabel(editing.group.shape.days, editing.group.shape.tier) }}</span>
+              <span v-if="editing.group?.shape"> · {{ cellLabel(editing.group.shape.days, editing.group.shape.tier) }} · {{ planeLabel(editing.group.shape.order) }}</span>
               · shablon o'zgarishlari bu guruhga tegmaydi
             </template>
             <template v-else>
-              Kunlar bo'yicha dastur: kabinet «Umra rejasi» va vaucher shu yerdan o'qiydi. Shakl = kun soni × Daraja.
+              Kunlar bo'yicha dastur: kabinet «Umra rejasi» va vaucher shu yerdan o'qiydi. Shakl = kun soni × Daraja × marshrut.
             </template>
           </p>
         </div>
@@ -75,8 +75,8 @@
         <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
           <p class="font-medium mb-1">Qanday ishlaydi</p>
           <p class="text-amber-700">
-            Har bir katak — bitta safar shakli (<b>kun soni × Daraja</b>) va uning bitta shabloni. Guruh o'z katagini
-            <b>Guruhlar</b> sahifasidagi kechalar va Daraja bo'yicha o'zi topadi. Shablonni o'zgartirsangiz, undagi
+            Har bir katak — bitta safar shakli (<b>kun soni × Daraja × marshrut</b>) va uning bitta shabloni. Guruh o'z katagini
+            <b>Guruhlar</b> sahifasidagi kechalar, marshrut va Daraja bo'yicha o'zi topadi. Shablonni o'zgartirsangiz, undagi
             hamma guruh darhol yangisini ko'radi. Bitta guruhga alohida dastur kerak bo'lsa — Guruhlar sahifasida
             «Guruhga moslashtirish»: nusxa olinadi va shablondan ajraladi. Pastdagi «shablonsiz» ro'yxatda kutilmagan
             shakl chiqsa (11 kun, 14 kun), guruhning kechalari noto'g'ri kiritilgan: <b>kecha = kun − 1</b>.
@@ -89,7 +89,7 @@
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          <div v-for="(c, i) in templateCells" :key="c.days + c.tier"
+          <div v-for="(c, i) in templateCells" :key="cellKey(c)"
             class="bg-white rounded-3xl border border-gray-200 p-4 flex flex-col gap-3 animate-fade-up"
             :style="{ animationDelay: `${(i + 1) * 30}ms` }">
             <div class="flex items-start justify-between gap-3">
@@ -144,11 +144,11 @@
             <h3 class="text-base font-semibold text-gray-900">Shablonsiz guruhlar ({{ unmatchedTotal }})</h3>
             <span class="text-xs text-gray-500">— kabinetda «Dastur tayyorlanmoqda» ko'rinadi</span>
           </div>
-          <div v-for="c in unmatchedCells" :key="'u' + c.days + c.tier" class="bg-white rounded-3xl border border-amber-200 overflow-hidden">
+          <div v-for="c in unmatchedCells" :key="'u' + cellKey(c)" class="bg-white rounded-3xl border border-amber-200 overflow-hidden">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 bg-amber-50/60 border-b border-amber-100">
               <span class="text-sm font-semibold text-gray-900">{{ cellLabel(c.days, c.tier) }}</span>
               <span class="text-xs text-gray-500">{{ planeLabel(c.order) }} · {{ c.groups.length }} guruh</span>
-              <span v-if="!KNOWN_DAYS.includes(c.days)" class="text-xs text-amber-700">
+              <span v-if="c.order !== 'makka_only' && !KNOWN_DAYS.includes(c.days)" class="text-xs text-amber-700">
                 Kompaniyada {{ c.days }} kunlik safar yo'q — kechalarni tekshiring (kecha = kun − 1)
               </span>
               <button @click="openCreate(c)" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors">
@@ -239,11 +239,10 @@
             <div>
               <label class="block text-[11px] text-gray-400 mb-1">Marshrut</label>
               <select v-model="shapeForm.city_order" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option value="makka_madina">Shanba · Jidda → Makka → Madina</option>
-                <option value="madina_makka">Payshanba · Madina → Makka</option>
+                <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
               </select>
             </div>
-            <div v-for="leg in LEGS" :key="leg.key">
+            <div v-for="leg in legsFor(shapeForm.city_order)" :key="leg.key">
               <label class="block text-[11px] text-gray-400 mb-1">{{ leg.label }} kechasi</label>
               <input v-model.number="shapeForm[leg.key]" type="number" min="0" class="w-20 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
             </div>
@@ -352,18 +351,17 @@
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1.5">Marshrut</label>
             <select v-model="createForm.city_order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-              <option value="makka_madina">Shanba · Jidda → Makka → Madina</option>
-              <option value="madina_makka">Payshanba · Madina → Makka</option>
+              <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
         </div>
         <div class="grid grid-cols-3 gap-3">
-          <div v-for="leg in LEGS" :key="leg.key">
+          <div v-for="leg in legsFor(createForm.city_order)" :key="leg.key">
             <label class="block text-xs font-medium text-gray-500 mb-1.5">{{ leg.label }} kechasi</label>
             <input v-model.number="createForm[leg.key]" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
         </div>
-        <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(createDays, createForm.tier) }}</b></p>
+        <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(createDays, createForm.tier) }}</b> · {{ planeLabel(createForm.city_order) }}</p>
         <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
         <div class="flex justify-end gap-2 pt-2">
           <button @click="createOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
@@ -398,17 +396,16 @@
               <option value="premium">Premium / Lux</option>
             </select>
             <select v-model="copyForm.city_order" class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-              <option value="makka_madina">Shanba · Jidda → Makka → Madina</option>
-              <option value="madina_makka">Payshanba · Madina → Makka</option>
+              <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
           <div class="grid grid-cols-3 gap-3">
-            <div v-for="leg in LEGS" :key="leg.key">
+            <div v-for="leg in legsFor(copyForm.city_order)" :key="leg.key">
               <label class="block text-xs font-medium text-gray-500 mb-1.5">{{ leg.label }} kechasi</label>
               <input v-model.number="copyForm[leg.key]" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
             </div>
           </div>
-          <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(copyDays, copyForm.tier) }}</b></p>
+          <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(copyDays, copyForm.tier) }}</b> · {{ planeLabel(copyForm.city_order) }}</p>
         </template>
         <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
         <div class="flex justify-end gap-2 pt-2">
@@ -500,6 +497,18 @@ const LEGS: { key: LegKey; label: string }[] = [
   { key: 'makka_nights', label: 'Makka' },
   { key: 'madina_nights', label: 'Madina' },
 ]
+// The routes a trip runs (owner, 2026-10-15 added Jidda → Makka → Jidda: lands in
+// Jidda, stays in Makka only, flies home from Jidda). The route is part of a template's
+// cell — a Makka-only trip has its own programme even when its length matches a classic one.
+const ROUTES = [
+  { value: 'makka_madina', label: 'Shanba · Jidda → Makka → Madina' },
+  { value: 'madina_makka', label: 'Payshanba · Madina → Makka' },
+  { value: 'makka_only', label: 'Jidda → Makka → Jidda' },
+]
+/** The nights fields a route has: no Madina on the Makka-only route. */
+function legsFor(order: string) {
+  return order === 'makka_only' ? LEGS.filter(l => l.key !== 'madina_nights') : LEGS
+}
 const CITY_OPTS = [
   { value: 'jidda', label: 'Jidda' },
   { value: 'makka', label: 'Makka' },
@@ -551,12 +560,16 @@ function cellLabel(days: number | null | undefined, tier: string | null | undefi
   return `${days ?? '?'} kun · ${tierLabel(tier)}`
 }
 function planeLabel(order: string | null | undefined): string {
-  return order === 'madina_makka' ? 'Payshanba · Madina → Makka' : 'Shanba · Jidda → Makka → Madina'
+  return (ROUTES.find(r => r.value === (order || 'makka_madina')) ?? ROUTES[0]).label
+}
+function cellKey(c: Cell): string {
+  return `${c.days}-${c.tier}-${c.order}`
 }
 function nightsLabel(p: { jidda_nights: number | null; makka_nights: number | null; madina_nights: number | null; city_order?: string | null }): string {
   const parts: string[] = []
   const seq: LegKey[] = p.city_order === 'madina_makka'
-    ? ['madina_nights', 'makka_nights'] : ['jidda_nights', 'makka_nights', 'madina_nights']
+    ? ['madina_nights', 'makka_nights']
+    : p.city_order === 'makka_only' ? ['jidda_nights', 'makka_nights'] : ['jidda_nights', 'makka_nights', 'madina_nights']
   for (const k of seq) {
     const n = p[k] || 0
     if (n) parts.push(`${LEGS.find(l => l.key === k)!.label} ${n}`)
@@ -564,7 +577,8 @@ function nightsLabel(p: { jidda_nights: number | null; makka_nights: number | nu
   return parts.join(' · ')
 }
 function nightsText(n: { jidda: number; makka: number; madina: number }, order: string): string {
-  const seq: ('jidda' | 'makka' | 'madina')[] = order === 'madina_makka' ? ['madina', 'makka'] : ['jidda', 'makka', 'madina']
+  const seq: ('jidda' | 'makka' | 'madina')[] = order === 'madina_makka' ? ['madina', 'makka']
+    : order === 'makka_only' ? ['jidda', 'makka'] : ['jidda', 'makka', 'madina']
   const parts = seq.filter(k => n[k]).map(k => `${cityName(k)} ${n[k]}`)
   const total = n.jidda + n.makka + n.madina
   return `${parts.join(' · ')} = ${total} kecha`
@@ -835,10 +849,14 @@ function openCreate(cell?: Cell) {
     // A cell known only from groups: prefill the plane's usual split for its length.
     if (cell.order === 'madina_makka') {
       createForm.jidda_nights = 0; createForm.madina_nights = Math.min(4, cell.days - 1); createForm.makka_nights = cell.days - 1 - createForm.madina_nights
+    } else if (cell.order === 'makka_only') {
+      // The groups' own split is listed under the cell; this is only a starting point.
+      createForm.jidda_nights = 1; createForm.madina_nights = 0; createForm.makka_nights = Math.max(1, cell.days - 2)
     } else {
       createForm.jidda_nights = 1; createForm.madina_nights = cell.days >= 13 ? 3 : 2; createForm.makka_nights = cell.days - 1 - 1 - createForm.madina_nights
     }
-    createForm.name = `${cell.order === 'madina_makka' ? 'Payshanba' : 'Shanba'} ${cell.days} kun ${tierLabel(cell.tier)}`
+    const prefix = cell.order === 'madina_makka' ? 'Payshanba' : cell.order === 'makka_only' ? 'Jidda-Makka-Jidda' : 'Shanba'
+    createForm.name = `${prefix} ${cell.days} kun ${tierLabel(cell.tier)}`
   } else {
     createForm.name = ''
   }
@@ -969,4 +987,9 @@ async function deletePlace(p: Place) {
 }
 
 watch(tab, () => { if (tab.value === 'joylar') loadPlaces() })
+// The Makka-only route has no Madina night; its field is hidden, so it must not keep
+// a number the server would refuse.
+watch(() => shapeForm.city_order, o => { if (o === 'makka_only') shapeForm.madina_nights = 0 })
+watch(() => createForm.city_order, o => { if (o === 'makka_only') createForm.madina_nights = 0 })
+watch(() => copyForm.city_order, o => { if (o === 'makka_only') copyForm.madina_nights = 0 })
 </script>
