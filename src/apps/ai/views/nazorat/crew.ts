@@ -39,6 +39,7 @@ export interface CrewPay {
    false_completions: number
    xatolik_abuse: boolean
    manual_adjust: number
+   bonus: number
    ball: number | null
    q: number | null
    v: number | null
@@ -65,16 +66,24 @@ export interface CrewRow {
       released: number; flagged: number; false_completions: number; xatolik_abuse: boolean
       day_avg_response_seconds: number | null
    }
-   never_accepted_graded: number
+   manual: { adjust: number; adjust_reason: string | null; bonus: number; updated_by: string | null } | null
+   /** The city team's ball and Q — the same for everyone in the city. */
+   ball: number | null
+   q: number | null
+   /** On the real plan, and as if the plan were met (the «Reja 100%» view; never paid). */
+   pay: CrewPay
+   pay_full: CrewPay
+}
+
+export interface CrewTeam {
+   cards: { completed: number; reopened: number; never_accepted: number; day_avg_response_seconds: number | null }
    ops: CrewOps | null
    survey_ball: number | null
    combined: number | null
    min_sample: boolean
-   manual: { ball: number | null; ball_note: string | null; adjust: number; adjust_reason: string | null; updated_by: string | null } | null
+   hand_ball: number | null
    ball: number | null
-   hand_ball: boolean
    q: number | null
-   pay: CrewPay
 }
 
 export interface CrewCitySurvey { ball: number | null; surveys: number; used: number; groups: number; covered_groups: number }
@@ -97,6 +106,7 @@ export interface CrewBoard {
       crm_error: string | null
    }
    survey: { makka: CrewCitySurvey; madina: CrewCitySurvey }
+   teams: { makka: CrewTeam; madina: CrewTeam }
    rows: CrewRow[]
    can_write_trips: boolean
    can_set_pay: boolean
@@ -140,6 +150,15 @@ export const crewLang = ref<CrewLang>(readLang())
 export function setCrewLang(l: CrewLang) {
    crewLang.value = l
    try { localStorage.setItem(LANG_KEY, l) } catch { /* per-browser only */ }
+}
+
+/** The «Reja 100%» view (owner, 14.10.2026): the board and the person page show the
+ *  month as if the plan were met. View only — always opens on the real plan. */
+export const planFull = ref(false)
+
+/** The month the reader is looking at: on the real plan or in the «Reja 100%» view. */
+export function payOf(r: CrewRow): CrewPay {
+   return planFull.value ? r.pay_full : r.pay
 }
 
 /** `dir` / `lang` for a crew screen's root, so Arabic reads right-to-left. */
@@ -187,34 +206,29 @@ const TEXT = {
    flown_source: { uz: 'Manba (masalan: manifest)', ar: 'المصدر (مثلًا: كشف الركاب)' },
    back_to_crm: { uz: 'CRM soniga qaytarish', ar: 'العودة إلى عدد CRM' },
    crm_used: { uz: "CRM soni qo'llanadi", ar: 'يُعتمد عدد CRM' },
-   survey_title: { uz: 'Sifat nazorati', ar: 'مراقبة الجودة' },
-   survey_share: { uz: 'ballning {n}%', ar: '{n}% من الدرجة' },
-   survey_used: { uz: "{n} ta so'rov hisobga kirdi", ar: 'استبيانات محتسبة: {n}' },
-   survey_of: { uz: '({n} tadan)', ar: '(من أصل {n})' },
-   survey_note: {
-      uz: "So'rov bo'lmasa yoki guruhning yarmidan kami so'ralgan bo'lsa, ball faqat bot va CRM bo'yicha.",
-      ar: 'إذا لم يُجرَ استبيان أو شمل أقل من نصف المجموعة، تُحسب الدرجة من البوت وCRM فقط.',
-   },
-   staff_count: { uz: '{n} xodim', ar: 'الموظفون: {n}' },
-   ball_pending: { uz: 'ball kutilmoqda', ar: 'الدرجة قيد الانتظار' },
-   ball_none: { uz: "ball yo'q", ar: 'لا توجد درجة' },
-   ball_q: { uz: '{ball} ball · Q {q}%', ar: 'الدرجة {ball} · Q {q}%' },
+   plan_real: { uz: 'Haqiqiy {pct}', ar: 'الفعلي {pct}' },
+   plan_full: { uz: 'Reja 100%', ar: 'الخطة 100%' },
+   team_ball: { uz: 'Jamoa bali', ar: 'درجة الفريق' },
+   q_line: { uz: 'Q {q}%', ar: 'Q {q}%' },
+   kpi_small: { uz: 'KPI {sum}', ar: 'KPI {sum}' },
+   sub_done: { uz: '{n} bajarildi', ar: 'المنجزة: {n}' },
+   job: { uz: 'Tashkiliy guruh', ar: 'الفريق التنظيمي' },
+   tile_done: { uz: 'Bajarildi', ar: 'المنجزة' },
+   tile_trips: { uz: 'Chiqishlar', ar: 'المهام الميدانية' },
+   month_pay: { uz: 'Oylik', ar: 'الراتب الشهري' },
+   bonus: { uz: 'Mukofot', ar: 'مكافأة' },
+   not_found: { uz: 'Xodim topilmadi', ar: 'الموظف غير موجود' },
    ops_done: { uz: 'Bajarilgani', ar: 'نسبة الإنجاز' },
    ops_answered: { uz: 'Javob berilgani', ar: 'نسبة الاستجابة' },
    ops_unrepeated: { uz: 'Takrorlanmagani', ar: 'نسبة عدم التكرار' },
    ops_speed: { uz: 'Javob tezligi', ar: 'سرعة الاستجابة' },
    ops_bot: { uz: 'Bot va CRM', ar: 'البوت وCRM' },
-   ops_survey: { uz: "So'rov ({city})", ar: 'الاستبيان ({city})' },
+   ops_survey: { uz: "So'rov", ar: 'الاستبيان' },
    ops_total: { uz: 'Umumiy ball', ar: 'الدرجة الإجمالية' },
    ops_kpi_share: { uz: 'KPI ning {q}%', ar: '{q}% من KPI' },
    by_hand: { uz: "(qo'lda)", ar: '(يدويًا)' },
-   no_graded: { uz: "Bu oyda baholanadigan murojaat yo'q.", ar: 'لا توجد طلبات قابلة للتقييم هذا الشهر.' },
-   min_sample: {
-      uz: "Murojaatlar kam ({n} ta) — ballni Sifat nazorati qo'lda qo'yadi.",
-      ar: 'الطلبات قليلة ({n}) — تضع مراقبة الجودة الدرجة يدويًا.',
-   },
+   min_sample: { uz: "Murojaatlar kam ({n} ta) — ball qo'lda", ar: 'الطلبات قليلة ({n}) — الدرجة يدويًا' },
    ph_ball: { uz: 'ball', ar: 'الدرجة' },
-   ph_note: { uz: 'izoh', ar: 'ملاحظة' },
    salary_base: { uz: 'Maosh bazasi', ar: 'الراتب الأساسي' },
    work_start: { uz: 'Ishga kelgan sana', ar: 'تاريخ بدء العمل' },
    work_end: { uz: 'Ishdan ketgan sana', ar: 'تاريخ ترك العمل' },
@@ -245,7 +259,6 @@ const TEXT = {
       uz: "Tashkiliy guruh ro'yxatida faol xodim yo'q.",
       ar: 'لا يوجد موظفون نشطون في قائمة الفريق التنظيمي.',
    },
-   sub_requests: { uz: '{n} murojaat', ar: 'الطلبات: {n}' },
    sub_trips: { uz: '{n} chiqish', ar: 'المهام الميدانية: {n}' },
    sub_no_salary: { uz: 'maosh kiritilmagan', ar: 'الراتب غير مُدخل' },
 
