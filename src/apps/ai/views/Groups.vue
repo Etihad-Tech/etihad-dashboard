@@ -207,11 +207,13 @@
             </div>
 
             <!-- UMRA DASTURI. Which day-by-day programme this group shows: its own copy,
-                 or its cell's template (days x Daraja), or none. Resolved by the API from
-                 the nights and Daraja on THIS card — so a change here moves the group. -->
+                 its CRM package's programme, or the cell template (days x Daraja) when the
+                 package has none, or nothing. The package comes from the CRM; the nights
+                 and Daraja on THIS card still draw the days. -->
             <div v-if="isAdmin && programs[String(g.id)]" class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
               <font-awesome-icon icon="route" class="w-3 h-3 text-gray-400" />
               <span class="text-gray-400">Umra dasturi:</span>
+              <span v-if="programs[String(g.id)].package" class="px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600" title="CRM paketi">{{ programs[String(g.id)].package }}</span>
               <template v-if="programs[String(g.id)].source === 'none'">
                 <span class="text-rose-600">{{ programNone(programs[String(g.id)]) }}</span>
               </template>
@@ -222,6 +224,7 @@
                   {{ programs[String(g.id)].source === 'group' ? 'moslashtirilgan' : 'shablon' }}
                 </span>
                 <span v-if="programs[String(g.id)].warnings.includes('map_mismatch')" class="text-amber-600">kechalar shablondan farq qiladi</span>
+                <span v-if="programs[String(g.id)].warnings.includes('package_no_template')" class="text-amber-600">paketining dasturi yo'q — paketsiz shablon</span>
                 <span v-if="programs[String(g.id)].warnings.includes('tier_inferred')" class="text-amber-600">Daraja avtomatik</span>
                 <router-link :to="{ path: '/ai/umra-dasturi', query: { group: String(g.id) } }" class="text-amber-700 hover:underline">Ochish</router-link>
                 <button v-if="programs[String(g.id)].source === 'template'" @click="customizeProgram(g)" :disabled="programSavingId === g.id"
@@ -348,7 +351,7 @@ const isAdmin = computed(() => authStore.role === 'admin' || authStore.role === 
 const silentSavingId = ref<number | null>(null)
 
 // ─── Umra dasturi per group (admin only — the API is admin-only too) ──────────────
-interface ProgramRes { source: 'group' | 'template' | 'none'; program_id: number | null; program_name: string | null; shape: { days: number; tier: string; order?: string } | null; warnings: string[] }
+interface ProgramRes { source: 'group' | 'template' | 'none'; program_id: number | null; program_name: string | null; shape: { days: number; tier: string; order?: string } | null; warnings: string[]; package?: string | null }
 const programs = ref<Record<string, ProgramRes>>({})
 const programSavingId = ref<number | null>(null)
 
@@ -361,6 +364,7 @@ async function loadPrograms() {
 }
 function programNone(r: ProgramRes): string {
   if (r.warnings.includes('no_day_map')) return 'kechalar kiritilmagan'
+  if (r.package) return "paketning dasturi yo'q"
   const t = r.shape?.tier === 'comfort' ? 'comfort' : 'lux'
   // The route is part of the cell: a Makka-only trip has its own template even when a
   // classic one of the same length exists.
