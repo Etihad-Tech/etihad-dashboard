@@ -14,8 +14,10 @@
           <h2 class="text-2xl font-bold text-gray-900 truncate">{{ editing ? editing.name : 'Umra dasturi' }}</h2>
           <p class="text-sm text-gray-500 mt-1">
             <template v-if="editing && editing.is_template">
-              Shablon · {{ cellLabel(editing.days, editing.tier) }} · {{ planeLabel(editing.city_order) }} ·
-              {{ nightsLabel(editing) }} · guruhlar shu shablonni jonli ko'radi
+              <template v-if="editing.crm_package">Paket <b class="text-gray-700">{{ editing.crm_package }}</b> dasturi</template>
+              <template v-else>Paketsiz shablon</template>
+              · {{ cellLabel(editing.days, editing.tier) }} · {{ planeLabel(editing.city_order) }} ·
+              {{ nightsLabel(editing) }} · guruhlar shu dasturni jonli ko'radi
             </template>
             <template v-else-if="editing">
               Guruhning o'z dasturi · {{ editing.group?.title || editing.group_telegram_id }}
@@ -23,7 +25,7 @@
               · shablon o'zgarishlari bu guruhga tegmaydi
             </template>
             <template v-else>
-              Kunlar bo'yicha dastur: kabinet «Umra rejasi» va vaucher shu yerdan o'qiydi. Shakl = kun soni × Daraja × marshrut.
+              Kunlar bo'yicha dastur: kabinet «Umra rejasi» va vaucher shu yerdan o'qiydi. Har bir CRM paketi («TAJ 13») — o'z dasturi.
             </template>
           </p>
         </div>
@@ -35,7 +37,7 @@
             :class="tab === 'joylar' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'">Joylar</button>
           <button v-if="tab === 'shablonlar'" @click="openCreate()"
             class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors">
-            <font-awesome-icon icon="plus" class="w-3.5 h-3.5" /> Yangi shablon
+            <font-awesome-icon icon="plus" class="w-3.5 h-3.5" /> Yangi dastur
           </button>
         </div>
 
@@ -75,20 +77,112 @@
         <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
           <p class="font-medium mb-1">Qanday ishlaydi</p>
           <p class="text-amber-700">
-            Har bir katak — bitta safar shakli (<b>kun soni × Daraja × marshrut</b>) va uning bitta shabloni. Guruh o'z katagini
-            <b>Guruhlar</b> sahifasidagi kechalar, marshrut va Daraja bo'yicha o'zi topadi. Shablonni o'zgartirsangiz, undagi
-            hamma guruh darhol yangisini ko'radi. Bitta guruhga alohida dastur kerak bo'lsa — Guruhlar sahifasida
-            «Guruhga moslashtirish»: nusxa olinadi va shablondan ajraladi. Pastdagi «shablonsiz» ro'yxatda kutilmagan
-            shakl chiqsa (11 kun, 14 kun), guruhning kechalari noto'g'ri kiritilgan: <b>kecha = kun − 1</b>.
+            Har bir <b>CRM paketi</b> («TAJ 13», «ANJUM 6») — o'z dasturi. Paket nomlari va qaysi guruh qaysi paketdaligi
+            CRM'dan o'zi olinadi; kunlar va shaharlarni shu yerda kiritasiz. Dasturni o'zgartirsangiz, shu paketdagi hamma guruh
+            darhol yangisini ko'radi. Bitta guruhga alohida dastur kerak bo'lsa — Guruhlar sahifasida «Guruhga moslashtirish».
+            Paketi hali dasturga ega bo'lmagan guruh pastdagi <b>paketsiz shablonni</b> (kun soni × Daraja × marshrut) ko'radi.
           </p>
         </div>
 
-        <div v-if="templateCells.length === 0" class="bg-white rounded-3xl border border-gray-200 py-16 text-center animate-fade-up">
-          <font-awesome-icon icon="route" class="w-10 h-10 text-gray-300 mb-4" />
-          <p class="text-gray-400">Hali shablon yo'q — «Yangi shablon» tugmasida tayyor shakllar bor</p>
+        <!-- ───── Packages from the CRM ───── -->
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 animate-fade-up">
+          <h3 class="text-base font-semibold text-gray-900">Paketlar ({{ packages.length }})</h3>
+          <span v-if="!pkgConfigured" class="text-xs text-rose-600">CRM ulanmagan — paketlar olinmaydi</span>
+          <span v-else class="text-xs text-gray-500">
+            {{ pkgSyncedAt ? `CRM bilan oxirgi sinxronlash: ${fmtDateTime(pkgSyncedAt)}` : 'CRM bilan hali sinxronlanmagan' }}
+          </span>
+          <span v-if="pkgConflicts" class="text-xs text-amber-700">· {{ pkgConflicts }} chatda ikki xil paket guruhi bor — birinchisi olinadi</span>
+          <button v-if="pkgConfigured" @click="syncPackages" :disabled="syncing"
+            class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors">
+            <font-awesome-icon icon="rotate-right" class="w-3 h-3" :class="syncing ? 'animate-spin' : ''" />
+            {{ syncing ? 'Sinxronlanmoqda...' : 'CRM bilan sinxronlash' }}
+          </button>
+        </div>
+
+        <div v-if="packages.length === 0" class="bg-white rounded-3xl border border-gray-200 py-10 text-center text-sm text-gray-400 animate-fade-up">
+          Paketlar ro'yxati bo'sh — «CRM bilan sinxronlash» ni bosing
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div v-for="(pk, i) in packages" :key="'p' + pk.name"
+            class="bg-white rounded-3xl border p-4 flex flex-col gap-3 animate-fade-up"
+            :class="pk.template ? 'border-gray-200' : 'border-rose-200'"
+            :style="{ animationDelay: `${(i + 1) * 20}ms` }">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="text-lg font-semibold text-gray-900 leading-tight truncate">{{ pk.name }}</p>
+                <p v-if="pk.template" class="text-xs text-gray-500 mt-0.5">
+                  {{ cellLabel(pk.template.days, pk.template.tier) }} · {{ planeLabel(pk.template.city_order) }} · {{ nightsLabel(pk.template) }}
+                </p>
+              </div>
+              <div class="flex flex-col items-end gap-1 shrink-0">
+                <span class="text-[11px] px-2 py-0.5 rounded-lg" :class="pk.template ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
+                  {{ pk.template ? 'dastur bor' : 'dastur yo\'q' }}
+                </span>
+                <span v-if="!pk.in_crm" class="text-[11px] px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700" title="CRM bu nomli paketni endi ko'rsatmaydi — nomi o'zgargan yoki sotuv tugagan">CRMda yo'q</span>
+              </div>
+            </div>
+
+            <div class="text-sm">
+              <p v-if="pk.template" class="font-medium text-gray-800 truncate">{{ pk.template.name }}
+                <span class="text-gray-400 font-normal">· {{ pk.template.items_count }} band</span></p>
+              <p class="text-xs text-gray-500 mt-1">
+                {{ pk.groups_total }} guruh<template v-if="pk.groups_total">:
+                  <span v-if="pk.on_template" class="text-gray-700">{{ pk.on_template }} dasturda</span>
+                  <span v-if="pk.customized" class="text-gray-700"> · {{ pk.customized }} moslashtirilgan</span>
+                  <span v-if="pk.fallback" class="text-amber-700"> · {{ pk.fallback }} paketsiz shablonda</span>
+                  <span v-if="pk.without" class="text-rose-600"> · {{ pk.without }} dastursiz</span>
+                </template>
+                <span class="text-gray-400"> · CRMda {{ pk.crm_groups }} guruh</span>
+              </p>
+              <p v-if="pk.template && pk.template.items_count" class="text-[11px] mt-1" :class="pk.template.ru_missing ? 'text-amber-600' : 'text-emerald-600'">
+                <font-awesome-icon icon="language" class="w-3 h-3 mr-0.5" />
+                {{ pk.template.ru_missing ? `Ruscha: ${pk.template.ru_missing} ta band tarjimasiz` : 'Ruscha tarjima to\'liq' }}
+              </p>
+            </div>
+
+            <div v-if="openPkg === pk.name && pk.groups.length" class="-mx-1 max-h-48 overflow-y-auto divide-y divide-gray-100 border-y border-gray-100">
+              <div v-for="g in pk.groups" :key="g.telegram_id" class="flex items-center gap-2 px-1 py-1.5 text-xs">
+                <span class="flex-1 min-w-0 truncate text-gray-800">{{ g.title || g.telegram_id }}</span>
+                <span v-if="g.trip_start_date" class="text-gray-400 tabular-nums">{{ fmtDate(g.trip_start_date) }}</span>
+                <span class="shrink-0" :class="sourceClass(g)">{{ sourceLabel(g) }}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1 mt-auto pt-1">
+              <template v-if="pk.template">
+                <button @click="openProgram(pk.template.id)"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                  <font-awesome-icon icon="pen" class="w-3 h-3" /> Ochish
+                </button>
+                <button @click="openCopy(pk.template)"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                  <font-awesome-icon icon="copy" class="w-3 h-3" /> Nusxalash
+                </button>
+              </template>
+              <button v-else @click="openCreate(undefined, pk.name)"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors">
+                <font-awesome-icon icon="plus" class="w-3 h-3" /> Dastur yaratish
+              </button>
+              <button v-if="pk.groups.length" @click="openPkg = openPkg === pk.name ? null : pk.name"
+                class="flex items-center gap-1 px-2 py-1.5 rounded-2xl text-xs text-gray-500 hover:bg-gray-100 transition-colors">
+                Guruhlar <font-awesome-icon icon="chevron-down" class="w-2.5 h-2.5 transition-transform" :class="openPkg === pk.name ? 'rotate-180' : ''" />
+              </button>
+              <button v-if="pk.template" @click="deleteTemplate(pk.template)"
+                class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
+                <font-awesome-icon icon="trash" class="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ───── Cell templates: the older kind, no package ───── -->
+        <div v-if="templateCells.length" class="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 animate-fade-up">
+          <h3 class="text-base font-semibold text-gray-900">Paketsiz shablonlar ({{ templateCells.length }})</h3>
+          <span class="text-xs text-gray-500">— paketi noma'lum yoki paketida dastur yo'q guruhlar ko'radi. «Paketga» — shablonni paket dasturiga aylantiradi</span>
+        </div>
+
+        <div v-if="templateCells.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           <div v-for="(c, i) in templateCells" :key="cellKey(c)"
             class="bg-white rounded-3xl border border-gray-200 p-4 flex flex-col gap-3 animate-fade-up"
             :style="{ animationDelay: `${(i + 1) * 30}ms` }">
@@ -126,6 +220,11 @@
               <button @click="openCopy(c.template!)"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
                 <font-awesome-icon icon="copy" class="w-3 h-3" /> Nusxalash
+              </button>
+              <button @click="openAttach(c.template!)" :disabled="!freePackages.length"
+                :title="freePackages.length ? '' : 'Dasturi yo\'q paket qolmagan'"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+                <font-awesome-icon icon="tag" class="w-3 h-3" /> Paketga
               </button>
               <button @click="deleteTemplate(c.template!)"
                 class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
@@ -230,6 +329,13 @@
               <input v-model="shapeForm.name" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
             </div>
             <div>
+              <label class="block text-[11px] text-gray-400 mb-1">Paket (CRM)</label>
+              <select v-model="shapeForm.crm_package" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="">— paketsiz —</option>
+                <option v-for="n in packageChoices(editing.crm_package)" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </div>
+            <div>
               <label class="block text-[11px] text-gray-400 mb-1">Daraja</label>
               <select v-model="shapeForm.tier" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                 <option value="comfort">Comfort</option>
@@ -327,8 +433,24 @@
     <!-- ───────────── Create template ───────────── -->
     <div v-if="createOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="createOpen = false">
       <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">Yangi shablon</h3>
-        <p class="text-sm text-gray-500">Bir shakl uchun bitta shablon. Tayyor shakllardan birini bosing yoki kechalarni o'zingiz kiriting.</p>
+        <h3 class="text-lg font-semibold text-gray-900">Yangi dastur</h3>
+        <p class="text-sm text-gray-500">Bir paket uchun bitta dastur. Mavjud dasturdan nusxa oling yoki kechalarni o'zingiz kiriting.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">Paket (CRM)</label>
+            <select v-model="createForm.crm_package" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+              <option value="">— paketsiz (shakl bo'yicha) —</option>
+              <option v-for="n in packageChoices()" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1.5">Nusxa manbai</label>
+            <select v-model="createForm.source_id" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+              <option :value="null">— bo'sh dastur —</option>
+              <option v-for="t in allTemplates" :key="t.id" :value="t.id">{{ t.crm_package ? `${t.crm_package} — ${t.name}` : t.name }}</option>
+            </select>
+          </div>
+        </div>
         <div class="flex flex-wrap gap-1.5">
           <button v-for="pr in PRESETS" :key="pr.name" @click="applyPreset(pr)" type="button"
             class="px-2.5 py-1 rounded-xl text-xs font-medium border transition-colors"
@@ -361,7 +483,8 @@
             <input v-model.number="createForm[leg.key]" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
         </div>
-        <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(createDays, createForm.tier) }}</b> · {{ planeLabel(createForm.city_order) }}</p>
+        <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(createDays, createForm.tier) }}</b> · {{ planeLabel(createForm.city_order) }}
+          <span v-if="createForm.source_id" class="text-gray-400"> · bandlar nusxa manbaidan ko'chadi</span></p>
         <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
         <div class="flex justify-end gap-2 pt-2">
           <button @click="createOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
@@ -378,7 +501,7 @@
           <button @click="copyForm.mode = 'group'" class="flex-1 px-3 py-2 rounded-2xl text-sm font-medium border transition-colors"
             :class="copyForm.mode === 'group' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">Guruhga</button>
           <button @click="copyForm.mode = 'cell'" class="flex-1 px-3 py-2 rounded-2xl text-sm font-medium border transition-colors"
-            :class="copyForm.mode === 'cell' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">Yangi shablonga</button>
+            :class="copyForm.mode === 'cell' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">Paketga / yangi shablonga</button>
         </div>
         <template v-if="copyForm.mode === 'group'">
           <p class="text-sm text-gray-500">Guruh o'z nusxasini oladi va shablondan ajraladi. Keyin uni shu yerda tahrirlaysiz.</p>
@@ -388,8 +511,12 @@
           </select>
         </template>
         <template v-else>
-          <p class="text-sm text-gray-500">Boshqa shakl uchun shablon: bandlar kunma-kun ko'chadi, yangi shakldan ortiq kunlar tushib qoladi.</p>
-          <input v-model="copyForm.name" type="text" placeholder="Yangi shablon nomi" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          <p class="text-sm text-gray-500">Boshqa paket yoki shakl uchun dastur: bandlar kunma-kun ko'chadi, yangi shakldan ortiq kunlar tushib qoladi.</p>
+          <select v-model="copyForm.crm_package" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+            <option value="">— paketsiz (shakl bo'yicha) —</option>
+            <option v-for="n in packageChoices()" :key="n" :value="n">{{ n }}</option>
+          </select>
+          <input v-model="copyForm.name" type="text" placeholder="Yangi dastur nomi" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
           <div class="grid grid-cols-2 gap-3">
             <select v-model="copyForm.tier" class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
               <option value="comfort">Comfort</option>
@@ -411,6 +538,23 @@
         <div class="flex justify-end gap-2 pt-2">
           <button @click="copyOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
           <button @click="doCopy" :disabled="saving" class="px-4 py-2 rounded-2xl text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50">Nusxalash</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────── Attach a cell template to a package ───────────── -->
+    <div v-if="attachOpen && attachTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="attachOpen = false">
+      <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h3 class="text-lg font-semibold text-gray-900">Paketga biriktirish: {{ attachTarget.name }}</h3>
+        <p class="text-sm text-gray-500">Shablon tanlangan paketning dasturi bo'ladi: shu paketdagi guruhlar uni ko'radi. Kunlar va bandlar o'zgarmaydi.</p>
+        <select v-model="attachPackage" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+          <option value="">— paketni tanlang —</option>
+          <option v-for="n in freePackages" :key="n" :value="n">{{ n }}</option>
+        </select>
+        <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
+        <div class="flex justify-end gap-2 pt-2">
+          <button @click="attachOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
+          <button @click="doAttach" :disabled="saving || !attachPackage" class="px-4 py-2 rounded-2xl text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50">Biriktirish</button>
         </div>
       </div>
     </div>
@@ -464,6 +608,8 @@ import { useToast } from '../../../composables/useToast'
 interface Shape { days: number; tier: string; order: string; tier_inferred: boolean }
 interface ProgramSummary {
   id: number; name: string; is_template: boolean; group_telegram_id: number | null
+  /** The CRM package this template is for («TAJ 13»); null = a cell template. */
+  crm_package: string | null
   days: number; tier: string; city_order: string
   jidda_nights: number; makka_nights: number; madina_nights: number
   items_count: number; updated_at: string | null; updated_by: string | null
@@ -487,6 +633,16 @@ interface Cell {
   days: number; tier: string; order: string; template: ProgramSummary | null
   groups_total: number; on_template: number; customized: number; without: number; tier_inferred: number
   groups: CellGroup[]
+}
+interface PackageGroup {
+  telegram_id: number; title: string | null; trip_start_date: string | null
+  source: string; program_name: string | null; warnings: string[]
+}
+/** A CRM package with its programme and the groups that are that package. */
+interface PackageRow {
+  name: string; in_crm: boolean; template: ProgramSummary | null; crm_groups: number
+  groups_total: number; on_template: number; customized: number; fallback: number; without: number
+  groups: PackageGroup[]
 }
 interface Place { id: number; name: string; city: string | null; name_ru: string | null; used: number }
 interface GroupRow { id: number; title: string | null; trip_start_date: string | null }
@@ -544,6 +700,26 @@ const templateCells = computed(() => cells.value.filter(c => c.template))
 const unmatchedCells = computed(() => cells.value.filter(c => !c.template && c.groups.length))
 const unmatchedTotal = computed(() => unmatchedCells.value.reduce((n, c) => n + c.groups.length, 0))
 const groupsWithoutMap = ref(0)
+// The CRM packages (owner, 19.10.2026: a programme per package — «TAJ 13», «ANJUM 6»).
+const packages = ref<PackageRow[]>([])
+const pkgConfigured = ref(true)
+const pkgSyncedAt = ref<string | null>(null)
+const pkgConflicts = ref(0)
+const syncing = ref(false)
+const openPkg = ref<string | null>(null)
+/** Packages the CRM lists that have no programme yet — what a new one can be for. */
+const freePackages = computed(() => packages.value.filter(p => p.in_crm && !p.template).map(p => p.name))
+/** Every template, package or cell — the sources a new programme can be copied from. */
+const allTemplates = computed<ProgramSummary[]>(() => [
+  ...packages.value.filter(p => p.template).map(p => p.template!),
+  ...templateCells.value.map(c => c.template!),
+])
+/** The package choices of a picker: the free ones, plus the one already chosen. */
+function packageChoices(current?: string | null): string[] {
+  const list = freePackages.value.slice()
+  if (current && !list.includes(current)) list.unshift(current)
+  return list
+}
 const places = ref<Place[]>([])
 const groups = ref<GroupRow[]>([])
 const editing = ref<ProgramView | null>(null)
@@ -603,6 +779,24 @@ function fmtDate(iso: string | null | undefined): string {
   const [y, m, d] = iso.split('-')
   return `${d}.${m}.${y}`
 }
+function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+/** What a group of a package is shown, in the package's group list. */
+function sourceLabel(g: PackageGroup): string {
+  if (g.source === 'group') return 'o\'z dasturi'
+  if (g.source === 'template' && g.warnings.includes('package_no_template')) return `paketsiz: ${g.program_name || ''}`
+  if (g.source === 'template') return 'paket dasturi'
+  return g.warnings.includes('no_day_map') ? 'kechalar yo\'q' : 'dastursiz'
+}
+function sourceClass(g: PackageGroup): string {
+  if (g.source === 'none') return 'text-rose-600'
+  if (g.warnings.includes('package_no_template') || g.warnings.includes('map_mismatch')) return 'text-amber-700'
+  return 'text-gray-500'
+}
 function errText(e: any, fallback: string): string {
   const d = e?.response?.data?.detail
   return typeof d === 'string' ? d : fallback
@@ -614,6 +808,27 @@ async function loadCells() {
   const { data } = await api.get('/programs/cells')
   cells.value = data.cells
   groupsWithoutMap.value = data.groups_without_map
+}
+async function loadPackages() {
+  const { data } = await api.get('/programs/packages')
+  packages.value = data.packages
+  pkgConfigured.value = data.configured
+  pkgSyncedAt.value = data.synced_at
+  pkgConflicts.value = data.conflicts
+}
+/** The two lists of the main screen, always refreshed together. */
+async function loadAll() {
+  await Promise.all([loadCells(), loadPackages()])
+}
+async function syncPackages() {
+  syncing.value = true
+  try {
+    const { data } = await api.post('/programs/packages/sync')
+    toast.success(`CRM: ${data.packages} ta paket, ${data.groups} ta guruh`)
+    await loadAll()
+  } catch (e: any) {
+    toast.error(errText(e, 'Sinxronlanmadi'))
+  } finally { syncing.value = false }
 }
 async function loadPlaces() {
   const { data } = await api.get('/programs/places')
@@ -668,13 +883,13 @@ async function closeEditor() {
   editing.value = null
   dirty.value = false
   router.replace({ query: {} })
-  await loadCells()
+  await loadAll()
 }
 
 onMounted(async () => {
   loading.value = true
   try {
-    await Promise.all([loadCells(), loadPlaces()])
+    await Promise.all([loadAll(), loadPlaces()])
     // The group list serves only the copy dialog, and /groups waits on the Turon
     // registry lookup (seconds when that API is unreachable) — never block the
     // screen on it.
@@ -789,11 +1004,12 @@ async function translateProgram() {
 
 // ─── Template shape ───────────────────────────────────────────────────────────────
 
-const shapeForm = reactive({ name: '', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 0, makka_nights: 0, madina_nights: 0 })
+const shapeForm = reactive({ name: '', crm_package: '', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 0, makka_nights: 0, madina_nights: 0 })
 function resetShapeForm() {
   const p = editing.value
   if (!p) return
   shapeForm.name = p.name
+  shapeForm.crm_package = p.crm_package || ''
   shapeForm.tier = p.tier
   shapeForm.city_order = p.city_order
   shapeForm.jidda_nights = p.jidda_nights || 0
@@ -804,7 +1020,8 @@ const shapeDays = computed(() => (shapeForm.jidda_nights || 0) + (shapeForm.makk
 const shapeDirty = computed(() => {
   const p = editing.value
   if (!p) return false
-  return shapeForm.name !== p.name || shapeForm.tier !== p.tier || shapeForm.city_order !== p.city_order
+  return shapeForm.name !== p.name || shapeForm.crm_package !== (p.crm_package || '')
+    || shapeForm.tier !== p.tier || shapeForm.city_order !== p.city_order
     || shapeForm.jidda_nights !== (p.jidda_nights || 0) || shapeForm.makka_nights !== (p.makka_nights || 0)
     || shapeForm.madina_nights !== (p.madina_nights || 0)
 })
@@ -817,6 +1034,7 @@ async function saveShape() {
     editing.value = toView(data)
     resetShapeForm()
     toast.success(data.dropped_items ? `Shakl saqlandi, ${data.dropped_items} ta band tushib qoldi (kunlar kamaydi)` : 'Shakl saqlandi')
+    loadPackages().catch(() => {})
   } catch (e: any) {
     toast.error(errText(e, 'Shakl saqlanmadi'))
   } finally { saving.value = false }
@@ -825,7 +1043,7 @@ async function saveShape() {
 // ─── Create ───────────────────────────────────────────────────────────────────────
 
 const createOpen = ref(false)
-const createForm = reactive({ name: '', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 1, makka_nights: 8, madina_nights: 3 })
+const createForm = reactive({ name: '', crm_package: '', source_id: null as number | null, tier: 'comfort', city_order: 'makka_madina', jidda_nights: 1, makka_nights: 8, madina_nights: 3 })
 const createDays = computed(() => (createForm.jidda_nights || 0) + (createForm.makka_nights || 0) + (createForm.madina_nights || 0) + 1)
 
 function applyPreset(pr: Preset) {
@@ -841,9 +1059,15 @@ function presetActive(pr: Preset): boolean {
     && createForm.jidda_nights === pr.jidda_nights && createForm.makka_nights === pr.makka_nights
     && createForm.madina_nights === pr.madina_nights
 }
-function openCreate(cell?: Cell) {
+function openCreate(cell?: Cell, pkg?: string) {
   formError.value = ''
-  if (cell) {
+  createForm.crm_package = pkg || ''
+  createForm.source_id = null
+  if (pkg) {
+    // The package's name is the programme's name; the office types its nights or picks
+    // a programme to copy (which brings its nights along).
+    createForm.name = pkg
+  } else if (cell) {
     createForm.tier = cell.tier
     createForm.city_order = cell.order
     // A cell known only from groups: prefill the plane's usual split for its length.
@@ -867,10 +1091,14 @@ async function createTemplate() {
   if (!createForm.name.trim()) { formError.value = 'Nomini kiriting'; return }
   saving.value = true
   try {
-    const { data } = await api.post('/programs', { ...createForm, name: createForm.name.trim() })
+    const { source_id, ...shape } = createForm
+    const body = { ...shape, name: createForm.name.trim(), crm_package: createForm.crm_package || null }
+    const { data } = source_id
+      ? await api.post(`/programs/${source_id}/copy`, body)
+      : await api.post('/programs', body)
     createOpen.value = false
-    toast.success('Shablon yaratildi')
-    await loadCells()
+    toast.success(data.dropped_items ? `Dastur yaratildi, ${data.dropped_items} ta band tushib qoldi` : 'Dastur yaratildi')
+    await loadAll()
     await openProgram(data.id)
   } catch (e: any) {
     formError.value = errText(e, 'Yaratilmadi')
@@ -878,11 +1106,14 @@ async function createTemplate() {
 }
 
 async function deleteTemplate(t: ProgramSummary) {
-  if (!(await confirm({ title: `Shablonni o'chirish: ${t.name}`, message: 'Bu shakldagi guruhlar dastursiz qoladi. Guruhlarning o\'z nusxalari saqlanadi.' }))) return
+  const message = t.crm_package
+    ? `«${t.crm_package}» paketidagi guruhlar paketsiz shablonni ko'radi (bo'lmasa — dastursiz qoladi). Guruhlarning o'z nusxalari saqlanadi.`
+    : 'Bu shakldagi guruhlar dastursiz qoladi. Guruhlarning o\'z nusxalari saqlanadi.'
+  if (!(await confirm({ title: `Dasturni o'chirish: ${t.name}`, message }))) return
   try {
     await api.delete(`/programs/${t.id}`)
     toast.success('O\'chirildi')
-    await loadCells()
+    await loadAll()
   } catch (e: any) { toast.error(errText(e, 'O\'chirilmadi')) }
 }
 
@@ -894,7 +1125,7 @@ async function revertToTemplate(telegramId: number) {
     editing.value = null
     dirty.value = false
     router.replace({ query: {} })
-    await loadCells()
+    await loadAll()
   } catch (e: any) { toast.error(errText(e, 'Qaytarilmadi')) }
 }
 
@@ -902,7 +1133,7 @@ async function revertToTemplate(telegramId: number) {
 
 const copyOpen = ref(false)
 const copySource = ref<ProgramSummary | null>(null)
-const copyForm = reactive({ mode: 'group' as 'group' | 'cell', group_telegram_id: null as number | null, name: '', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 0, makka_nights: 0, madina_nights: 0 })
+const copyForm = reactive({ mode: 'group' as 'group' | 'cell', group_telegram_id: null as number | null, name: '', crm_package: '', tier: 'comfort', city_order: 'makka_madina', jidda_nights: 0, makka_nights: 0, madina_nights: 0 })
 const copyDays = computed(() => (copyForm.jidda_nights || 0) + (copyForm.makka_nights || 0) + (copyForm.madina_nights || 0) + 1)
 const groupsForCopy = computed(() => groups.value.slice().sort((a, b) => (a.title || '').localeCompare(b.title || '')))
 
@@ -912,6 +1143,7 @@ function openCopy(src: ProgramSummary) {
   copyForm.mode = 'group'
   copyForm.group_telegram_id = null
   copyForm.name = `${src.name} (nusxa)`
+  copyForm.crm_package = ''
   copyForm.tier = src.tier
   copyForm.city_order = src.city_order
   copyForm.jidda_nights = src.jidda_nights || 0
@@ -924,7 +1156,7 @@ async function doCopy() {
   formError.value = ''
   const body: any = copyForm.mode === 'group'
     ? { group_telegram_id: copyForm.group_telegram_id }
-    : { name: copyForm.name.trim(), tier: copyForm.tier, city_order: copyForm.city_order, jidda_nights: copyForm.jidda_nights, makka_nights: copyForm.makka_nights, madina_nights: copyForm.madina_nights }
+    : { name: copyForm.name.trim(), crm_package: copyForm.crm_package || null, tier: copyForm.tier, city_order: copyForm.city_order, jidda_nights: copyForm.jidda_nights, makka_nights: copyForm.makka_nights, madina_nights: copyForm.madina_nights }
   if (copyForm.mode === 'group' && !body.group_telegram_id) { formError.value = 'Guruhni tanlang'; return }
   if (copyForm.mode === 'cell' && !body.name) { formError.value = 'Nomini kiriting'; return }
   saving.value = true
@@ -932,10 +1164,35 @@ async function doCopy() {
     const { data } = await api.post(`/programs/${copySource.value.id}/copy`, body)
     copyOpen.value = false
     toast.success(data.dropped_items ? `Nusxalandi, ${data.dropped_items} ta band tushib qoldi` : 'Nusxalandi')
-    await loadCells()
+    await loadAll()
     await openProgram(data.id)
   } catch (e: any) {
     formError.value = errText(e, 'Nusxalanmadi')
+  } finally { saving.value = false }
+}
+
+// ─── Attach to a package ──────────────────────────────────────────────────────────
+
+const attachOpen = ref(false)
+const attachTarget = ref<ProgramSummary | null>(null)
+const attachPackage = ref('')
+function openAttach(t: ProgramSummary) {
+  formError.value = ''
+  attachTarget.value = t
+  attachPackage.value = ''
+  attachOpen.value = true
+}
+async function doAttach() {
+  if (!attachTarget.value || !attachPackage.value) return
+  formError.value = ''
+  saving.value = true
+  try {
+    await api.put(`/programs/${attachTarget.value.id}`, { crm_package: attachPackage.value })
+    attachOpen.value = false
+    toast.success(`«${attachPackage.value}» paketiga biriktirildi`)
+    await loadAll()
+  } catch (e: any) {
+    formError.value = errText(e, 'Biriktirilmadi')
   } finally { saving.value = false }
 }
 
@@ -992,4 +1249,13 @@ watch(tab, () => { if (tab.value === 'joylar') loadPlaces() })
 watch(() => shapeForm.city_order, o => { if (o === 'makka_only') shapeForm.madina_nights = 0 })
 watch(() => createForm.city_order, o => { if (o === 'makka_only') createForm.madina_nights = 0 })
 watch(() => copyForm.city_order, o => { if (o === 'makka_only') copyForm.madina_nights = 0 })
+watch(() => createForm.source_id, id => {
+  const src = allTemplates.value.find(t => t.id === id)
+  if (!src) return
+  createForm.tier = src.tier
+  createForm.city_order = src.city_order
+  createForm.jidda_nights = src.jidda_nights || 0
+  createForm.makka_nights = src.makka_nights || 0
+  createForm.madina_nights = src.madina_nights || 0
+})
 </script>
