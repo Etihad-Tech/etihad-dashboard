@@ -22,7 +22,7 @@
            message: one is "not yours to see", the other is "try again". -->
       <div v-else-if="s.periodCountsError === 'forbidden'" class="card p-8 text-center">
          <p class="text-[15px] text-[color:var(--n-muted)] leading-snug">
-            Bu bo'lim ellikboshilar bo'yicha, sizning doirangizdan tashqarida.
+            Bu bo'lim sizga ochiq emas
          </p>
       </div>
       <div v-else-if="s.periodCountsError === 'failed'" class="card p-8 text-center">
@@ -43,8 +43,7 @@
          <div class="card p-5 n-enter" style="--i: 1">
             <h3 class="n-h">Yuklama</h3>
             <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1.5 leading-snug">
-               Tanlangan oyda har bir ellikboshi olib borgan ish birligi (Makka
-               {{ fmtUnits(CITY_WEIGHT_MAKKA) }} + Madina {{ fmtUnits(CITY_WEIGHT_MADINA) }} = 1 guruh).
+               Makka {{ fmtUnits(CITY_WEIGHT_MAKKA) }} + Madina {{ fmtUnits(CITY_WEIGHT_MADINA) }} = 1 guruh
             </p>
 
             <p v-if="!periodChart.cols.length"
@@ -173,10 +172,7 @@
             </span>
             <div>
                <h3 class="n-h">Bot javoblari</h3>
-               <p class="text-[13.5px] text-[color:var(--n-muted)] mt-1.5 leading-snug">
-                  JIM rejimda bot guruhga hech narsa yozmaydi — lekin murojaat
-                  kartochkalari, DMlar va Nazorat yozuvlari baribir boradi.
-               </p>
+               
             </div>
          </div>
          <div v-if="botGroupsLoading" class="p-5">

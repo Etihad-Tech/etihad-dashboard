@@ -16,8 +16,7 @@
            to READ a month — and a fund field beside somebody's payslip invites editing
            the scheme while looking at one person it affects. -->
       <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]">
-         Bu yerdagi har bir son oylikka ta'sir qiladi. O'zgartirish darhol kuchga
-         kiradi — hali yopilmagan oyning hisobi qaytadan sanaladi.
+         O'zgarish darhol oylikka ta'sir qiladi
       </p>
 
       <section v-for="grp in GROUPS" :key="grp.title" class="card p-5 n-enter">

@@ -1,121 +1,94 @@
 <template>
-   <AppLayout>
-      <div class="space-y-6">
-         <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">Murojaatlar</h2>
+   <AppShell>
+      <div class="page">
+         <div class="page-head">
+            <h1 class="page-title">Murojaatlar</h1>
+            <span v-if="messagesStore.total > 0" class="text-sm text-gray-500">{{ messagesStore.total }} ta</span>
+         </div>
 
-         <div class="flex flex-wrap items-center gap-3 animate-fade-up" style="animation-delay: 30ms">
-            <select v-model="filters.category"
-               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+         <div class="flex flex-wrap items-center gap-2">
+            <select v-model="filters.category" class="input w-auto">
                <option value="">Barcha kategoriyalar</option>
                <option value="sorov">So'rov</option>
                <option value="muammo">Muammo</option>
                <option value="etiroz">E'tiroz</option>
             </select>
 
-            <select v-model="filters.group"
-               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+            <select v-model="filters.group" class="input w-auto max-w-[16rem]">
                <option value="">Barcha guruhlar</option>
                <option v-for="g in messagesStore.groups" :key="g.id" :value="g.id">
                   {{ g.title }}
                </option>
             </select>
 
-            <div class="w-px h-7 bg-gray-200"></div>
+            <flat-pickr v-model="filters.date_from" :config="dateFromConfig" placeholder="Dan"
+               class="input w-32" />
+            <flat-pickr v-model="filters.date_to" :config="dateToConfig" placeholder="Gacha"
+               class="input w-32" />
 
-            <flat-pickr v-model="filters.date_from" :config="dateFromConfig" placeholder="Boshlanish sanasi"
-               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 w-40" />
-            <flat-pickr v-model="filters.date_to" :config="dateToConfig" placeholder="Tugash sanasi"
-               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 w-40" />
-
-            <div class="w-px h-7 bg-gray-200"></div>
-
-            <select v-model="pageSizeStr"
-               class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-               <option value="25">Sahifada: 25</option>
-               <option value="50">Sahifada: 50</option>
-               <option value="100">Sahifada: 100</option>
+            <select v-model="pageSizeStr" class="input w-auto sm:ml-auto">
+               <option value="25">25 ta</option>
+               <option value="50">50 ta</option>
+               <option value="100">100 ta</option>
             </select>
          </div>
 
-         <div class="bg-white rounded-3xl border border-gray-200 overflow-x-auto animate-fade-up"
-            style="animation-delay: 60ms">
-            <table class="w-full text-sm min-w-[640px]">
+         <div class="card overflow-x-auto">
+            <table class="table min-w-[640px]">
                <thead>
-                  <tr class="text-gray-500 border-b border-gray-100 bg-gray-50/50">
-                     <th class="text-left px-4 py-3 font-medium">Foydalanuvchi</th>
-                     <th class="text-left px-4 py-3 font-medium">Guruh</th>
-                     <th class="text-left px-4 py-3 font-medium">Xabar</th>
-                     <th class="text-left px-4 py-3 font-medium">Kategoriya</th>
-                     <th class="text-left px-4 py-3 font-medium">Vaqt</th>
-                     <th class="px-4 py-3"></th>
+                  <tr>
+                     <th>Foydalanuvchi</th>
+                     <th>Guruh</th>
+                     <th>Xabar</th>
+                     <th>Kategoriya</th>
+                     <th>Vaqt</th>
+                     <th></th>
                   </tr>
                </thead>
                <tbody>
-                  <tr v-for="msg in messagesStore.items" :key="msg.id"
-                     class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                     <td class="px-4 py-3">
-                        <span class="font-medium text-gray-900">{{ msg.user.first_name || msg.user.username || 'Unknown'
-                        }}</span>
+                  <tr v-for="msg in messagesStore.items" :key="msg.id" class="cursor-pointer" @click="openPreview(msg.id)">
+                     <td class="font-medium text-gray-900 whitespace-nowrap">
+                        {{ msg.user.first_name || msg.user.username || 'Unknown' }}
                      </td>
-                     <td class="px-4 py-3 text-gray-500">{{ msg.group?.title || 'Shaxsiy chat' }}</td>
-                     <td class="px-4 py-3 max-w-xs truncate text-gray-600">{{ msg.text }}</td>
-                     <td class="px-4 py-3">
-                        <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
-                           :class="categoryClass(msg.category)">
+                     <td class="text-gray-500 max-w-[12rem] truncate">{{ msg.group?.title || 'Shaxsiy chat' }}</td>
+                     <td class="max-w-xs truncate text-gray-600">{{ msg.text }}</td>
+                     <td>
+                        <span class="chip" :class="categoryClass(msg.category)">
                            {{ categoryLabel(msg.category) }}
                         </span>
                      </td>
-                     <td class="px-4 py-3 text-gray-400 whitespace-nowrap">{{ formatDate(msg.created_at) }}</td>
-                     <td class="px-4 py-3">
-                        <button @click="openPreview(msg.id)"
-                           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-3xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-sm font-medium border border-amber-200 transition-colors">
+                     <td class="text-gray-400 whitespace-nowrap">{{ formatDate(msg.created_at) }}</td>
+                     <td class="text-right">
+                        <button class="icon-btn" title="Ko'rish" @click.stop="openPreview(msg.id)">
                            <font-awesome-icon icon="eye" class="w-3.5 h-3.5" />
-                           Ko'rish
                         </button>
                      </td>
                   </tr>
                </tbody>
             </table>
 
-            <div v-if="messagesStore.loading" class="flex justify-center py-8">
-               <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
+            <div v-if="messagesStore.loading" class="flex justify-center py-8"><div class="spinner"></div></div>
 
-            <div v-if="!messagesStore.loading && messagesStore.items.length === 0"
-               class="text-center py-8 text-gray-400">
-               Murojaatlar topilmadi
+            <div v-if="!messagesStore.loading && messagesStore.items.length === 0" class="empty">
+               Murojaat yo'q
             </div>
          </div>
 
-         <div class="flex items-center justify-between animate-fade-up" style="animation-delay: 90ms"
-            v-if="messagesStore.total > 0">
-            <p class="text-sm text-gray-500">
-               Jami: {{ messagesStore.total }} ta
-            </p>
-            <div class="flex items-center gap-2">
-               <button @click="goToPage(1)" :disabled="page <= 1"
-                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                  &laquo;
-               </button>
-               <button @click="goToPage(page - 1)" :disabled="page <= 1"
-                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                  Oldingi
-               </button>
-               <span class="px-3 py-1.5 text-sm text-gray-500">{{ page }} / {{ totalPages }}</span>
-               <button @click="goToPage(page + 1)" :disabled="page >= totalPages"
-                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                  Keyingi
-               </button>
-               <button @click="goToPage(totalPages)" :disabled="page >= totalPages"
-                  class="px-3 py-1.5 rounded-2xl text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                  &raquo;
-               </button>
-            </div>
+         <div v-if="messagesStore.total > 0 && totalPages > 1" class="flex items-center justify-end gap-1.5">
+            <button class="btn btn-secondary btn-sm" :disabled="page <= 1" @click="goToPage(1)">&laquo;</button>
+            <button class="btn btn-secondary btn-sm" :disabled="page <= 1" @click="goToPage(page - 1)">
+               <font-awesome-icon icon="chevron-left" class="w-3 h-3" />
+            </button>
+            <span class="px-2 text-sm text-gray-500 tabular-nums">{{ page }} / {{ totalPages }}</span>
+            <button class="btn btn-secondary btn-sm" :disabled="page >= totalPages" @click="goToPage(page + 1)">
+               <font-awesome-icon icon="chevron-right" class="w-3 h-3" />
+            </button>
+            <button class="btn btn-secondary btn-sm" :disabled="page >= totalPages" @click="goToPage(totalPages)">&raquo;</button>
          </div>
       </div>
 
       <ChatPreview :visible="previewVisible" :message-id="previewId" @close="previewVisible = false" />
-   </AppLayout>
+   </AppShell>
 </template>
 
 <script setup lang="ts">
@@ -123,7 +96,7 @@ import { onMounted, reactive, ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import FlatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import ChatPreview from '../components/ChatPreview.vue'
 import { useMessagesStore } from '../stores/messages'
 
@@ -184,11 +157,11 @@ function categoryLabel(cat: string | null): string {
 
 function categoryClass(cat: string | null): string {
    const classes: Record<string, string> = {
-      sorov: 'bg-blue-50 text-blue-600',
-      muammo: 'bg-amber-50 text-amber-600',
-      etiroz: 'bg-red-50 text-red-600',
+      sorov: 'chip-blue',
+      muammo: 'chip-amber',
+      etiroz: 'chip-red',
    }
-   return cat ? classes[cat] || 'bg-gray-100 text-gray-500' : 'bg-gray-100 text-gray-500'
+   return cat ? classes[cat] || 'chip-gray' : 'chip-gray'
 }
 
 function formatDate(ts: string | null): string {

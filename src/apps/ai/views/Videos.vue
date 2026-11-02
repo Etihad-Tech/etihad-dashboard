@@ -1,78 +1,43 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="animate-fade-up">
-        <h2 class="text-2xl font-bold text-gray-900">Video yo'riqnomalar</h2>
-        <p class="text-sm text-gray-500 mt-1">Nosozliklar bo'yicha bot yuboradigan yo'riqnoma videolarning file_id'lari</p>
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Videolar</h1>
       </div>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday qo'shiladi</p>
-        <p class="text-amber-700">
-          Videoni <b>botning o'ziga</b> (shaxsiy chatda) yuboring — bot javobida <code>file_id</code> ni qaytaradi.
-          O'sha qiymatni mos kategoriyaga qo'ying va Saqlang. <b>Diqqat:</b> <code>file_id</code> har bir bot uchun
-          alohida — test botining id'si asosiy (prod) botda ishlamaydi, qaytadan olish kerak. Bo'sh qoldirilsa, bot
-          o'sha kategoriyada video yubormaydi (oddiy javob beradi).
-        </p>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-else-if="!videos.length" class="card empty">Kategoriya yo'q</div>
 
-      <div v-else class="space-y-3">
-        <div
-          v-for="(v, i) in videos"
-          :key="v.category"
-          class="bg-white rounded-3xl border border-gray-200 p-4 animate-fade-up"
-          :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-        >
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-2xl bg-sky-50 flex items-center justify-center shrink-0">
-                <font-awesome-icon icon="video" class="w-4 h-4 text-sky-600" />
-              </div>
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">{{ v.label }}</p>
-                <p class="text-xs" :class="(v.file_id && v.is_active) ? 'text-emerald-600' : 'text-gray-400'">
-                  {{ (v.file_id && v.is_active) ? 'Faol — video yuboriladi' : 'O\'chiq — video yo\'q' }}
-                </p>
-              </div>
+      <div v-else class="card divide-y divide-gray-100">
+        <div v-for="v in videos" :key="v.category" class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+          <div class="flex items-center gap-3 min-w-0 w-full sm:w-64 sm:shrink-0">
+            <div class="w-9 h-9 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+              <font-awesome-icon icon="video" class="w-3.5 h-3.5" />
             </div>
-            <button
-              @click="v.is_active = !v.is_active"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors shrink-0"
-              :class="v.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
-            >
-              <font-awesome-icon :icon="v.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-              {{ v.is_active ? 'Faol' : 'Nofaol' }}
-            </button>
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">{{ v.label }}</p>
+              <span class="chip mt-0.5" :class="(v.file_id && v.is_active) ? 'chip-green' : 'chip-gray'">
+                {{ (v.file_id && v.is_active) ? 'Faol' : "Video yo'q" }}
+              </span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <input
-              v-model="v.file_id"
-              type="text"
-              placeholder="Telegram file_id (bo'sh = video yo'q)"
-              class="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-            />
-            <button
-              @click="save(v)"
-              :disabled="savingCat === v.category"
-              class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors shrink-0"
-            >
-              {{ savingCat === v.category ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
-          <p v-if="savedCat === v.category" class="text-xs text-emerald-600 mt-2">✓ Saqlandi</p>
+          <input v-model="v.file_id" type="text" placeholder="file_id" class="input font-mono flex-1 min-w-[12rem]" />
+          <ToggleSwitch v-model="v.is_active" :title="v.is_active ? 'Faol' : 'Nofaol'" />
+          <button class="btn btn-primary" :disabled="savingCat === v.category" @click="save(v)">
+            <font-awesome-icon v-if="savedCat === v.category" icon="check" class="w-3.5 h-3.5" />
+            {{ savingCat === v.category ? 'Saqlanmoqda...' : savedCat === v.category ? 'Saqlandi' : 'Saqlash' }}
+          </button>
         </div>
       </div>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
 import { useToast } from '../../../composables/useToast'
 
@@ -115,7 +80,7 @@ async function save(v: Video) {
     savedCat.value = v.category
     setTimeout(() => { if (savedCat.value === v.category) savedCat.value = null }, 2500)
   } catch {
-    toast.error('Saqlashda xatolik yuz berdi')
+    toast.error('Saqlanmadi')
   }
   finally { savingCat.value = null }
 }

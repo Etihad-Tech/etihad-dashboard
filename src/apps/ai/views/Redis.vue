@@ -1,109 +1,57 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center gap-4 animate-fade-up">
-        <button
-          v-if="selectedChat"
-          @click="selectedChat = null; selectedTitle = ''"
-          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <button v-if="selectedChat" class="icon-btn" title="Orqaga" @click="selectedChat = null; selectedTitle = ''">
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </button>
-        <h2 class="text-2xl font-bold text-gray-900">Redis Monitor</h2>
-        <div v-if="!selectedChat" class="flex items-center gap-1 bg-gray-100 rounded-2xl p-1">
-          <button
-            v-for="f in filters"
-            :key="f.value"
-            @click="activeFilter = f.value; loadChats()"
-            class="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-            :class="activeFilter === f.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-          >
+        <h1 class="page-title">{{ selectedChat ? selectedTitle : 'Redis' }}</h1>
+        <div v-if="!selectedChat" class="seg">
+          <button v-for="f in filters" :key="f.value" class="seg-btn" :class="{ 'seg-btn-on': activeFilter === f.value }"
+            @click="activeFilter = f.value; loadChats()">
             {{ f.label }}
           </button>
         </div>
-        <div class="flex items-center gap-2 ml-auto">
-          <font-awesome-icon icon="circle" class="w-2 h-2 text-emerald-500 animate-pulse" />
-          <span class="text-xs text-gray-400">Har 30s yangilanadi</span>
-        </div>
+        <span v-else-if="ttl > 0" class="chip" :class="ttl > 600 ? 'chip-green' : ttl > 120 ? 'chip-amber' : 'chip-red'">
+          <font-awesome-icon icon="clock" class="w-3 h-3" />
+          {{ formatTtl(ttl) }}
+        </span>
+        <font-awesome-icon icon="circle" class="w-2 h-2 text-emerald-500 animate-pulse" title="30s" />
       </div>
 
-      <div v-if="!selectedChat" class="space-y-3">
-        <div v-if="loading" class="flex justify-center py-12">
-          <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+      <template v-if="!selectedChat">
+        <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-        <div v-else-if="chats.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
-          <font-awesome-icon icon="database" class="w-10 h-10 text-gray-300 mb-4" />
-          <p class="text-gray-400">Redis'da hozircha xabarlar yo'q</p>
-        </div>
+        <div v-else-if="chats.length === 0" class="card empty">Xabarlar yo'q</div>
 
-        <div
-          v-else
-          v-for="(chat, i) in chats"
-          :key="chat.id"
-          @click="selectChat(chat)"
-          class="bg-white rounded-3xl border border-gray-200 p-4 flex items-center justify-between cursor-pointer hover:border-amber-300 hover:bg-amber-50/30 transition-all animate-fade-up"
-          :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-        >
-          <div class="flex items-center gap-3">
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center"
-              :class="chat.type === 'private' ? 'bg-blue-100' : 'bg-amber-100'"
-            >
-              <font-awesome-icon
-                :icon="chat.type === 'private' ? 'user' : 'comments'"
-                class="w-4 h-4"
-                :class="chat.type === 'private' ? 'text-blue-600' : 'text-amber-600'"
-              />
+        <div v-else class="card divide-y divide-gray-100">
+          <button v-for="chat in chats" :key="chat.id" type="button"
+            class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            @click="selectChat(chat)">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              :class="chat.type === 'private' ? 'bg-sky-50 text-sky-600' : 'bg-amber-50 text-amber-600'">
+              <font-awesome-icon :icon="chat.type === 'private' ? 'user' : 'comments'" class="w-3.5 h-3.5" />
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <p class="text-sm font-semibold text-gray-900">{{ chat.title || chat.id }}</p>
-                <span
-                  class="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                  :class="chat.type === 'private' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'"
-                >
-                  {{ chat.type === 'private' ? 'Shaxsiy' : 'Guruh' }}
-                </span>
-              </div>
-              <p class="text-xs text-gray-400">{{ chat.id }}</p>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-900 truncate">{{ chat.title || chat.id }}</p>
+              <p class="text-xs text-gray-400 font-mono truncate">{{ chat.id }}</p>
             </div>
-          </div>
-          <font-awesome-icon icon="eye" class="w-4 h-4 text-gray-400" />
+            <span class="chip" :class="chat.type === 'private' ? 'chip-blue' : 'chip-amber'">
+              {{ chat.type === 'private' ? 'Shaxsiy' : 'Guruh' }}
+            </span>
+            <font-awesome-icon icon="chevron-right" class="w-3 h-3 text-gray-300" />
+          </button>
         </div>
-      </div>
+      </template>
 
-      <div v-if="selectedChat" class="space-y-4 animate-fade-up" style="animation-delay: 30ms">
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-gray-500">
-            <span class="font-semibold text-gray-700">{{ selectedTitle }}</span>
-            <span class="text-xs text-gray-400 ml-2 font-mono">{{ selectedChat }}</span>
-          </p>
-          <span
-            v-if="ttl > 0"
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-            :class="ttl > 600 ? 'bg-emerald-50 text-emerald-600' : ttl > 120 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'"
-          >
-            <font-awesome-icon icon="circle" class="w-1.5 h-1.5" />
-            {{ formatTtl(ttl) }} qoldi
-          </span>
-        </div>
+      <template v-else>
+        <div v-if="messagesLoading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-        <div v-if="messagesLoading" class="flex justify-center py-12">
-          <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <div v-else-if="messages.length === 0" class="card empty">Xabarlar topilmadi</div>
 
-        <div v-else-if="messages.length === 0" class="bg-white rounded-3xl border border-gray-200 p-8 text-center">
-          <p class="text-gray-400">Xabarlar topilmadi</p>
-        </div>
-
-        <div v-else class="bg-white rounded-3xl border border-gray-200 divide-y divide-gray-100">
-          <div
-            v-for="(msg, i) in messages"
-            :key="i"
-            class="px-4 py-3 flex gap-3"
-          >
-            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <div v-else class="card divide-y divide-gray-100">
+          <div v-for="(msg, i) in messages" :key="i" class="px-4 py-3 flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
               <span class="text-xs font-semibold text-gray-500">{{ (msg.name?.[0] || '?').toUpperCase() }}</span>
             </div>
             <div class="min-w-0 flex-1">
@@ -115,14 +63,14 @@
             </div>
           </div>
         </div>
-      </div>
+      </template>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import api from '../../../api'
 
 interface RedisMessage {

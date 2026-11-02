@@ -1,149 +1,92 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center justify-between animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Murojaat yo'naltirish</h2>
-          <p class="text-sm text-gray-500 mt-1">Har bir murojaat turi uchun bot guruhda kimni belgilashi (teg qilishi)</p>
-        </div>
-        <button
-          @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Murojaat yo'naltirish</h1>
+        <button class="btn btn-primary" @click="openAdd()">
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi mas'ul
+          Qo'shish
         </button>
       </div>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday ishlaydi</p>
-        <p class="text-amber-700">
-          Foydalanuvchi savol berganda bot uning turini aniqlaydi (viza, reys, aeroportda kutib olish, Haramain
-          poyezdi, sotuv bo'limi...) va shu turga biriktirilgan xodimlarni guruhda belgilaydi hamda ularga shaxsiy
-          xabar yuboradi. Xodimni @username yoki Telegram ID orqali kiritish mumkin.
-        </p>
-        <p class="text-amber-700 mt-2">
-          Guruh Saudiyaga qo'nmaguncha esa bot barcha savollarni faqat «Mas'ul rahbar — sayohatdan oldin
-          (Toshkent)» bo'limidagi xodimga yo'naltiradi: ellikboshi, ishchi guruh va boshqa bo'limlar belgilanmaydi.
-        </p>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-
-      <div v-else class="space-y-8">
-        <div v-for="(cat, ci) in categories" :key="cat.key" class="animate-fade-up" :style="{ animationDelay: `${(ci + 1) * 25}ms` }">
-          <div class="flex items-center gap-2 mb-3">
-            <font-awesome-icon icon="tag" class="w-4 h-4 text-amber-600" />
-            <h3 class="text-base font-semibold text-gray-900">{{ cat.label }}</h3>
-            <span class="text-xs text-gray-400">({{ byCategory(cat.key).length }})</span>
+      <div v-else class="grid gap-4 lg:grid-cols-2 items-start">
+        <div v-for="cat in categories" :key="cat.key" class="card overflow-hidden">
+          <div class="flex items-center gap-2 pl-4 pr-2 h-12 border-b border-gray-100">
+            <span class="section-title truncate">{{ cat.label }}</span>
+            <span class="chip chip-gray">{{ byCategory(cat.key).length }}</span>
+            <button class="icon-btn ml-auto" title="Qo'shish" @click="openAdd(cat.key)">
+              <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          <div v-if="byCategory(cat.key).length === 0" class="text-sm text-gray-400 pl-6 mb-2">
-            Hozircha hech kim biriktirilmagan
+          <div v-if="byCategory(cat.key).length === 0" class="px-4 py-3 text-sm text-gray-400">
+            Biriktirilmagan
           </div>
 
-          <div v-else class="space-y-3">
-            <div
-              v-for="t in byCategory(cat.key)"
-              :key="t.id"
-              class="bg-white rounded-3xl border p-4 flex items-center justify-between gap-4 transition-all"
-              :class="t.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-                  <font-awesome-icon icon="user" class="w-4 h-4 text-indigo-600" />
-                </div>
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">
-                    {{ t.username || (t.name ? t.name : ('ID ' + t.telegram_id)) }}
-                    <span v-if="t.username && t.name" class="text-gray-400 font-normal">· {{ t.name }}</span>
-                  </p>
-                  <p class="text-xs text-gray-500">
-                    <span v-if="t.telegram_id">Telegram ID: {{ t.telegram_id }}</span>
-                    <span v-else>@username</span>
-                  </p>
-                </div>
+          <div v-else class="divide-y divide-gray-100">
+            <div v-for="t in byCategory(cat.key)" :key="t.id" class="flex items-center gap-3 px-4 py-2.5">
+              <div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"
+                :class="{ 'opacity-50': !t.is_active }">
+                <font-awesome-icon icon="user" class="w-3.5 h-3.5" />
               </div>
-              <div class="flex items-center gap-1 shrink-0">
-                <button
-                  @click="toggleActive(t)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-                  :class="t.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
-                >
-                  <font-awesome-icon :icon="t.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-                  {{ t.is_active ? 'Faol' : 'Nofaol' }}
-                </button>
-                <button
-                  @click="openEdit(t)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-                >
-                  <font-awesome-icon icon="pen" class="w-3 h-3" />
-                  Tahrirlash
-                </button>
-                <button
-                  @click="askDelete(t.id)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <font-awesome-icon icon="trash" class="w-3 h-3" />
-                  O'chirish
-                </button>
+              <div class="min-w-0 flex-1" :class="{ 'opacity-50': !t.is_active }">
+                <p class="text-sm font-medium text-gray-900 truncate">
+                  {{ t.username || (t.name ? t.name : ('ID ' + t.telegram_id)) }}
+                </p>
+                <p v-if="(t.username && t.name) || t.telegram_id" class="text-xs text-gray-500 truncate">
+                  {{ [t.username && t.name ? t.name : '', t.telegram_id ? 'ID ' + t.telegram_id : ''].filter(Boolean).join(' · ') }}
+                </p>
               </div>
+              <ToggleSwitch :model-value="t.is_active" :title="t.is_active ? 'Faol' : 'Nofaol'" @update:model-value="toggleActive(t)" />
+              <button class="icon-btn" title="Tahrirlash" @click="openEdit(t)">
+                <font-awesome-icon icon="pen" class="w-3.5 h-3.5" />
+              </button>
+              <button class="icon-btn icon-btn-danger" title="O'chirish" @click="askDelete(t.id)">
+                <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <Transition name="modal">
-      <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Tahrirlash' : 'Yangi mas\'ul' }}</h3>
-          </div>
-          <div class="p-6 space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Murojaat turi</label>
-              <select v-model="form.category"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                <option v-for="c in categories" :key="c.key" :value="c.key">{{ c.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Username (ixtiyoriy)</label>
-              <input v-model="form.username" type="text" placeholder="@username"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Telegram ID (username yo'q bo'lsa)</label>
-              <input v-model.number="form.telegram_id" type="number" placeholder="Masalan: 1873982052"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Ism (ixtiyoriy)</label>
-              <input v-model="form.name" type="text" placeholder="Masalan: Albaro"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <p class="text-[11px] text-gray-400">Username yoki Telegram ID dan kamida bittasini kiriting.</p>
-            <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
-          </div>
-          <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-            <button @click="saveModal" :disabled="!canSave || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
-        </div>
+    <BaseModal :open="modalOpen" :title="modalEditId ? 'Tahrirlash' : 'Yangi mas\'ul'" @close="closeModal">
+      <div>
+        <label class="label">Murojaat turi</label>
+        <select v-model="form.category" class="input">
+          <option v-for="c in categories" :key="c.key" :value="c.key">{{ c.label }}</option>
+        </select>
       </div>
-    </Transition>
-  </AppLayout>
+      <div>
+        <label class="label">Username</label>
+        <input v-model="form.username" type="text" placeholder="@username" class="input" />
+      </div>
+      <div>
+        <label class="label">Telegram ID</label>
+        <input v-model.number="form.telegram_id" type="number" placeholder="1873982052" class="input" />
+      </div>
+      <div>
+        <label class="label">Ism</label>
+        <input v-model="form.name" type="text" class="input" />
+      </div>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button class="btn btn-ghost" @click="closeModal">Bekor qilish</button>
+        <button class="btn btn-primary" :disabled="!canSave || saving" @click="saveModal">
+          {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+        </button>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -176,10 +119,10 @@ const form = ref<{ category: string; username: string; telegram_id: number | nul
 
 const canSave = computed(() => !!form.value.category && (!!form.value.username.trim() || !!form.value.telegram_id))
 
-function openAdd() {
+function openAdd(category?: string) {
   modalEditId.value = null
   formError.value = ''
-  form.value = { category: categories.value[0]?.key || '', username: '', telegram_id: null, name: '' }
+  form.value = { category: category || categories.value[0]?.key || '', username: '', telegram_id: null, name: '' }
   modalOpen.value = true
 }
 
@@ -217,7 +160,7 @@ async function saveModal() {
     toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch {
-    formError.value = 'Saqlashda xatolik yuz berdi'
+    formError.value = 'Saqlanmadi'
   } finally {
     saving.value = false
   }
@@ -241,7 +184,7 @@ async function askDelete(id: number) {
     tags.value = tags.value.filter(t => t.id !== id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   }
 }
 
@@ -265,22 +208,3 @@ async function load() {
 onMounted(load)
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-</style>

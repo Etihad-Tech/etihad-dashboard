@@ -1,307 +1,246 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-start justify-between gap-3 animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Reyslar</h2>
-          <p class="text-sm text-gray-500 mt-1">Haftalik reyslar — vaqt, yo'nalish va o'zgarishlarni shu yerdan boshqaring</p>
-        </div>
-        <button @click="adding ? cancelAdd() : openAdd()" class="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Reyslar</h1>
+        <button class="btn" :class="adding ? 'btn-secondary' : 'btn-primary'" @click="adding ? cancelAdd() : openAdd()">
           <font-awesome-icon :icon="adding ? 'xmark' : 'plus'" class="w-3.5 h-3.5" />
           {{ adding ? 'Bekor qilish' : 'Yangi reys' }}
         </button>
       </div>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday ishlaydi</p>
-        <p class="text-amber-700">
-          Har bir reys bitta <b>hafta kuni</b>ga biriktirilgan va har hafta takrorlanadi; aniq sanani bot guruhning
-          jo'nash sanasidan hisoblaydi. Doimiy o'zgarish bo'lsa kartochkadagi vaqtni tahrirlang. <b>Bitta reys kechiksa
-          yoki boshqa kunga ko'chsa</b>, "Kechikish / o'zgarishlar" bo'limidan qo'shing — bot o'sha kuni uchadigan
-          guruhga <b>avtomatik xabar yuboradi</b>. O'zgarishni <b>o'chirganda</b> esa guruhlarga hech qanday xabar
-          yuborilmaydi.
-        </p>
-        <p class="text-amber-700 mt-2">
-          Reys — bu <b>samolyot</b>: yo'nalish, vaqtlar va reys raqamlari. Bitta reysda uzunligi har xil safarlar
-          birga uchishi mumkin (masalan, 6 kunlik safar 13 kunlik bilan bir xil Shanba reysida), shuning uchun
-          <b>safar necha kecha davom etishi bu yerda emas, «Guruhlar» bo'limida</b> — har bir guruhning
-          Jidda / Makka / Madina kechalarida — belgilanadi.
-        </p>
-      </div>
-
       <!-- Add a weekly flight -->
-      <div v-if="adding" class="bg-white border border-amber-200 rounded-3xl p-5 animate-fade-up">
-        <div class="flex items-center gap-2 mb-4">
-          <div class="w-9 h-9 rounded-2xl bg-amber-50 flex items-center justify-center">
-            <font-awesome-icon icon="plane" class="w-4 h-4 text-amber-600" />
-          </div>
+      <div v-if="adding" class="card p-4">
+        <div class="grid gap-3 sm:grid-cols-[1fr_1.5fr_6rem_auto] sm:items-end">
           <div>
-            <h3 class="text-base font-semibold text-gray-900">Yangi haftalik reys</h3>
-            <p class="text-xs text-gray-400">Hafta kunini tanlang — har shu kuni takrorlanadi</p>
-          </div>
-        </div>
-
-        <div class="grid sm:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Hafta kuni</label>
-            <select v-model.number="newWeekday" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <label class="label">Hafta kuni</label>
+            <select v-model.number="newWeekday" class="input">
               <option v-for="w in WEEKDAY_IDS" :key="w" :value="w">{{ weekdayLabel(w) }}{{ usedWeekdays.has(w) ? ' — reys bor' : '' }}</option>
             </select>
-            <p class="text-xs text-gray-400 mt-1" v-if="newWeekday !== null">Keyingi jo'nash: <b>{{ humanDate(nextISOForWeekday(newWeekday)) }}</b></p>
           </div>
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Yo'nalish</label>
-            <select v-model="newRoute" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <label class="label">Yo'nalish</label>
+            <select v-model="newRoute" class="input">
               <option v-for="r in ROUTES" :key="r.key" :value="r.key" :disabled="routeTaken(newWeekday, r)">{{ r.label }}{{ routeTaken(newWeekday, r) ? ' — bor' : '' }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Tunlar soni</label>
-            <input v-model.number="newNights" type="number" min="1" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <label class="label">Tunlar</label>
+            <input v-model.number="newNights" type="number" min="1" class="input" />
           </div>
-        </div>
-
-        <p v-if="addError" class="text-xs text-rose-600 mt-2">{{ addError }}</p>
-
-        <div class="flex items-center justify-end gap-2 mt-4">
-          <button @click="cancelAdd" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-2xl transition-colors">Bekor qilish</button>
-          <button @click="createDay" :disabled="creating || newWeekday === null" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
+          <button @click="createDay" :disabled="creating || newWeekday === null" class="btn btn-primary">
             {{ creating ? 'Saqlanmoqda...' : "Qo'shish" }}
           </button>
         </div>
-        <p class="text-xs text-gray-400 mt-3">Qo'shilgandan so'ng vaqtlarni shu reysning kartochkasida to'ldiring.</p>
+        <p v-if="newWeekday !== null" class="text-xs text-gray-500 mt-2">Keyingi jo'nash: <b class="text-gray-700">{{ humanDate(nextISOForWeekday(newWeekday)) }}</b></p>
+        <p v-if="addError" class="error-text mt-2">{{ addError }}</p>
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-else-if="!schedules.length" class="text-center py-12 text-sm text-gray-400 animate-fade-up">
-        Hozircha reys yo'q. Yuqoridagi <b>"Yangi reys"</b> tugmasi orqali qo'shing.
-      </div>
+      <div v-else-if="!schedules.length" class="card empty">Reyslar yo'q</div>
 
-      <div v-else class="grid gap-5 lg:grid-cols-2">
-        <div v-for="(s, i) in schedules" :key="s.id" class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" :style="{ animationDelay: `${(i + 1) * 40}ms` }">
-          <div class="flex items-center gap-2 mb-4">
-            <div class="w-9 h-9 rounded-2xl bg-sky-50 flex items-center justify-center">
-              <font-awesome-icon icon="plane" class="w-4 h-4 text-sky-600" />
+      <div v-else class="grid gap-4 xl:grid-cols-2">
+        <div v-for="s in schedules" :key="s.id" class="card p-4 sm:p-5 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+              <font-awesome-icon icon="plane" class="w-4 h-4" />
             </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 min-w-0">
-                <h3 class="text-base font-semibold text-gray-900 truncate">{{ s.name }}</h3>
-                <span class="shrink-0 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-100 text-sky-700 text-[11px] font-medium">{{ routeLabel(s.outbound_to, s.return_from) }}</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h3 class="section-title truncate">{{ s.name }}</h3>
+                <span class="chip chip-blue">{{ routeLabel(s.outbound_to, s.return_from) }}</span>
               </div>
-              <p class="text-xs text-gray-400">Har {{ weekdayLabel(s.departure_weekday) }} kuni · {{ s.nights }} kecha (zaxira)</p>
+              <p class="text-xs text-gray-500 mt-0.5">Keyingi: {{ humanDate(nextISOForWeekday(s.departure_weekday)) }}</p>
             </div>
-            <button @click="deleteDay(s)" :disabled="deletingId === s.id" title="O'chirish" class="shrink-0 w-8 h-8 rounded-xl text-gray-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors">
+            <button @click="deleteDay(s)" :disabled="deletingId === s.id" title="O'chirish" class="icon-btn icon-btn-danger">
               <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div class="mb-4 flex items-center gap-2 bg-sky-50/60 border border-sky-100 rounded-2xl px-3 py-2">
-            <font-awesome-icon icon="calendar" class="w-3.5 h-3.5 text-sky-500" />
-            <span class="text-xs text-gray-500">Keyingi jo'nash:</span>
-            <span class="text-xs font-semibold text-gray-700">{{ humanDate(nextISOForWeekday(s.departure_weekday)) }}</span>
-          </div>
-
-          <p v-if="routeTwin(s)" class="mb-4 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-2xl px-3 py-2">
-            {{ weekdayLabel(s.departure_weekday) }} kuni «{{ routeTwin(s)?.name }}» ham shu yo'nalishda — bot ulardan faqat bittasini ishlatadi.
-            Borishdagi «Qayerga» yoki qaytishdagi «Qayerdan»ni to'g'rilang.
+          <p v-if="routeTwin(s)" class="text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">
+            «{{ routeTwin(s)?.name }}» bilan bir xil yo'nalish
           </p>
 
-          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🛫 Borish</p>
-          <div class="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Qayerdan</label>
-              <select v-model="s.outbound_from" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-              </select>
+          <!-- Borish -->
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-auto">Borish</span>
+              <input v-model="s.outbound_flight_no" type="text" maxlength="16" placeholder="Reys №" title="Reys raqami" class="input input-sm w-28" />
             </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Jo'nash vaqti</label>
-              <input v-model="s.outbound_dep" type="time" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Qayerga</label>
-              <select v-model="s.outbound_to" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Yetib borish vaqti</label>
-              <input v-model="s.outbound_arr" type="time" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-          </div>
-
-          <div class="mb-4">
-            <label class="block text-xs text-gray-400 mb-1">Borish reys raqami (ixtiyoriy)</label>
-            <input v-model="s.outbound_flight_no" type="text" maxlength="16" placeholder="masalan, C8 501" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-          </div>
-
-          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🛬 Qaytish</p>
-          <div class="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Qayerdan</label>
-              <select v-model="s.return_from" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Jo'nash vaqti</label>
-              <input v-model="s.return_dep" type="time" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Qayerga</label>
-              <select v-model="s.return_to" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Yetib borish vaqti</label>
-              <input v-model="s.return_arr" type="time" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4 gap-2">
+              <label class="block">
+                <span class="label">Qayerdan</span>
+                <select v-model="s.outbound_from" class="input input-sm">
+                  <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="label">Jo'nash</span>
+                <input v-model="s.outbound_dep" type="time" class="input input-sm" />
+              </label>
+              <label class="block">
+                <span class="label">Qayerga</span>
+                <select v-model="s.outbound_to" class="input input-sm">
+                  <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="label">Yetib borish</span>
+                <input v-model="s.outbound_arr" type="time" class="input input-sm" />
+              </label>
             </div>
           </div>
 
-          <div class="mb-3">
-            <label class="block text-xs text-gray-400 mb-1">Qaytish reys raqami (ixtiyoriy)</label>
-            <input v-model="s.return_flight_no" type="text" maxlength="16" placeholder="masalan, C8 502" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          <!-- Qaytish -->
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-auto">Qaytish</span>
+              <label class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                <input v-model="s.return_next_day" type="checkbox" class="checkbox" />
+                Ertasi kuni yetadi (+1)
+              </label>
+              <input v-model="s.return_flight_no" type="text" maxlength="16" placeholder="Reys №" title="Reys raqami" class="input input-sm w-28" />
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4 gap-2">
+              <label class="block">
+                <span class="label">Qayerdan</span>
+                <select v-model="s.return_from" class="input input-sm">
+                  <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="label">Jo'nash</span>
+                <input v-model="s.return_dep" type="time" class="input input-sm" />
+              </label>
+              <label class="block">
+                <span class="label">Qayerga</span>
+                <select v-model="s.return_to" class="input input-sm">
+                  <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="label">Yetib borish</span>
+                <input v-model="s.return_arr" type="time" class="input input-sm" />
+              </label>
+            </div>
           </div>
 
-          <label class="flex items-center gap-2 text-sm text-gray-600 mb-4 cursor-pointer">
-            <input v-model="s.return_next_day" type="checkbox" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-            Qaytish reysi ertasi kuni yetib boradi (+1)
-          </label>
-
-          <div class="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Tunlar soni (zaxira)</label>
-              <input v-model.number="s.nights" type="number" min="1" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              <p class="text-[11px] text-gray-400 mt-1">Faqat «Guruhlar»da kechalari kiritilmagan guruh uchun ishlatiladi</p>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">Aviakompaniya (ixtiyoriy)</label>
-              <input v-model="s.airline" type="text" placeholder="CENTRUMAIR A330-300" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
+          <div class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+            <label class="block">
+              <span class="label">Tunlar (zaxira)</span>
+              <input v-model.number="s.nights" type="number" min="1" class="input input-sm" />
+            </label>
+            <label class="block">
+              <span class="label">Aviakompaniya</span>
+              <input v-model="s.airline" type="text" placeholder="CENTRUMAIR A330-300" class="input input-sm" />
+            </label>
           </div>
 
           <!-- One-off changes (delays / moved days) — auto-notifies the group -->
-          <div class="border-t border-gray-100 pt-3 mb-4">
-            <button @click="toggleExc(s)" class="w-full flex items-center gap-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors">
-              <font-awesome-icon icon="calendar" class="w-3 h-3 text-amber-500" />
+          <div class="border-t border-gray-100 pt-3">
+            <button @click="toggleExc(s)" class="w-full flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+              <font-awesome-icon icon="calendar" class="w-3.5 h-3.5 text-amber-500" />
               Kechikish / o'zgarishlar
-              <span v-if="(excs[s.id] || []).length" class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px]">{{ (excs[s.id] || []).length }}</span>
-              <font-awesome-icon :icon="excOpen[s.id] ? 'xmark' : 'plus'" class="w-3 h-3 ml-auto" />
+              <span v-if="(excs[s.id] || []).length" class="chip chip-amber h-5">{{ (excs[s.id] || []).length }}</span>
+              <font-awesome-icon :icon="excOpen[s.id] ? 'chevron-down' : 'chevron-right'" class="w-3 h-3 ml-auto text-gray-400" />
             </button>
 
             <div v-if="excOpen[s.id]" class="mt-3 space-y-3">
               <div v-if="(excs[s.id] || []).length" class="space-y-1.5">
-                <div v-for="e in excs[s.id]" :key="e.id" class="flex items-center gap-2 text-xs rounded-xl px-3 py-2 border" :class="excEditId[s.id] === e.id ? 'bg-amber-100/80 border-amber-300' : 'bg-amber-50/70 border-amber-100'">
-                  <span class="font-medium text-gray-700">{{ dmy(e.flight_date) }}</span>
-                  <span class="text-gray-400">({{ legForDate(s, e.flight_date) }})</span>
+                <div v-for="e in excs[s.id]" :key="e.id" class="flex items-center gap-2 text-xs rounded-lg pl-3 pr-1 py-1 border"
+                  :class="excEditId[s.id] === e.id ? 'bg-amber-100/80 border-amber-300' : 'bg-amber-50/60 border-amber-100'">
+                  <span class="font-medium text-gray-800">{{ dmy(e.flight_date) }}</span>
+                  <span class="text-gray-400">{{ legForDate(s, e.flight_date) }}</span>
                   <span class="text-gray-300">→</span>
-                  <span class="text-amber-700 font-medium">{{ changeSummary(e) }}</span>
-                  <div class="ml-auto flex items-center gap-2">
-                    <button @click="startEditExc(s, e)" class="text-gray-300 hover:text-amber-600 transition-colors" title="Tahrirlash">
+                  <span class="text-amber-700 font-medium truncate">{{ changeSummary(e) }}</span>
+                  <div class="ml-auto flex items-center shrink-0">
+                    <button @click="startEditExc(s, e)" class="icon-btn w-7 h-7" title="Tahrirlash">
                       <font-awesome-icon icon="pen" class="w-3 h-3" />
                     </button>
-                    <button @click="removeExc(s, e)" :disabled="excDeletingId === e.id" class="text-gray-300 hover:text-rose-600 disabled:opacity-40 transition-colors" title="O'chirish">
+                    <button @click="removeExc(s, e)" :disabled="excDeletingId === e.id" class="icon-btn icon-btn-danger w-7 h-7" title="O'chirish">
                       <font-awesome-icon icon="trash" class="w-3 h-3" />
                     </button>
                   </div>
                 </div>
               </div>
-              <p v-else class="text-xs text-gray-400">Hozircha o'zgarish yo'q.</p>
 
-              <div class="bg-gray-50/60 rounded-2xl p-3 space-y-2">
-                <template v-if="!excEditId[s.id]">
-                  <div>
-                    <label class="block text-[11px] text-gray-400 mb-1">Qaysi reys o'zgardi?</label>
-                    <div class="grid grid-cols-2 gap-2">
-                      <button type="button" @click="setExcLeg(s, 'Borish')"
-                        :class="excForm[s.id].leg === 'Borish' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'"
-                        class="px-2 py-1.5 text-xs font-medium rounded-xl border transition-colors">🛫 Borish (ketish)</button>
-                      <button type="button" @click="setExcLeg(s, 'Qaytish')"
-                        :class="excForm[s.id].leg === 'Qaytish' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'"
-                        class="px-2 py-1.5 text-xs font-medium rounded-xl border transition-colors">🛬 Qaytish (uyga)</button>
-                    </div>
+              <div class="rounded-xl bg-gray-50 p-3 space-y-3">
+                <div v-if="!excEditId[s.id]" class="flex flex-wrap items-center gap-2">
+                  <div class="seg">
+                    <button type="button" class="seg-btn" :class="{ 'seg-btn-on': excForm[s.id].leg === 'Borish' }" @click="setExcLeg(s, 'Borish')">Borish</button>
+                    <button type="button" class="seg-btn" :class="{ 'seg-btn-on': excForm[s.id].leg === 'Qaytish' }" @click="setExcLeg(s, 'Qaytish')">Qaytish</button>
                   </div>
-                  <div>
-                    <label class="block text-[11px] text-gray-400 mb-1">Qaysi kuni?</label>
-                    <select v-model="excForm[s.id].date" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
-                      <option value="">— sanani tanlang —</option>
-                      <option v-for="o in availableForLeg(s)" :key="o.iso" :value="o.iso">{{ dmy(o.iso) }} ({{ o.time }})</option>
-                    </select>
-                  </div>
-                </template>
-                <div v-else class="flex items-center gap-2 text-[11px]">
-                  <span class="px-2 py-1 rounded-lg bg-amber-100 text-amber-800 font-medium">✏️ Tahrirlash: {{ dmy(excForm[s.id].date) }} ({{ excForm[s.id].leg }})</span>
-                  <button type="button" @click="cancelEditExc(s)" class="ml-auto text-gray-400 hover:text-gray-600 transition-colors">Bekor qilish</button>
+                  <select v-model="excForm[s.id].date" class="input input-sm flex-1 min-w-[10rem] w-auto">
+                    <option value="">— sana —</option>
+                    <option v-for="o in availableForLeg(s)" :key="o.iso" :value="o.iso">{{ dmy(o.iso) }} ({{ o.time }})</option>
+                  </select>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-[11px] text-gray-400 mb-1">
-                      Yangi {{ excForm[s.id].leg === 'Qaytish' ? "qaytish" : "jo'nash" }} vaqti
-                      <span class="text-amber-600">— {{ excDepCity(s) }}</span>
-                      <span v-if="selectedOccTime(s)" class="text-gray-400">· hozirgi {{ selectedOccTime(s) }}</span>
-                    </label>
-                    <input v-model="excForm[s.id].newDep" type="time" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
-                  <div>
-                    <label class="block text-[11px] text-gray-400 mb-1">
-                      Yetib borish vaqti<span v-if="excForm[s.id].leg === 'Qaytish'" class="text-rose-500"> *</span>
-                      <span class="text-amber-600">— {{ excArrCity(s) }}</span>
-                    </label>
-                    <input v-model="excForm[s.id].newArr" type="time" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  </div>
+                <div v-else class="flex items-center gap-2">
+                  <span class="chip chip-amber">Tahrirlash: {{ dmy(excForm[s.id].date) }} · {{ excForm[s.id].leg }}</span>
+                  <button type="button" @click="cancelEditExc(s)" class="btn btn-ghost btn-sm ml-auto">Bekor qilish</button>
                 </div>
-                <p class="text-[11px] text-gray-400">Har ikki vaqt ham o'z shahrining mahalliy vaqti bilan. Yetib borish vaqti ziyoratchilar ko'p so'raydigan ma'lumot.</p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <label class="block">
+                    <span class="label truncate">
+                      {{ excForm[s.id].leg === 'Qaytish' ? 'Qaytish' : "Jo'nash" }} · {{ excDepCity(s) }}<span v-if="selectedOccTime(s)" class="text-gray-400"> · {{ selectedOccTime(s) }}</span>
+                    </span>
+                    <input v-model="excForm[s.id].newDep" type="time" class="input input-sm" />
+                  </label>
+                  <label class="block">
+                    <span class="label truncate">
+                      Yetib borish · {{ excArrCity(s) }}<span v-if="excForm[s.id].leg === 'Qaytish'" class="text-rose-500"> *</span>
+                    </span>
+                    <input v-model="excForm[s.id].newArr" type="time" class="input input-sm" />
+                  </label>
+                  <label class="block col-span-2 sm:col-span-1">
+                    <span class="label">Reys raqami</span>
+                    <input v-model="excForm[s.id].newFlightNo" type="text" maxlength="16" placeholder="C8 501" class="input input-sm" />
+                  </label>
+                </div>
+
                 <div>
-                  <label class="block text-[11px] text-gray-400 mb-1">Yangi reys raqami (ixtiyoriy)</label>
-                  <input v-model="excForm[s.id].newFlightNo" type="text" maxlength="16" placeholder="masalan, C8 501" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  <p class="text-[11px] text-gray-400 mt-1">Faqat samolyot/reys raqami ham o'zgargan bo'lsa to'ldiring — bo'sh qolsa, reysning odatdagi raqami ishlatiladi.</p>
+                  <button type="button" @click="excForm[s.id].more = !excForm[s.id].more" class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                    <font-awesome-icon :icon="excForm[s.id].more ? 'xmark' : 'plus'" class="w-2.5 h-2.5" />
+                    Boshqa kunga ko'chdi
+                  </button>
+                  <input v-if="excForm[s.id].more" v-model="excForm[s.id].newDate" type="date" :min="excForm[s.id].date || todayISO" class="input input-sm mt-2 max-w-[12rem]" />
                 </div>
-                <label class="flex items-center gap-2 text-[11px] text-gray-600 cursor-pointer">
-                  <input v-model="excForm[s.id].notifyGroups" type="checkbox" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-                  Saqlanganda shu kuni uchadigan guruhlarga avtomatik xabar yuborilsin
-                </label>
-                <p v-if="!excForm[s.id].notifyGroups" class="text-[11px] text-amber-600">Xabar yuborilmaydi — o'zgarish faqat saqlanadi; ziyoratchi so'raganda bot yangi ma'lumot bilan javob beradi.</p>
-                <div class="flex justify-end">
-                  <button @click="excEditId[s.id] ? saveEditExc(s) : addExc(s)" :disabled="excSavingId === s.id" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded-xl transition-colors">
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer mr-auto">
+                    <input v-model="excForm[s.id].notifyGroups" type="checkbox" class="checkbox" />
+                    Guruhlarga xabar yuborilsin
+                  </label>
+                  <button @click="excEditId[s.id] ? saveEditExc(s) : addExc(s)" :disabled="excSavingId === s.id" class="btn btn-primary btn-sm">
                     {{ excSavingId === s.id ? '...' : (excEditId[s.id] ? 'Saqlash' : "Qo'shish") }}
                   </button>
                 </div>
-                <button type="button" @click="excForm[s.id].more = !excForm[s.id].more" class="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
-                  <font-awesome-icon :icon="excForm[s.id].more ? 'xmark' : 'plus'" class="w-2.5 h-2.5" />
-                  Qo'shimcha (boshqa kunga ko'chdi)
-                </button>
-                <div v-if="excForm[s.id].more">
-                  <label class="block text-[11px] text-gray-400 mb-1">Boshqa kunga ko'chdi (sana)</label>
-                  <input v-model="excForm[s.id].newDate" type="date" :min="excForm[s.id].date || todayISO" class="w-full bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
+                <p v-if="!excForm[s.id].notifyGroups" class="text-xs text-amber-600">Xabar yuborilmaydi</p>
                 <p v-if="excNotice[s.id]" class="text-xs text-emerald-600">{{ excNotice[s.id] }}</p>
-                <p v-if="excError[s.id]" class="text-xs text-rose-600">{{ excError[s.id] }}</p>
+                <p v-if="excError[s.id]" class="error-text">{{ excError[s.id] }}</p>
               </div>
             </div>
           </div>
 
-          <div class="flex items-center justify-between">
-            <span v-if="savedId === s.id" class="text-xs text-emerald-600 flex items-center gap-1">
-              <font-awesome-icon icon="circle" class="w-2 h-2" /> Saqlandi
+          <div class="flex items-center justify-end gap-3">
+            <span v-if="savedId === s.id" class="text-xs text-emerald-600 flex items-center gap-1 mr-auto">
+              <font-awesome-icon icon="circle-check" class="w-3.5 h-3.5" /> Saqlandi
             </span>
-            <span v-else></span>
-            <button @click="save(s)" :disabled="savingId === s.id" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
+            <button @click="save(s)" :disabled="savingId === s.id" class="btn btn-primary">
               {{ savingId === s.id ? 'Saqlanmoqda...' : 'Saqlash' }}
             </button>
           </div>
         </div>
       </div>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -425,7 +364,7 @@ async function createDay() {
   if (newWeekday.value === null) { addError.value = 'Hafta kunini tanlang.'; return }
   const route = ROUTES.find(r => r.key === newRoute.value) || ROUTES[0]
   if (routeTaken(newWeekday.value, route)) {
-    addError.value = `${weekdayLabel(newWeekday.value)} kuni «${route.label}» reysi allaqachon bor.`
+    addError.value = `«${route.label}» allaqachon bor`
     return
   }
   creating.value = true
@@ -440,7 +379,7 @@ async function createDay() {
       try {
         data = (await api.put(`/flights/${data.id}`, { outbound_to: route.land, return_from: route.home })).data
       } catch {
-        toast.error("Reys qo'shildi, lekin yo'nalishi saqlanmadi — kartochkada «Qayerga» / «Qayerdan»ni tanlang.")
+        toast.error("Yo'nalish saqlanmadi — qayta tanlang")
       }
     }
     schedules.value.push(data)
@@ -448,7 +387,7 @@ async function createDay() {
     excs.value[data.id] = []
     adding.value = false
   } catch (e: any) {
-    addError.value = e?.response?.data?.detail || "Saqlashda xatolik. Qayta urinib ko'ring."
+    addError.value = e?.response?.data?.detail || 'Saqlanmadi'
   } finally {
     creating.value = false
   }
@@ -458,14 +397,14 @@ const { confirm } = useConfirm()
 const toast = useToast()
 
 async function deleteDay(s: Flight) {
-  if (!(await confirm({ title: "Reysni o'chirish", message: `"${s.name}" reysini o'chirasizmi?` }))) return
+  if (!(await confirm({ title: `«${s.name}» reysini o'chirish` }))) return
   deletingId.value = s.id
   try {
     await api.delete(`/flights/${s.id}`)
     schedules.value = schedules.value.filter(x => x.id !== s.id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   } finally {
     deletingId.value = null
   }
@@ -544,12 +483,12 @@ async function addExc(s: Flight) {
   const f = excForm.value[s.id]
   excError.value[s.id] = ''
   excNotice.value[s.id] = ''
-  if (!f.date) { excError.value[s.id] = 'Reys sanasini tanlang.'; return }
-  if (!f.newDep && !f.newDate && !f.newFlightNo.trim()) { excError.value[s.id] = 'Yangi vaqt, sana yoki reys raqamini kiriting.'; return }
+  if (!f.date) { excError.value[s.id] = 'Sanani tanlang'; return }
+  if (!f.newDep && !f.newDate && !f.newFlightNo.trim()) { excError.value[s.id] = 'Vaqt, sana yoki raqam kiriting'; return }
   // Return leg lands in the home city — pilgrims always ask "when do we arrive?",
   // so the bot needs it. Require arrival whenever the TIME/DAY moved (a pure
   // reys-number swap keeps the schedule's own times, nothing to re-enter).
-  if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = 'Yetib borish vaqtini kiriting'; return }
   // Saving a one-off change (with the toggle ON) immediately NOTIFIES every group
   // flying that day on Telegram — an outward, hard-to-undo action — so confirm
   // first (mirrors removeExc). With the toggle OFF it saves silently; the confirm
@@ -557,8 +496,8 @@ async function addExc(s: Flight) {
   if (!(await confirm({
     title: "O'zgarishni saqlash",
     message: f.notifyGroups
-      ? "Bu o'zgarish saqlanadi va shu kuni uchadigan guruhlarga yangi reys vaqti haqida darhol xabar yuboriladi. Davom etamizmi?"
-      : "Bu o'zgarish saqlanadi, lekin guruhlarga xabar YUBORILMAYDI — bot faqat so'ralganda yangi ma'lumot bilan javob beradi. Davom etamizmi?",
+      ? 'Shu kuni uchadigan guruhlarga xabar boradi.'
+      : 'Guruhlarga xabar yuborilmaydi.',
     confirmText: f.notifyGroups ? "Saqlash va xabar berish" : "Xabarsiz saqlash",
   }))) return
   excSavingId.value = s.id
@@ -571,12 +510,12 @@ async function addExc(s: Flight) {
     excs.value[s.id].push(data)
     excs.value[s.id].sort((a, b) => (a.flight_date < b.flight_date ? -1 : 1))
     const n = data.notified ?? 0
-    excNotice.value[s.id] = !f.notifyGroups ? "✓ Saqlandi — xabar yuborilmadi (siz o'chirib qo'ygansiz)."
-      : n > 0 ? `✓ ${n} ta guruhga xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
+    excNotice.value[s.id] = !f.notifyGroups ? '✓ Saqlandi, xabarsiz'
+      : n > 0 ? `✓ ${n} ta guruhga yuborildi` : "✓ Saqlandi, bu kuni guruh yo'q"
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
     resetExcForm(s)
   } catch (e: any) {
-    excError.value[s.id] = e?.response?.data?.detail || 'Xatolik. Qayta urinib ko\'ring.'
+    excError.value[s.id] = e?.response?.data?.detail || 'Saqlanmadi'
   } finally {
     excSavingId.value = null
   }
@@ -586,17 +525,17 @@ async function removeExc(s: Flight, e: Exc) {
   if (!(await confirm({
     title: "O'zgarishni o'chirish",
     // Deleting is silent (owner, 2026-10-08) — the server sends nothing to the groups.
-    message: "Bu o'zgarish o'chiriladi. Guruhlarga hech qanday xabar yuborilmaydi — so'ralsa, bot oddiy jadval bo'yicha javob beradi.",
+    message: 'Guruhlarga xabar yuborilmaydi.',
   }))) return
   excDeletingId.value = e.id
   try {
     await api.delete(`/flights/exceptions/${e.id}`)
     excs.value[s.id] = (excs.value[s.id] || []).filter(x => x.id !== e.id)
     if (excEditId.value[s.id] === e.id) cancelEditExc(s)
-    excNotice.value[s.id] = "✓ O'chirildi — guruhlarga xabar yuborilmadi"
+    excNotice.value[s.id] = "✓ O'chirildi, xabarsiz"
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   } finally { excDeletingId.value = null }
 }
 
@@ -630,16 +569,16 @@ async function saveEditExc(s: Flight) {
   if (!id) return
   excError.value[s.id] = ''
   excNotice.value[s.id] = ''
-  if (!f.newDep && !f.newDate && !f.newFlightNo.trim()) { excError.value[s.id] = 'Yangi vaqt, sana yoki reys raqamini kiriting.'; return }
-  if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = "Qaytish reysi uchun yetib borish vaqtini kiriting — ziyoratchilar buni ko'p so'raydi."; return }
+  if (!f.newDep && !f.newDate && !f.newFlightNo.trim()) { excError.value[s.id] = 'Vaqt, sana yoki raqam kiriting'; return }
+  if (f.leg === 'Qaytish' && (f.newDep || f.newDate) && !f.newArr) { excError.value[s.id] = 'Yetib borish vaqtini kiriting'; return }
   // Editing a one-off change re-NOTIFIES the affected groups on Telegram (same
   // outward side-effect as adding one) — confirm before re-blasting the update.
   // Toggle OFF = correct the record silently (e.g. a typo fix not worth a re-blast).
   if (!(await confirm({
     title: "O'zgarishni yangilash",
     message: f.notifyGroups
-      ? "Yangilangan reys vaqti shu kuni uchadigan guruhlarga darhol qayta yuboriladi. Davom etamizmi?"
-      : "O'zgarish yangilanadi, lekin guruhlarga xabar YUBORILMAYDI. Davom etamizmi?",
+      ? 'Guruhlarga qayta xabar boradi.'
+      : 'Guruhlarga xabar yuborilmaydi.',
     confirmText: f.notifyGroups ? "Yangilash va xabar berish" : "Xabarsiz yangilash",
   }))) return
   excSavingId.value = s.id
@@ -652,13 +591,13 @@ async function saveEditExc(s: Flight) {
     const idx = arr.findIndex(x => x.id === id)
     if (idx >= 0) arr[idx] = data
     const n = data.notified ?? 0
-    excNotice.value[s.id] = !f.notifyGroups ? "✓ Yangilandi — xabar yuborilmadi (siz o'chirib qo'ygansiz)."
-      : n > 0 ? `✓ ${n} ta guruhga yangilangan xabar yuborildi` : "✓ Saqlandi. Bu kuni uchadigan guruh yo'q — xabar yuborilmadi."
+    excNotice.value[s.id] = !f.notifyGroups ? '✓ Yangilandi, xabarsiz'
+      : n > 0 ? `✓ ${n} ta guruhga yuborildi` : "✓ Saqlandi, bu kuni guruh yo'q"
     setTimeout(() => { if (excNotice.value[s.id]) excNotice.value[s.id] = '' }, 6000)
     excEditId.value[s.id] = null
     resetExcForm(s)
   } catch (e: any) {
-    excError.value[s.id] = e?.response?.data?.detail || 'Xatolik. Qayta urinib ko\'ring.'
+    excError.value[s.id] = e?.response?.data?.detail || 'Saqlanmadi'
   } finally {
     excSavingId.value = null
   }
@@ -705,7 +644,7 @@ async function save(s: Flight) {
     // A swallowed failure here is the worst kind: the row keeps showing the times the
     // admin just typed, so the screen looks saved while the bot goes on quoting the old
     // ones to every group on this plane. Say so, and say it did NOT save.
-    toast.error(e?.response?.data?.detail || "Saqlanmadi — reys vaqtlari o'zgarmadi. Qayta urinib ko'ring.")
+    toast.error(e?.response?.data?.detail || 'Saqlanmadi')
   } finally {
     savingId.value = null
   }
