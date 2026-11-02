@@ -513,13 +513,13 @@
                <div v-if="filePreview?.columns?.length" class="sn-cols">
                   <label class="sn-field">Ism ustuni
                      <select v-model="colPick.name" class="sn-select" :disabled="importing" @change="reread">
-                        <option :value="null">Avto ({{ colLetterOf(filePreview.name_col) }})</option>
+                        <option :value="null">Avto{{ colPick.name === null ? ` (${colLetterOf(filePreview.name_col)})` : '' }}</option>
                         <option v-for="c in filePreview.columns" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
                      </select>
                   </label>
                   <label class="sn-field">Telefon ustuni
                      <select v-model="colPick.phone" class="sn-select" :disabled="importing" @change="reread">
-                        <option :value="null">Avto ({{ colLetterOf(filePreview.phone_col) }})</option>
+                        <option :value="null">Avto{{ colPick.phone === null ? ` (${colLetterOf(filePreview.phone_col)})` : '' }}</option>
                         <option :value="-1">Yo'q</option>
                         <option v-for="c in filePreview.columns" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
                      </select>
