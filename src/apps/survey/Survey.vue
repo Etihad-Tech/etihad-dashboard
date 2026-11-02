@@ -7,7 +7,6 @@
             <span class="sn-brand-mark">ETIHAD</span>
             <span class="sn-brand-name">Sifat nazorati</span>
          </div>
-         <span class="sn-brand-sub">Qaytgan ziyoratchilar so'rovnomasi</span>
          <div class="sn-topright">
             <span v-if="doneToday" class="sn-topstat"><Icon name="check" :size="14" /> {{ doneToday }} ta saqlangan</span>
             <button type="button" class="sn-topbtn" @click="openReport"><Icon name="download" :size="14" /> Excel</button>
@@ -237,7 +236,7 @@
                     an unfinished trip is a «not yet», not a fault. -->
                <div v-if="notReturnedYet" class="sn-banner sn-banner-warn">
                   <Icon name="alert" :size="15" />
-                  <span>Bu safar hali tugamagan ({{ groupInfo?.trip_end_date ? dmy(groupInfo.trip_end_date) : '' }}) — so'rovnoma qaytgandan keyin o'tkaziladi.</span>
+                  <span>Safar hali tugamagan{{ groupInfo?.trip_end_date ? ` (${dmy(groupInfo.trip_end_date)})` : '' }}</span>
                </div>
 
                <div class="sn-callrow">
@@ -254,9 +253,7 @@
                <div v-if="isSaved" class="sn-banner sn-banner-ok">
                   <Icon name="check" :size="15" />
                   <span>
-                     So'rovnoma saqlangan —
-                     <b>{{ savedScore === null ? "ellikboshi bahosiz (Q1 to'liq emas)" : savedScore + ' ball' }}</b>.
-                     O'zgartirish faqat izoh bilan, alohida tartibda (§6.4).
+                     Saqlangan — <b>{{ savedScore === null ? "Q1 to'liq emas" : savedScore + ' ball' }}</b>
                   </span>
                   <button v-if="nextPilgrim" type="button" class="sn-btn sn-btn-primary sn-banner-btn" @click="open(nextPilgrim)">
                      Keyingisi <Icon name="chevron" :size="14" />
@@ -273,7 +270,7 @@
                   <span><kbd>↑</kbd><kbd>↓</kbd> savollar</span>
                   <span class="sn-legend-low"><i></i> 0–{{ LOW_MAX_10 }} va «Yo'q» — sabab majburiy</span>
                </template>
-               <span v-else>Bu so'rovnoma eski 1–5 shkalada boshlangan — shu shkalada davom etadi. 1–{{ LOW_MAX_5 }} va «Yo'q» — sabab majburiy.</span>
+               <span v-else>1–5 shkala · 1–{{ LOW_MAX_5 }} va «Yo'q» — sabab majburiy</span>
             </div>
 
             <section v-for="(b, bi) in BLOCKS" :key="b.key" class="sn-card sn-qcard">
@@ -403,6 +400,30 @@
                   placeholder="Tavsiya, reklama, narx, oldingi safar …"></textarea>
             </section>
 
+            <!-- The same answers for more people at once (owner, 2026-11-02: the booking's
+                 primary and the rest of it often give the same marks). Each one is saved
+                 as their own survey — their own seller and hotels — on «Saqlash». -->
+            <section v-if="!isSaved && (peerChoices.length || otherPeers.length)" class="sn-card sn-qcard">
+               <header class="sn-qhead">
+                  <span class="sn-qnum">{{ BLOCKS.length + 4 }}</span>
+                  <h3 class="sn-qtitle">Shu baholar yana kimga?</h3>
+                  <button v-if="peerChoices.length > 1" type="button" class="sn-link" @click="toggleAllPeers">
+                     {{ allPeersOn ? 'Hech kim' : 'Hammasi' }}</button>
+               </header>
+               <div class="sn-peers">
+                  <button v-for="p in peerChoices" :key="p.id" type="button" class="sn-peer" :class="{ on: alsoIds.has(p.id) }"
+                     :aria-pressed="alsoIds.has(p.id)" @click="togglePeer(p.id)">
+                     <span class="sn-peer-box"><Icon v-if="alsoIds.has(p.id)" name="check" :size="12" /></span>
+                     <span>{{ p.full_name }}</span>
+                     <small v-if="p.survey_status === 'draft'">qoralama</small>
+                  </button>
+                  <select v-if="otherPeers.length" class="sn-select sn-peer-add" @change="addPeer">
+                     <option value="">+ Guruhdan</option>
+                     <option v-for="p in otherPeers" :key="p.id" :value="p.id">{{ p.full_name }}</option>
+                  </select>
+               </div>
+            </section>
+
             <!-- Always in reach: how far the call has got, what still blocks the save,
                  and the save itself. -->
             <footer class="sn-savebar">
@@ -423,7 +444,7 @@
                   </button>
                   <button v-else type="button" class="sn-btn sn-btn-primary sn-btn-lg" :disabled="isSaved || saving"
                      :title="missingReasons.length ? 'Avval past baholarga sabab yozing' : ''" @click="save">
-                     {{ isSaved ? 'Saqlangan' : saving ? 'Saqlanmoqda…' : 'Saqlash va yopish' }}
+                     {{ isSaved ? 'Saqlangan' : saving ? 'Saqlanmoqda…' : alsoIds.size ? `Saqlash · ${alsoIds.size + 1} kishi` : 'Saqlash va yopish' }}
                   </button>
                </div>
             </footer>
@@ -432,12 +453,6 @@
          <main v-else class="sn-main sn-main-empty">
             <div class="sn-card sn-welcome">
                <h2>Ziyoratchini tanlang</h2>
-               <ol>
-                  <li><b>Guruhni oching</b> — ro'yxat CRMdan o'zi olinadi.</li>
-                  <li><b>Ziyoratchini tanlang</b> va qo'ng'iroq qiling.</li>
-                  <li><b>Javoblarni belgilang</b> — past bahoga sabab yozing, so'ng saqlang.</li>
-               </ol>
-               <p class="sn-muted">CRMda bo'lmagan guruhga ziyoratchini «Qo'shish» orqali Excel fayl yoki qo'lda kiriting.</p>
             </div>
          </main>
 
@@ -454,7 +469,6 @@
                <div class="sn-brk"><span>Qayta tanlash</span><span>{{ preview.qayta ?? '—' }} / {{ W.again }}</span></div>
                <div class="sn-brk"><span>Qayta Umra sifati</span><span>{{ preview.umra ?? '—' }} / {{ W.umra }}</span></div>
                <div class="sn-brk neg"><span>Muammolar jarimasi</span><span>−{{ preview.jarima }}</span></div>
-               <p class="sn-note">Taxminiy. Rasmiy ball saqlashda serverda hisoblanadi; oylik KPI = operatsion × 0,5 + ziyoratchi bahosi × 0,5.</p>
             </section>
             <section class="sn-card">
                <div class="sn-eyebrow">Boshqa baholar</div>
@@ -492,8 +506,29 @@
                   <Icon name="upload" :size="20" />
                   <b>{{ importing ? "O'qilyapti…" : fileName || 'Excel faylni tanlang' }}</b>
                   <small v-if="filePreview?.sheet">«{{ filePreview.sheet }}» varag'i</small>
-                  <small v-else>Faqat <b>Ф.И.Ш.</b> va <b>тел.ракам</b> ustunlari o'qiladi</small>
                </button>
+
+               <!-- The columns to read (owner, 2026-11-02): «Avto» = found by the header,
+                    or a letter picked here. Remembered for the next file. -->
+               <div v-if="filePreview?.columns?.length" class="sn-cols">
+                  <label class="sn-field">Ism ustuni
+                     <select v-model="colPick.name" class="sn-select" :disabled="importing" @change="reread">
+                        <option :value="null">Avto ({{ colLetterOf(filePreview.name_col) }})</option>
+                        <option v-for="c in filePreview.columns" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
+                     </select>
+                  </label>
+                  <label class="sn-field">Telefon ustuni
+                     <select v-model="colPick.phone" class="sn-select" :disabled="importing" @change="reread">
+                        <option :value="null">Avto ({{ colLetterOf(filePreview.phone_col) }})</option>
+                        <option :value="-1">Yo'q</option>
+                        <option v-for="c in filePreview.columns" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
+                     </select>
+                  </label>
+                  <label class="sn-field sn-field-row">Qatordan
+                     <input v-model.number="colPick.first" type="number" min="1" class="sn-input" :disabled="importing"
+                        @change="reread" />
+                  </label>
+               </div>
 
                <!-- The report BEFORE anything is written: the wrong tab, last month's
                     file — each looks like a successful import until somebody counts. -->
@@ -505,9 +540,6 @@
                      <span v-if="filePreview.counts.no_name" class="bad"><b>{{ filePreview.counts.no_name }}</b> ismsiz</span>
                      <span v-if="filePreview.counts.short_row" class="bad"><b>{{ filePreview.counts.short_row }}</b> qator kalta</span>
                   </div>
-                  <p v-if="filePreview.counts.no_phone" class="sn-note">
-                     Telefonsizlar ham qo'shiladi — qamrov hisobiga kiradi, raqamini keyin yozsa bo'ladi.
-                  </p>
                   <div class="sn-plist">
                      <div v-for="r in filePreview.preview" :key="r.line" class="sn-plist-row" :class="'st-' + r.status">
                         <small>{{ r.line }}</small>
@@ -516,7 +548,7 @@
                      </div>
                   </div>
                   <p v-if="filePreview.preview_truncated" class="sn-note">
-                     …va yana {{ filePreview.preview_truncated }} ta qator (ro'yxat qisqartirildi, hammasi qo'shiladi).
+                     …va yana {{ filePreview.preview_truncated }} ta qator
                   </p>
                </div>
                <footer class="sn-modal-foot">
@@ -539,7 +571,6 @@
                   <input v-model="newPhone" class="sn-input" placeholder="+998 …"
                      :disabled="importing" @keyup.enter="addManual(importFor!)" @paste="onManualPaste" />
                </label>
-               <p class="sn-note">Ism va telefonni birga qo'ysangiz (Ctrl+V) ikkala maydon o'zi to'ladi.</p>
                <footer class="sn-modal-foot">
                   <button type="button" class="sn-btn sn-btn-quiet" @click="closeImport">Yopish</button>
                   <button type="button" class="sn-btn sn-btn-primary" :disabled="importing || !newName.trim()"
@@ -623,7 +654,7 @@ const CALL_LABELS: Record<string, string> = {
 }
 const NO_PHONE = "telefon yo'q"
 const SAVED_NO_DELETE = "So'rovnomasi saqlangan — o'chirilmaydi"
-const EMPTY_GROUP = "Bu guruhda ziyoratchi yo'q — «Qo'shish» orqali Excel fayl yoki qo'lda kiriting."
+const EMPTY_GROUP = "Ziyoratchi yo'q"
 const REASON_PLACEHOLDER = "Ziyoratchi aytgan sabab — o'z so'zlari bilan"
 
 /** A LOW answer is saved only with its reason (owner, 2026-10-09: «если оценщик ставит
@@ -900,6 +931,51 @@ const nextPilgrim = computed(() => {
    return units.flatMap((u) => [u.head, ...u.members]).filter(todo)[0] || null
 })
 
+// ── the same answers for more people (owner, 2026-11-02) ─────────────────────────────
+// The open pilgrim's booking first — the people on the same call — then anybody else in
+// the group the specialist adds by hand. Never someone already saved, never another group.
+const alsoIds = reactive(new Set<number>())
+const extraPeerIds = ref<number[]>([])
+const unsavedInGroup = computed(() => {
+   const cur = current.value
+   return cur ? queue.value.filter((p) => p.chat_id === cur.chat_id && p.id !== cur.id && p.survey_status !== 'saved') : []
+})
+const bookingPeers = computed(() => {
+   const cur = current.value
+   if (!cur?.booking_id) return []
+   return unsavedInGroup.value.filter((p) => p.booking_id === cur.booking_id).sort(byPax)
+})
+const peerChoices = computed(() => {
+   const own = new Set(bookingPeers.value.map((p) => p.id))
+   const extra = unsavedInGroup.value.filter((p) => !own.has(p.id) && extraPeerIds.value.includes(p.id))
+   return [...bookingPeers.value, ...extra]
+})
+const otherPeers = computed(() => {
+   const shown = new Set(peerChoices.value.map((p) => p.id))
+   return unsavedInGroup.value.filter((p) => !shown.has(p.id))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name))
+})
+const allPeersOn = computed(() => peerChoices.value.every((p) => alsoIds.has(p.id)))
+function togglePeer(id: number) {
+   if (alsoIds.has(id)) alsoIds.delete(id)
+   else alsoIds.add(id)
+}
+function toggleAllPeers() {
+   const on = !allPeersOn.value
+   for (const p of peerChoices.value) {
+      if (on) alsoIds.add(p.id)
+      else alsoIds.delete(p.id)
+   }
+}
+function addPeer(ev: Event) {
+   const el = ev.target as HTMLSelectElement
+   const id = Number(el.value)
+   el.value = ''
+   if (!id) return
+   extraPeerIds.value.push(id)
+   alsoIds.add(id)
+}
+
 /** Groups the search still matches — by their OWN name, or by a pilgrim inside them,
  *  so typing a pilgrim's name finds the group rather than emptying the list. */
 const filteredGroups = computed(() => {
@@ -977,8 +1053,8 @@ const crmStatus = computed<{ tone: string; text: string } | null>(() => {
    const st = openGroup.value === null ? null : crmState[openGroup.value]
    if (!st) return null
    if (st.loading) return { tone: 'busy', text: "CRMdan ro'yxat olinmoqda…" }
-   if (st.linked === false) return { tone: 'warn', text: "Guruh CRMga bog'lanmagan — ro'yxatni qo'lda yoki Excel orqali qo'shing." }
-   if (!st.ok && st.crm_total === undefined) return { tone: 'bad', text: "CRMdan ro'yxat olinmadi — guruhni keyinroq qayta oching." }
+   if (st.linked === false) return { tone: 'warn', text: "CRMga bog'lanmagan" }
+   if (!st.ok && st.crm_total === undefined) return { tone: 'bad', text: "CRMdan ro'yxat olinmadi" }
    return {
       tone: st.ok ? 'ok' : 'warn',
       text: `CRMda ${st.crm_total ?? 0} ta ziyoratchi` + (st.ok ? '' : ' (bir qismi olinmadi)'),
@@ -1095,12 +1171,60 @@ async function onFile(ev: Event) {
       fileB64.value = await toBase64(file)
       const { data } = await api.post('/survey/file',
          { chat_id: importFor.value, content_b64: fileB64.value,
-           filename: file.name, commit: false })
+           filename: file.name, commit: false, ...colParams() })
       filePreview.value = data
-      if (!data.parsed) toast.error("Fayldan birorta ism o'qilmadi — varaqni tekshiring")
+      if (!data.parsed) toast.error("Fayldan birorta ism o'qilmadi — ustunlarni tekshiring")
    } catch (e: any) {
       fileName.value = ''
       fileB64.value = ''
+      toast.error(errText(e, "Fayl o'qilmadi"))
+   } finally { importing.value = false }
+}
+
+// ── the columns to read (owner, 2026-11-02: «выбираем нужные колонки A, B, C…») ──────
+// null = «Avto», found by the header; a number = the column picked (0 = A); the phone
+// may be -1 = no phone column. Kept in this browser for the next file — the specialist
+// imports the same kind of sheet again and again.
+const COLS_KEY = 'sn_import_cols'
+const colPick = reactive<{ name: number | null; phone: number | null; first: number }>(loadCols())
+function loadCols() {
+   try {
+      const v = JSON.parse(localStorage.getItem(COLS_KEY) || 'null')
+      if (v && typeof v === 'object') {
+         return { name: v.name ?? null, phone: v.phone ?? null, first: Math.max(1, Number(v.first) || 1) }
+      }
+   } catch { /* storage blocked or garbled — the defaults below */ }
+   return { name: null, phone: null, first: 1 }
+}
+function colParams() {
+   const out: Record<string, number> = {}
+   if (colPick.name !== null) out.name_col = colPick.name
+   if (colPick.phone !== null) out.phone_col = colPick.phone
+   const first = Math.max(1, Math.floor(Number(colPick.first) || 1))
+   if (first > 1) out.first_row = first
+   return out
+}
+function colLetterOf(i: number | null | undefined): string {
+   if (i == null || i < 0) return '—'
+   let n = i + 1
+   let s = ''
+   while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26) }
+   return s
+}
+function colOption(c: { letter: string; sample: string }): string {
+   return c.sample ? `${c.letter} · ${c.sample}` : c.letter
+}
+/** A changed column or row: read the SAME bytes again with it, and remember the pick. */
+async function reread() {
+   try { localStorage.setItem(COLS_KEY, JSON.stringify(colPick)) } catch { /* per-browser nicety only */ }
+   if (!fileB64.value || importFor.value === null) return
+   importing.value = true
+   try {
+      const { data } = await api.post('/survey/file',
+         { chat_id: importFor.value, content_b64: fileB64.value,
+           filename: fileName.value, commit: false, ...colParams() })
+      filePreview.value = data
+   } catch (e: any) {
       toast.error(errText(e, "Fayl o'qilmadi"))
    } finally { importing.value = false }
 }
@@ -1195,7 +1319,7 @@ async function commitFile(chatId: number) {
    try {
       const { data } = await api.post('/survey/file',
          { chat_id: chatId, content_b64: fileB64.value,
-           filename: fileName.value, commit: true })
+           filename: fileName.value, commit: true, ...colParams() })
       const parts = [`${data.added} qo'shildi`]
       if (data.duplicates) parts.push(`${data.duplicates} avvaldan bor`)
       if (data.no_phone) parts.push(`${data.no_phone} telefonsiz`)
@@ -1349,6 +1473,8 @@ function open(p: any) {
    suggestion.value = ''
    choiceReason.value = ''
    draftState.value = ''
+   alsoIds.clear()
+   extraPeerIds.value = []
    focusKey.value = ALL_KEYS.value[0]
    window.scrollTo({ top: 0 })
    // Clearing the form is not an edit: the autosave must not write an empty draft for
@@ -1442,16 +1568,22 @@ watch([answers, reasons, problems, suggestion, choiceReason], () => {
    draftTimer = setTimeout(() => { void pushDraft() }, 800)
 }, { deep: true })
 
+/** The open form as the draft endpoint takes it — also what is copied to the people the
+ *  same answers are saved for. */
+function draftPayload() {
+   return {
+      answers: { ...answers, _scale: scale.value }, problems: problems.value,
+      suggestion: suggestion.value || null, choice_reason: choiceReason.value || null,
+      reasons: Object.fromEntries(Object.entries(reasons).filter(([, v]) => (v || '').trim())),
+   }
+}
+
 async function pushDraft() {
    draftTimer = null
    if (!current.value) return
    const id = current.value.id
    try {
-      await api.put(`/survey/${id}/draft`, {
-         answers: { ...answers, _scale: scale.value }, problems: problems.value,
-         suggestion: suggestion.value || null, choice_reason: choiceReason.value || null,
-         reasons: Object.fromEntries(Object.entries(reasons).filter(([, v]) => (v || '').trim())),
-      })
+      await api.put(`/survey/${id}/draft`, draftPayload())
       if (current.value?.id === id) draftState.value = 'qoralama saqlandi'
    } catch {
       if (current.value?.id === id) draftState.value = 'qoralama saqlanmadi!'
@@ -1535,6 +1667,9 @@ async function save() {
       // The server scores the DRAFT it holds. An answer given in the last 800 ms is
       // still waiting on the autosave timer — send it first, or it is scored without.
       if (draftTimer) { clearTimeout(draftTimer); await pushDraft() }
+      // Taken before the save: the people ticked for the same answers, as they stand.
+      const also = peerChoices.value.filter((p) => alsoIds.has(p.id))
+      const payload = draftPayload()
       const { data } = await api.post(`/survey/${current.value.id}/save`)
       isSaved.value = true
       savedScore.value = data.ell_score
@@ -1542,9 +1677,22 @@ async function save() {
       current.value.survey_status = 'saved'
       current.value.call_status = 'boldi'
       draftState.value = ''
-      toast.success(data.ell_score === null
+      // Each of them through the same two calls as a survey of their own — the server
+      // scores and snapshots each one by that person (seller, hotels).
+      const failed: string[] = []
+      for (const p of also) {
+         try {
+            await api.put(`/survey/${p.id}/draft`, payload)
+            await api.post(`/survey/${p.id}/save`)
+         } catch { failed.push(p.full_name) }
+      }
+      alsoIds.clear()
+      const more = also.length - failed.length
+      toast.success((data.ell_score === null
          ? "Saqlandi — Q1 to'liq emas, ellikboshi o'rtachasiga kirmaydi"
          : `Saqlandi — ${data.ell_score} ball → ${data.ellikboshi_username}`)
+         + (more ? ` · yana ${more} kishi` : ''))
+      if (failed.length) toast.error(`Saqlanmadi: ${failed.join(', ')}`)
       await Promise.all([loadQueue(), loadGroups()])
    } catch (e: any) {
       const missing = e?.response?.data?.detail?.missing_reasons
@@ -1674,7 +1822,6 @@ onUnmounted(() => {
 .sn-brand { display: flex; align-items: baseline; gap: 10px; }
 .sn-brand-mark { font-size: 12px; font-weight: 800; letter-spacing: .18em; color: var(--gold); }
 .sn-brand-name { font-size: 18px; font-weight: 700; letter-spacing: .01em; }
-.sn-brand-sub { font-size: 13px; color: rgba(255, 255, 255, .62); }
 .sn-topright { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .sn-topstat { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255, 255, 255, .85);
    background: rgba(255, 255, 255, .08); padding: 5px 10px; border-radius: 999px; }
@@ -1954,10 +2101,8 @@ textarea.sn-input { resize: vertical; min-height: 44px; }
 
 /* empty main */
 .sn-main-empty { align-self: stretch; }
-.sn-welcome { padding: 40px 36px; max-width: 520px; margin: 40px auto; text-align: left; }
-.sn-welcome h2 { font-size: 20px; margin: 0 0 14px; }
-.sn-welcome ol { margin: 0 0 14px; padding-left: 20px; list-style: decimal; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); }
-.sn-welcome b { color: var(--ink); }
+.sn-welcome { padding: 40px 36px; max-width: 520px; margin: 40px auto; text-align: center; }
+.sn-welcome h2 { font-size: 18px; margin: 0; color: var(--muted); font-weight: 600; }
 
 /* ── summary aside ── */
 .sn-sum { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 12px; }
@@ -2014,6 +2159,18 @@ textarea.sn-input { resize: vertical; min-height: 44px; }
 .sn-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
 .sn-field small { font-weight: 500; color: var(--muted); }
 .sn-field .sn-input { font-weight: 400; font-size: 14px; }
+.sn-cols { display: grid; grid-template-columns: 1fr 1fr 88px; gap: 10px; margin: 12px 0; }
+.sn-cols .sn-select, .sn-cols .sn-input { font-weight: 400; font-size: 13.5px; padding: 7px 9px; }
+.sn-peers { display: flex; flex-wrap: wrap; gap: 8px; }
+.sn-peer { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+   background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 8px; cursor: pointer; transition: all .15s; }
+.sn-peer:hover { border-color: var(--brand); }
+.sn-peer small { font-weight: 500; color: var(--muted); font-size: 11.5px; }
+.sn-peer-box { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid var(--line); display: inline-flex;
+   align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+.sn-peer.on { border-color: var(--brand); background: var(--brand-tint); color: var(--ink); }
+.sn-peer.on .sn-peer-box { background: var(--brand); border-color: var(--brand); }
+.sn-peer-add { width: auto; border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 .sn-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 .sn-modal-sm { max-width: 400px; }
 .sn-modal-foot .sn-btn { display: inline-flex; align-items: center; gap: 6px; }
@@ -2026,7 +2183,6 @@ textarea.sn-input { resize: vertical; min-height: 44px; }
    .sn-savebar-ell { display: inline; }
 }
 @media (max-width: 1000px) {
-   .sn-brand-sub { display: none; }
    .sn-body { grid-template-columns: 1fr; padding: 12px; }
    .sn-side { position: static; max-height: none; }
    .sn-scroll { max-height: none; }
