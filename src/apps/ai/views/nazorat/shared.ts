@@ -844,6 +844,18 @@ export function useNazoratView() {
          detail: `${who} · ${durBetween(oldest.dm_sent_at, null)}dan beri javobsiz` }
    }
 
+   /** The pilgrim's later asks of the same need, oldest first (owner, 2026-11-02:
+    *  «в категории bajarilmagan … чтобы было видно оба сообщения паломника»). The server
+    *  sends them — the second ask can be outside the loaded window; an older API that
+    *  does not is answered from the window itself. A dismissed repeat is not a repeat. */
+   function followupsOf(r: any): { id: number; text: string | null; created_at: string | null; message_link: string | null }[] {
+      if (Array.isArray(r.followups)) return r.followups
+      return s.requests
+         .filter((x: any) => x.parent_request_id === r.id && !x.reopen_dismissed)
+         .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+         .map((x: any) => ({ id: x.id, text: x.text, created_at: x.created_at, message_link: x.message_link }))
+   }
+
    /** The feed: newest first, one card per murojaat. */
    const feed = computed(() =>
       [...s.requests]
@@ -864,6 +876,7 @@ export function useNazoratView() {
             pilgrim_username: r.pilgrim_username,
             message_link: r.message_link,
             is_repeat: !!r.parent_request_id && !r.reopen_dismissed,
+            followups: followupsOf(r),
             outcome: needOutcome(r),
             recipients: r.recipients || [],
             // TZ 5 — the cards this murojaat actually puts into somebody's §8.1 base,
@@ -984,6 +997,7 @@ export function useNazoratView() {
             dm_sent_at: rec.dm_sent_at, accepted_at: rec.accepted_at,
             flagged_at: rec.flagged_at, released_at: rec.released_at,
             reopened_count: rec.reopened_count,
+            followups: followupsOf(r),
             claimed_by: sib
                ? {
                   name: nameById.get(sib.telegram_id) || sib.username || ('ID ' + sib.telegram_id),
