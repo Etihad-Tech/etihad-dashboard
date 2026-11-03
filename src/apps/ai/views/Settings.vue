@@ -1,46 +1,31 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">Sozlamalar</h2>
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Sozlamalar</h1>
+      </div>
 
-      <div class="bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 30ms">
-        <h3 class="text-base font-semibold text-gray-900 mb-1">System Prompt</h3>
-        <p class="text-sm text-gray-500 mb-4">
-          AI bot javob berishda foydalaniladigan system prompt. O'zgartirish darhol amal qiladi.
-        </p>
+      <div class="card p-5 space-y-4">
+        <h2 class="section-title">System prompt</h2>
+        <textarea v-model="promptContent" rows="12" class="input resize-y" placeholder="System prompt"></textarea>
 
-        <textarea
-          v-model="promptContent"
-          rows="8"
-          class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
-          placeholder="System prompt yozing..."
-        ></textarea>
-
-        <div class="flex items-center justify-between mt-4">
-          <p v-if="savedAt" class="text-xs text-gray-400">
-            Oxirgi saqlangan: {{ savedAt }}
-          </p>
-          <div class="flex items-center gap-3">
-            <p v-if="message" class="text-sm" :class="messageType === 'success' ? 'text-emerald-600' : 'text-red-500'">
-              {{ message }}
-            </p>
-            <button
-              @click="savePrompt"
-              :disabled="saving"
-              class="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
-            >
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
+        <div class="flex flex-wrap items-center justify-end gap-3">
+          <span v-if="savedAt" class="text-xs text-gray-400 mr-auto">{{ savedAt }}</span>
+          <span v-if="message" class="text-sm" :class="messageType === 'success' ? 'text-emerald-600' : 'text-rose-600'">
+            {{ message }}
+          </span>
+          <button class="btn btn-primary" :disabled="saving" @click="savePrompt">
+            {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+          </button>
         </div>
       </div>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import api from '../../../api'
 
 const promptContent = ref('')
@@ -67,7 +52,7 @@ async function savePrompt() {
   message.value = ''
   try {
     const { data } = await api.put('/prompt', { content: promptContent.value })
-    message.value = 'Saqlandi!'
+    message.value = 'Saqlandi'
     messageType.value = 'success'
     savedAt.value = new Date(data.updated_at).toLocaleString('uz')
     setTimeout(() => (message.value = ''), 3000)

@@ -30,8 +30,7 @@
       <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]" v-bind="isCrew ? crewDir() : {}">
          <template v-if="isCrew">{{ tr('month_note', { m: monthName(s.kpiMonth) }) }}</template>
          <template v-else>
-            {{ monthLabel(s.kpiMonth) }} — to'liq kalendar oy. Bu bo'lim yuqoridagi
-            davr tanloviga bog'liq emas.
+            {{ monthLabel(s.kpiMonth) }} — to'liq oy
          </template>
       </p>
 
@@ -157,8 +156,7 @@
                   <div v-if="board.scored && r.w.kpi && r.w.kpi.min_sample"
                      class="space-y-1.5 text-[12.5px] text-[color:var(--n-muted)]">
                      <p>
-                        Bu oyda {{ r.w.kpi.base }} ta baholanadigan murojaat — 10 tadan
-                        kam. Ball qo'lda qo'yiladi, KPI shundan keyin hisoblanadi.
+                        {{ r.w.kpi.base }} ta murojaat (10 dan kam) — ball qo'lda
                      </p>
                      <p v-if="r.w.manual && r.w.manual.ball !== null">
                         Qo'lda qo'yilgan ball: <b>{{ r.w.manual.ball }}</b>
@@ -245,12 +243,11 @@
                               </li>
                            </ul>
                            <p v-if="!r.w.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
-                              Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan — so'rovnoma
-                              sanalmadi, ball faqat kartochkalardan.
+                              Qamrov 50% dan kam — sanalmadi
                            </p>
                         </template>
                         <p v-else class="mt-1 text-[color:var(--n-muted)]">
-                           Bu oyda ziyoratchilari so'ralmagan — ball faqat kartochkalardan.
+                           So'rovnoma yo'q
                         </p>
                      </div>
                      <!-- Where that one number came from, step by step. A KPI line
@@ -380,10 +377,7 @@
                         <span class="font-semibold">Yakuniy oylik</span>
                         <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
                      </div>
-                     <p class="text-[12px] text-[color:var(--n-muted)]">
-                        Asosiy oylik toifaga bog'liq va o'zgarmaydi. KPI — ball,
-                        yuklama va jarimalardan; manfiy ham bo'lishi mumkin.
-                     </p>
+                     
 
                      <!-- The office's own ± on this line. It sits with the payslip it
                           changes rather than on a settings screen, because it is about

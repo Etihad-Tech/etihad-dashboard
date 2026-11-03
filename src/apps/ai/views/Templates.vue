@@ -1,142 +1,64 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-start justify-between gap-4 animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Maqtov shablonlari</h2>
-          <p class="text-sm text-gray-500 mt-1 max-w-2xl">
-            Ziyoratchi rahmat aytganda bot shu shablonlardan javob beradi — safarning oxirgi 2 kuni
-            (oxirgi to'liq kun va uchib ketish kuni) hamda safar tugagandan keyingi kunlarda.
-            Safar davomida esa qisqa umumiy javob yuboradi.
-          </p>
-          <p class="text-sm text-gray-500 mt-1 max-w-2xl">
-            <b>Har bir shablon o'z tilida ishlaydi.</b> Bot ziyoratchiga faqat <u>u yozgan tildagi</u>
-            shablon bilan javob beradi — shablon tayyor matn, uni tarjima qilib bo'lmaydi.
-            Til shablon matnining o'zidan aniqlanadi. Ziyoratchi tilida shablon bo'lmasa,
-            unga o'sha tildagi qisqa javob boradi (rahmat javobsiz qolmaydi).
-          </p>
-        </div>
-        <button
-          @click="openAdd"
-          class="flex items-center gap-2 shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Maqtov shablonlari</h1>
+        <button class="btn btn-primary" @click="openAdd">
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi shablon
+          Qo'shish
         </button>
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
+
+      <div v-else-if="templates.length === 0" class="card empty">Shablonlar yo'q</div>
+
+      <div v-else-if="missingScripts.length"
+        class="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+        <font-awesome-icon icon="triangle-exclamation" class="w-3.5 h-3.5 shrink-0" />
+        <span>Faol shablon yo'q: <b>{{ missingScripts.map(scriptLabel).join(', ') }}</b></span>
       </div>
 
-      <div v-else-if="templates.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
-        <font-awesome-icon icon="file-lines" class="w-10 h-10 text-gray-300 mb-4" />
-        <p class="text-gray-400">Hozircha maqtov shablonlari yo'q</p>
-      </div>
-
-      <div v-else-if="missingScripts.length" class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 animate-fade-up">
-        <p class="text-sm text-amber-800">
-          <font-awesome-icon icon="triangle-exclamation" class="w-3.5 h-3.5 mr-1" />
-          Bu tillarda faol shablon yo'q:
-          <b>{{ missingScripts.map(scriptLabel).join(', ') }}</b>.
-          Shu tilda yozgan ziyoratchiga safar oxirida uzun shablon emas, qisqa javob boradi.
-        </p>
-      </div>
-
-      <div v-if="templates.length" class="space-y-3">
-        <div
-          v-for="(tpl, i) in templates"
-          :key="tpl.id"
-          class="bg-white rounded-3xl border p-5 transition-all animate-fade-up"
-          :class="tpl.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
-          :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-        >
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 mb-2 rounded-lg text-[11px] font-medium"
-            :class="scriptClass(tpl.script)">
-            <font-awesome-icon icon="language" class="w-3 h-3" />
-            {{ scriptLabel(tpl.script) }}
-          </span>
-          <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ tpl.text }}</p>
-          <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-            <div class="flex items-center gap-1">
-              <button
-                @click="toggleActive(tpl)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-                :class="tpl.is_active
-                  ? 'text-emerald-600 hover:bg-emerald-50'
-                  : 'text-gray-400 hover:bg-gray-50'"
-              >
-                <font-awesome-icon :icon="tpl.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-                {{ tpl.is_active ? 'Faol' : 'Nofaol' }}
-              </button>
-            </div>
-            <div class="flex items-center gap-1">
-              <button
-                @click="openEdit(tpl)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-              >
-                <font-awesome-icon icon="pen" class="w-3 h-3" />
-                Tahrirlash
-              </button>
-              <button
-                @click="askDelete(tpl.id)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-              >
-                <font-awesome-icon icon="trash" class="w-3 h-3" />
-                O'chirish
-              </button>
-            </div>
+      <div v-if="templates.length" class="card divide-y divide-gray-100">
+        <div v-for="tpl in templates" :key="tpl.id" class="flex items-start gap-3 px-4 py-3">
+          <div class="min-w-0 flex-1" :class="{ 'opacity-50': !tpl.is_active }">
+            <span class="chip mb-1.5" :class="scriptClass(tpl.script)">
+              <font-awesome-icon icon="language" class="w-3 h-3" />
+              {{ scriptLabel(tpl.script) }}
+            </span>
+            <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ tpl.text }}</p>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <ToggleSwitch class="mr-1" :model-value="tpl.is_active" :title="tpl.is_active ? 'Faol' : 'Nofaol'"
+              @update:model-value="toggleActive(tpl)" />
+            <button class="icon-btn" title="Tahrirlash" @click="openEdit(tpl)">
+              <font-awesome-icon icon="pen" class="w-3.5 h-3.5" />
+            </button>
+            <button class="icon-btn icon-btn-danger" title="O'chirish" @click="askDelete(tpl.id)">
+              <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <Transition name="modal">
-      <div
-        v-if="modalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
-        @click.self="closeModal"
-      >
-        <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Shablonni tahrirlash' : 'Yangi shablon' }}</h3>
-          </div>
-          <div class="p-6">
-            <textarea
-              v-model="modalText"
-              rows="4"
-              class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
-              placeholder="Shablon matnini yozing..."
-            ></textarea>
-            <p class="text-[11px] text-gray-400 mt-2 leading-snug">
-              Til matnning o'zidan aniqlanadi — alohida tanlash shart emas. Rus tilidagi
-              ziyoratchilar uchun alohida shablonni rus tilida yozib qo'shing.
-            </p>
-          </div>
-          <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button
-              @click="closeModal"
-              class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors"
-            >
-              Bekor qilish
-            </button>
-            <button
-              @click="saveModal"
-              :disabled="!modalText.trim() || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
-            >
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </AppLayout>
+    <BaseModal :open="modalOpen" :title="modalEditId ? 'Tahrirlash' : 'Yangi shablon'" @close="closeModal">
+      <textarea v-model="modalText" rows="5" class="input resize-y" placeholder="Shablon matni"></textarea>
+      <template #footer>
+        <button class="btn btn-ghost" @click="closeModal">Bekor qilish</button>
+        <button class="btn btn-primary" :disabled="!modalText.trim() || saving" @click="saveModal">
+          {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+        </button>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -160,13 +82,13 @@ const SCRIPT_LABELS: Record<string, string> = {
 }
 
 const SCRIPT_CLASSES: Record<string, string> = {
-  latin: 'bg-sky-50 text-sky-700',
-  uzbek_cyrillic: 'bg-emerald-50 text-emerald-700',
-  russian: 'bg-violet-50 text-violet-700',
+  latin: 'chip-blue',
+  uzbek_cyrillic: 'chip-green',
+  russian: 'chip-violet',
 }
 
 const scriptLabel = (s: string) => SCRIPT_LABELS[s] || s
-const scriptClass = (s: string) => SCRIPT_CLASSES[s] || 'bg-gray-100 text-gray-500'
+const scriptClass = (s: string) => SCRIPT_CLASSES[s] || 'chip-gray'
 
 const templates = ref<Template[]>([])
 const loading = ref(false)
@@ -216,7 +138,7 @@ async function saveModal() {
     toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch {
-    toast.error('Saqlashda xatolik yuz berdi')
+    toast.error('Saqlanmadi')
   }
   finally { saving.value = false }
 }
@@ -251,29 +173,10 @@ async function askDelete(id: number) {
     templates.value = templates.value.filter(t => t.id !== id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   }
 }
 
 onMounted(loadTemplates)
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-</style>

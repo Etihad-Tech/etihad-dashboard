@@ -175,17 +175,14 @@
                            </li>
                         </ul>
                         <p v-if="!worker.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
-                           Guruh ziyoratchilarining yarmidan kamiga qo'ng'iroq qilingan — so'rovnoma
-                           sanalmadi, ball faqat kartochkalardan.
+                           Qamrov 50% dan kam — sanalmadi
                         </p>
                      </template>
                      <p v-else class="mt-1 text-[color:var(--n-muted)]">
-                        Bu oyda ziyoratchilari so'ralmagan — ball faqat kartochkalardan.
+                        So'rovnoma yo'q
                      </p>
                   </div>
-                  <p v-if="worker.survey === undefined" class="mt-3 text-[12.5px] text-[color:var(--n-muted)]">
-                     Ball ikki manbadan: kartochkalar va ziyoratchilar so'rovnomasi, har biri yarmi.
-                  </p>
+                  
                </section>
 
                <!-- 2. EVERY TERM OF THE KPI LINE, with the rule beside it. -->

@@ -1,171 +1,111 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center gap-4 animate-fade-up">
-        <router-link
-          to="/team/trips"
-          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <router-link to="/team/trips" class="icon-btn" title="Orqaga">
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </router-link>
-        <h2 class="text-2xl font-bold text-gray-900">{{ trip?.name || 'Safar' }}</h2>
+        <h1 class="page-title truncate min-w-0">{{ trip?.name || 'Safar' }}</h1>
+        <button v-if="trip" class="btn btn-ghost text-rose-600 hover:bg-rose-50 hover:text-rose-700" @click="confirmDeleteTrip = true">
+          <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+          O'chirish
+        </button>
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
       <template v-if="trip">
-        <!-- Trip info card -->
-        <div class="bg-white rounded-3xl border border-gray-200 p-6 animate-fade-up" style="animation-delay: 30ms">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Safar ID</p>
-              <p class="text-sm font-mono text-gray-900">{{ trip.trip_id }}</p>
+        <div class="card p-5">
+          <dl class="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+            <div class="min-w-0">
+              <dt class="label">Safar ID</dt>
+              <dd class="text-sm font-mono text-gray-900 truncate">{{ trip.trip_id }}</dd>
             </div>
             <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Boshlanish</p>
-              <p class="text-sm text-gray-900">{{ trip.start_date || '—' }}</p>
+              <dt class="label">Boshlanish</dt>
+              <dd class="text-sm text-gray-900">{{ trip.start_date || '—' }}</dd>
             </div>
             <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Tugash</p>
-              <p class="text-sm text-gray-900">{{ trip.end_date || '—' }}</p>
+              <dt class="label">Tugash</dt>
+              <dd class="text-sm text-gray-900">{{ trip.end_date || '—' }}</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="label">Guruh chat ID</dt>
+              <dd class="text-sm font-mono text-gray-900 truncate">{{ trip.group_chat_id || '—' }}</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="label">Guruh havolasi</dt>
+              <dd class="text-sm text-gray-900 truncate">{{ trip.group_invite_link || '—' }}</dd>
             </div>
             <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Guruh chat ID</p>
-              <p class="text-sm font-mono text-gray-900">{{ trip.group_chat_id || '—' }}</p>
+              <dt class="label">Yaratilgan</dt>
+              <dd class="text-sm text-gray-900">{{ new Date(trip.created_at).toLocaleDateString('uz') }}</dd>
             </div>
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Guruh link</p>
-              <p class="text-sm text-gray-900 truncate">{{ trip.group_invite_link || '—' }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-gray-400 mb-1">Yaratilgan</p>
-              <p class="text-sm text-gray-900">{{ new Date(trip.created_at).toLocaleDateString('uz') }}</p>
-            </div>
-          </div>
+          </dl>
 
-          <!-- Actions -->
-          <div class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-100">
-            <button
-              @click="toggleRegistration"
-              class="px-4 py-2 text-sm font-medium rounded-2xl border transition-colors"
-              :class="trip.registration_open
-                ? 'text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100'
-                : 'text-gray-500 border-gray-200 bg-gray-50 hover:bg-gray-100'"
-            >
-              Ro'yxat: {{ trip.registration_open ? 'Ochiq' : 'Yopiq' }}
-            </button>
-            <button
-              @click="toggleStatus"
-              class="px-4 py-2 text-sm font-medium rounded-2xl border transition-colors"
-              :class="trip.is_active
-                ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
-                : 'text-gray-500 border-gray-200 bg-gray-50 hover:bg-gray-100'"
-            >
+          <div class="flex flex-wrap gap-x-6 gap-y-3 mt-5 pt-4 border-t border-gray-100">
+            <label class="flex items-center gap-2.5 text-sm text-gray-700">
+              <ToggleSwitch :model-value="trip.registration_open" @update:model-value="toggleRegistration" />
+              Ro'yxat {{ trip.registration_open ? 'ochiq' : 'yopiq' }}
+            </label>
+            <label class="flex items-center gap-2.5 text-sm text-gray-700">
+              <ToggleSwitch :model-value="trip.is_active" @update:model-value="toggleStatus" />
               {{ trip.is_active ? 'Aktiv' : 'Arxiv' }}
-            </button>
-            <button
-              @click="confirmDeleteTrip = true"
-              class="px-4 py-2 text-sm font-medium rounded-2xl border border-red-200 text-red-500 bg-red-50 hover:bg-red-100 transition-colors ml-auto"
-            >
-              <font-awesome-icon icon="trash" class="w-3 h-3 mr-1" />
-              O'chirish
-            </button>
+            </label>
           </div>
         </div>
 
-        <!-- The trip's city map and roadmap used to be editable here as well as in the
-             AI dashboard, and the two disagreed: whichever was saved last won, and the
-             bot reads only its own. One owner now — ai/Guruhlar. -->
-        <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 40ms">
-          <h3 class="text-sm font-semibold text-gray-900 mb-1">Мадина/Мекка кунлари</h3>
-          <p class="text-sm text-gray-500">
-            Safar shahar kunlari va reja endi faqat <b>AI dashboard &rsaquo; Guruhlar</b> bo'limida
-            belgilanadi — bot o'sha yerdagi raqamlarni o'qiydi.
-          </p>
-        </div>
-
-        <!-- Users -->
-        <div class="bg-white rounded-3xl border border-gray-200 animate-fade-up" style="animation-delay: 60ms">
-          <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-900">Ishtirokchilar ({{ tripsStore.users.length }})</h3>
+        <div class="card">
+          <div class="px-4 h-12 border-b border-gray-100 flex items-center">
+            <h2 class="section-title">Ishtirokchilar <span class="text-gray-400 font-normal">{{ tripsStore.users.length }}</span></h2>
           </div>
-          <div v-if="tripsStore.users.length === 0" class="py-12 text-center">
-            <p class="text-gray-400 text-sm">Ishtirokchilar yo'q</p>
-          </div>
+          <div v-if="tripsStore.users.length === 0" class="empty">Ishtirokchilar yo'q</div>
           <div v-else class="overflow-x-auto">
-            <table class="w-full text-sm min-w-[500px]">
+            <table class="table min-w-[500px]">
               <thead>
-                <tr class="text-gray-500 border-b border-gray-100 bg-gray-50/50">
-                  <th class="text-left px-4 py-2.5 font-medium">Ism</th>
-                  <th class="text-left px-4 py-2.5 font-medium">Username</th>
-                  <th class="text-left px-4 py-2.5 font-medium">Telefon</th>
-                  <th class="text-left px-4 py-2.5 font-medium">Sana</th>
+                <tr>
+                  <th>Ism</th>
+                  <th>Username</th>
+                  <th>Telefon</th>
+                  <th>Sana</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="u in tripsStore.users" :key="u.id" class="border-b border-gray-50">
-                  <td class="px-4 py-2.5 text-gray-900">{{ u.first_name || '—' }} {{ u.last_name || '' }}</td>
-                  <td class="px-4 py-2.5 text-gray-500">{{ u.username ? '@' + u.username : '—' }}</td>
-                  <td class="px-4 py-2.5 text-gray-500">{{ u.phone_number || '—' }}</td>
-                  <td class="px-4 py-2.5 text-gray-400 text-xs">{{ new Date(u.registered_at).toLocaleDateString('uz') }}</td>
+                <tr v-for="u in tripsStore.users" :key="u.id">
+                  <td class="text-gray-900">{{ u.first_name || '—' }} {{ u.last_name || '' }}</td>
+                  <td class="text-gray-500">{{ u.username ? '@' + u.username : '—' }}</td>
+                  <td class="text-gray-500">{{ u.phone_number || '—' }}</td>
+                  <td class="text-gray-400 text-xs whitespace-nowrap">{{ new Date(u.registered_at).toLocaleDateString('uz') }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Scheduled Posts -->
-        <div class="bg-white rounded-3xl border border-gray-200 animate-fade-up" style="animation-delay: 90ms">
-          <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-900">Postlar ({{ postsStore.items.length }})</h3>
-            <div class="flex items-center gap-2">
-              <button
-                v-if="hasNowPosts"
-                @click="handleSendNowPosts"
-                :disabled="sendingNow"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-xl transition-colors"
-              >
-                <font-awesome-icon icon="paper-plane" class="w-3 h-3" />
-                {{ sendingNow ? 'Jo\'natilmoqda...' : 'Hozir jo\'natish' }}
-              </button>
-              <button
-                @click="$router.push(`/team/trips/${tripId}/posts/new`)"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
-              >
-                <font-awesome-icon icon="plus" class="w-3 h-3" />
-                Yangi post
-              </button>
-            </div>
+        <div class="card">
+          <div class="px-4 h-12 border-b border-gray-100 flex items-center gap-2">
+            <h2 class="section-title mr-auto">Postlar <span class="text-gray-400 font-normal">{{ postsStore.items.length }}</span></h2>
+            <button v-if="hasNowPosts" class="btn btn-sm btn-secondary" :disabled="sendingNow" @click="handleSendNowPosts">
+              <font-awesome-icon icon="paper-plane" class="w-3 h-3" />
+              {{ sendingNow ? "Jo'natilmoqda..." : "Hozir jo'natish" }}
+            </button>
+            <button class="btn btn-sm btn-primary" @click="$router.push(`/team/trips/${tripId}/posts/new`)">
+              <font-awesome-icon icon="plus" class="w-3 h-3" />
+              Post
+            </button>
           </div>
-          <div v-if="postsStore.items.length === 0" class="py-12 text-center">
-            <p class="text-gray-400 text-sm">Postlar yo'q</p>
-          </div>
-          <div v-else class="divide-y divide-gray-50">
-            <div
-              v-for="(post, idx) in postsStore.items"
-              :key="post.id"
-              class="px-4 py-3 flex items-center gap-4 hover:bg-gray-50 transition-colors"
-              :class="{ 'rounded-b-3xl': idx === postsStore.items.length - 1 }"
-            >
-              <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <span class="text-xs font-bold text-gray-500 text-center leading-tight">{{ post.day_number }}-kun</span>
+          <div v-if="postsStore.items.length === 0" class="empty">Postlar yo'q</div>
+          <div v-else class="divide-y divide-gray-100">
+            <div v-for="post in postsStore.items" :key="post.id" class="px-4 py-3 flex items-center gap-3">
+              <div class="w-11 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                <span class="text-xs font-semibold text-gray-600">{{ post.day_number }}-kun</span>
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm text-gray-900 truncate">{{ post.message_text }}</p>
                 <p class="text-xs text-gray-400">{{ post.scheduled_time }} · {{ post.media_type || 'matn' }}</p>
               </div>
-              <span
-                v-if="post.send_mode === 'now'"
-                class="inline-block px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 bg-blue-50 text-blue-600"
-              >
-                Hoziroq
-              </span>
-              <span
-                class="inline-block px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                :class="post.is_sent ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
-              >
+              <span v-if="post.send_mode === 'now'" class="chip chip-blue shrink-0 hidden sm:inline-flex">Hoziroq</span>
+              <span class="chip shrink-0" :class="post.is_sent ? 'chip-green' : 'chip-amber'">
                 {{ post.is_sent ? 'Yuborildi' : 'Kutilmoqda' }}
               </span>
             </div>
@@ -176,19 +116,20 @@
       <ConfirmModal
         :visible="confirmDeleteTrip"
         title="Safarni o'chirish"
-        message="Safar, postlar, ishtirokchilar va javoblar o'chiriladi"
+        message="Postlar, ishtirokchilar va javoblar ham o'chadi"
         @confirm="deleteTrip"
         @cancel="confirmDeleteTrip = false"
       />
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppLayout from '../../components/AppLayout.vue'
+import AppShell from '../../../../components/AppShell.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
+import ToggleSwitch from '../../../../components/ToggleSwitch.vue'
 import { useTripsStore } from '../../stores/trips'
 import { usePostsStore } from '../../stores/posts'
 

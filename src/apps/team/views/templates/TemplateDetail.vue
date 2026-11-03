@@ -1,83 +1,46 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center gap-4 animate-fade-up">
-        <router-link
-          to="/team/templates"
-          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <router-link to="/team/templates" class="icon-btn" title="Orqaga">
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </router-link>
-        <h2 class="text-2xl font-bold text-gray-900">Shablon postlari</h2>
+        <h1 class="page-title truncate min-w-0">{{ store.current?.name || 'Shablon' }}</h1>
       </div>
 
-      <!-- Import to trip -->
-      <div class="flex items-center gap-3 animate-fade-up" style="animation-delay: 30ms">
-        <select v-model="importTripId" class="bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm">
+      <div class="flex flex-wrap items-center gap-2">
+        <select v-model="importTripId" class="input sm:max-w-xs">
           <option value="">Safarni tanlang</option>
           <option v-for="t in tripsStore.items" :key="t.trip_id" :value="t.trip_id">{{ t.name }}</option>
         </select>
-        <button
-          @click="importToTrip"
-          :disabled="!importTripId || importing"
-          class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+        <button class="btn btn-primary" :disabled="!importTripId || importing" @click="importToTrip">
           {{ importing ? 'Import...' : 'Safarga import' }}
         </button>
-        <p v-if="importMsg" class="text-sm text-emerald-600">{{ importMsg }}</p>
+        <span v-if="importMsg" class="text-sm text-emerald-600">{{ importMsg }}</span>
       </div>
 
-      <!-- The roadmap and the city day map lived here too, and a template seeds a trip:
-           whatever was set here quietly became a second answer to "which city on day N".
-           ai/Guruhlar owns that now, per group. -->
-      <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up" style="animation-delay: 45ms">
-        <h3 class="text-sm font-semibold text-gray-900 mb-1">Мадина/Мекка кунлари</h3>
-        <p class="text-sm text-gray-500">
-          Shahar kunlari va reja endi faqat <b>AI dashboard &rsaquo; Guruhlar</b> bo'limida —
-          har bir guruh uchun alohida — belgilanadi.
-        </p>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <!-- Posts list -->
-      <div v-if="store.posts.length === 0 && !loading" class="bg-white rounded-3xl border border-gray-200 py-16 text-center animate-fade-up" style="animation-delay: 60ms">
-        <p class="text-gray-400">Postlar yo'q</p>
-      </div>
+      <div v-else-if="store.posts.length === 0" class="card empty">Postlar yo'q</div>
 
-      <div v-else class="space-y-3">
-        <div
-          v-for="(post, i) in store.posts"
-          :key="post.id"
-          class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up"
-          :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-        >
-          <div class="flex items-start gap-4">
-            <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <span class="text-xs font-bold text-gray-500 text-center leading-tight">{{ post.day_number }}-kun</span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm text-gray-900 whitespace-pre-wrap line-clamp-3">{{ post.message_text }}</p>
-              <div class="flex items-center gap-2 mt-2">
-                <p class="text-xs text-gray-400">{{ post.scheduled_time }} · {{ post.media_type || 'matn' }}</p>
-                <span
-                  class="inline-block px-1.5 py-0.5 rounded-full text-xs font-medium"
-                  :class="post.send_mode === 'now' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'"
-                >
-                  {{ post.send_mode === 'now' ? 'Hoziroq' : 'Vaqtida' }}
-                </span>
-              </div>
-            </div>
-            <button
-              @click="deletePostId = post.id"
-              class="flex-shrink-0 px-2 py-1.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
-            </button>
+      <div v-else class="card divide-y divide-gray-100">
+        <div v-for="post in store.posts" :key="post.id" class="flex items-start gap-3 px-4 py-3">
+          <div class="w-11 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+            <span class="text-xs font-semibold text-gray-600">{{ post.day_number }}-kun</span>
           </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-gray-900 whitespace-pre-wrap line-clamp-3">{{ post.message_text }}</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-xs text-gray-400">{{ post.scheduled_time }} · {{ post.media_type || 'matn' }}</span>
+              <span class="chip" :class="post.send_mode === 'now' ? 'chip-blue' : 'chip-gray'">
+                {{ post.send_mode === 'now' ? 'Hoziroq' : 'Vaqtida' }}
+              </span>
+            </div>
+          </div>
+          <button class="icon-btn icon-btn-danger" title="O'chirish" @click="deletePostId = post.id">
+            <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+          </button>
         </div>
-      </div>
-
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
 
       <ConfirmModal
@@ -87,13 +50,13 @@
         @cancel="deletePostId = null"
       />
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import AppLayout from '../../components/AppLayout.vue'
+import AppShell from '../../../../components/AppShell.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
 import { useTemplatesStore } from '../../stores/templates'
 import { useTripsStore } from '../../stores/trips'
@@ -134,7 +97,7 @@ async function importToTrip() {
   importMsg.value = ''
   try {
     await store.importToTrip(templateId, importTripId.value)
-    importMsg.value = 'Import muvaffaqiyatli!'
+    importMsg.value = 'Import qilindi'
     setTimeout(() => (importMsg.value = ''), 3000)
   } finally {
     importing.value = false

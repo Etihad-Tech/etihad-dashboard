@@ -1,125 +1,111 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="animate-fade-up">
-        <h2 class="text-2xl font-bold text-gray-900">Ellikboshilar</h2>
-        <p class="text-sm text-gray-500 mt-1">Ellikboshilar ro'yxatini boshqaring va har bir guruhga ellikboshi tayinlang</p>
-        <p class="text-xs text-gray-400 mt-1">
-          Faqat Turon tizimida safarga biriktirilgan guruhlar ko'rsatiladi.
-          Bitta guruhni Makkada bir ellikboshi, Madinada boshqasi olib borishi mumkin —
-          kerak bo'lsa guruh kartochkasidan shaharlar bo'yicha ajrating.
-        </p>
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Ellikboshilar</h1>
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
       <template v-else>
         <!-- Pool management -->
-        <div class="bg-white rounded-3xl border border-gray-200 p-5 animate-fade-up">
-          <h3 class="text-base font-semibold text-gray-900 mb-1">Ellikboshilar ro'yxati ({{ pool.length }})</h3>
-          <p class="text-xs text-gray-400 mb-4">Pastdagi guruhlarga shu ro'yxatdan ellikboshi tanlaysiz. Yangi ellikboshi qo'shing yoki olib tashlang.</p>
+        <div class="card p-4 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="section-title">Ro'yxat</span>
+            <span class="chip chip-gray">{{ pool.length }}</span>
+          </div>
 
-          <div class="flex flex-wrap gap-2 mb-4">
-            <span v-for="e in pool" :key="e.id" class="inline-flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-full pl-3 pr-1.5 py-1 text-xs">
-              <span class="font-medium text-gray-700">{{ e.name || e.username }}</span>
+          <div class="flex flex-wrap gap-1.5">
+            <span v-for="e in pool" :key="e.id" class="inline-flex items-center gap-1.5 h-7 bg-amber-50 border border-amber-100 rounded-full pl-3 pr-1 text-xs">
+              <span class="font-medium text-gray-800">{{ e.name || e.username }}</span>
               <span v-if="e.name" class="text-gray-400">{{ e.username }}</span>
-              <button @click="removeFromPool(e)" :disabled="poolBusy" title="O'chirish" class="w-5 h-5 rounded-full text-gray-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors">
+              <button :disabled="poolBusy" title="O'chirish"
+                class="w-5 h-5 rounded-full text-gray-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                @click="removeFromPool(e)">
                 <font-awesome-icon icon="xmark" class="w-2.5 h-2.5" />
               </button>
             </span>
-            <span v-if="!pool.length" class="text-xs text-gray-400">Ro'yxat bo'sh — quyida qo'shing.</span>
+            <span v-if="!pool.length" class="text-sm text-gray-400">Ro'yxat bo'sh</span>
           </div>
 
-          <div class="flex flex-wrap items-end gap-2">
-            <div>
-              <label class="block text-[11px] text-gray-400 mb-1">@username</label>
-              <input v-model="newUsername" type="text" placeholder="@username" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-            <div>
-              <label class="block text-[11px] text-gray-400 mb-1">Ismi (ixtiyoriy)</label>
-              <input v-model="newName" type="text" placeholder="Masalan: Akmal qori" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-            <button @click="addToPool" :disabled="poolBusy || !newUsername.trim()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">Qo'shish</button>
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <input v-model="newUsername" type="text" placeholder="@username" class="input w-44" @keyup.enter="addToPool" />
+            <input v-model="newName" type="text" placeholder="Ism" class="input w-48" @keyup.enter="addToPool" />
+            <button class="btn btn-primary" :disabled="poolBusy || !newUsername.trim()" @click="addToPool">
+              <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
+              Qo'shish
+            </button>
           </div>
-          <p v-if="poolError" class="text-xs text-rose-600 mt-2">{{ poolError }}</p>
-          <p class="text-[11px] text-gray-400 mt-2">Eslatma: ellikboshi botdan DM olishi uchun avval botga /start bosishi kerak.</p>
+          <p v-if="poolError" class="error-text">{{ poolError }}</p>
         </div>
 
         <!-- Per-group assignment -->
-        <div class="flex items-center gap-3 animate-fade-up">
-          <font-awesome-icon icon="users" class="w-4 h-4 text-amber-600" />
-          <h3 class="text-base font-semibold text-gray-900">Guruhlar ({{ filteredGroups.length }})</h3>
-          <input v-model="search" type="text" placeholder="Guruhni qidirish..." class="ml-auto bg-white border border-gray-200 rounded-2xl px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="section-title">Guruhlar</span>
+          <span class="chip chip-gray">{{ filteredGroups.length }}</span>
+          <div class="relative ml-auto w-full sm:w-60">
+            <font-awesome-icon icon="magnifying-glass" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input v-model="search" type="text" placeholder="Qidirish" class="input pl-9" />
+          </div>
         </div>
 
-        <div v-if="!filteredGroups.length" class="text-center py-10 text-sm text-gray-400">Guruh topilmadi.</div>
-        <div v-else class="grid gap-3">
-          <!-- One card per group. The DEFAULT shape is the old one — a single select —
+        <div v-if="!filteredGroups.length" class="card empty">Guruh topilmadi</div>
+        <div v-else class="card divide-y divide-gray-100">
+          <!-- One row per group. The DEFAULT shape is the old one — a single select —
                because one leader for the whole trip is still the normal case and making
                every group ask two questions to answer one would be a worse screen than
                the one it replaced. The split is opened per group, by the person who
                actually needs it, and a group that already IS split opens itself. -->
-          <div v-for="g in filteredGroups" :key="g.id" class="bg-white rounded-2xl border border-gray-200 p-4 animate-fade-up">
-            <div class="flex items-center gap-3">
-              <div class="min-w-0 flex-1">
+          <div v-for="g in filteredGroups" :key="g.id" class="flex flex-col md:flex-row md:items-start gap-2 md:gap-4 px-4 py-3">
+            <div class="min-w-0 md:w-72 md:shrink-0 md:pt-2">
+              <div class="flex items-center gap-2 min-w-0">
                 <p class="text-sm font-medium text-gray-900 truncate">{{ g.title || g.id }}</p>
-                <!-- «Not assigned» means NOBODY leads this group in EITHER city. It used to
-                     test `leaderOf`, which is empty by definition on a SPLIT group (two people,
-                     no single leader to name) — so every group split between cities was
-                     flagged as unassigned with both leaders sitting right under the line. -->
-                <p v-if="!cityLeader(g, 'makka') && !cityLeader(g, 'madina')" class="text-[11px] text-amber-600 mt-0.5">Ellikboshi tayinlanmagan</p>
-                <p v-else-if="isSplit(g) && (!g.ellikboshi_makka || !g.ellikboshi_madina)"
-                   class="text-[11px] text-amber-600 mt-0.5">
-                  {{ g.ellikboshi_makka ? 'Madina' : 'Makka' }} uchun ellikboshi tanlanmagan
-                </p>
+                <font-awesome-icon v-if="savedId === g.id" icon="circle-check" class="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               </div>
-              <span v-if="savedId === g.id" class="text-emerald-600 shrink-0"><font-awesome-icon icon="circle" class="w-2 h-2" /></span>
-              <span v-else class="w-2 shrink-0"></span>
+              <!-- «Not assigned» means NOBODY leads this group in EITHER city. It used to
+                   test `leaderOf`, which is empty by definition on a SPLIT group (two people,
+                   no single leader to name) — so every group split between cities was
+                   flagged as unassigned with both leaders sitting right under the line. -->
+              <span v-if="!cityLeader(g, 'makka') && !cityLeader(g, 'madina')" class="chip chip-amber mt-1">Tayinlanmagan</span>
+              <span v-else-if="isSplit(g) && (!g.ellikboshi_makka || !g.ellikboshi_madina)" class="chip chip-amber mt-1">
+                {{ g.ellikboshi_makka ? 'Madina' : 'Makka' }} tanlanmagan
+              </span>
             </div>
 
             <!-- SINGLE leader: one select, one save, both cities written together. -->
-            <div v-if="!expanded(g)" class="mt-3 flex flex-wrap items-center gap-2">
-              <select :value="leaderOf(g)" @change="onAssign(g, 'both', $event)" :disabled="savingId === g.id"
-                class="flex-1 min-w-[13rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+            <div v-if="!expanded(g)" class="flex flex-1 flex-wrap items-center gap-2">
+              <select :value="leaderOf(g)" :disabled="savingId === g.id" class="input flex-1 min-w-[12rem]"
+                @change="onAssign(g, 'both', $event)">
                 <option value="">— tanlanmagan —</option>
                 <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
               </select>
-              <button type="button" @click="openSplit(g)"
-                class="text-[12px] text-amber-700 hover:text-amber-800 hover:underline whitespace-nowrap px-1">
-                Shaharlar bo'yicha ajratish
-              </button>
+              <button type="button" class="btn btn-sm btn-ghost" @click="openSplit(g)">Shahar bo'yicha</button>
             </div>
 
             <!-- SPLIT: one select per city. Makka first — it is the heavier half. -->
-            <div v-else class="mt-3 space-y-2">
-              <div v-for="c in CITIES" :key="c.key" class="flex flex-wrap items-center gap-2">
-                <span class="w-16 shrink-0 text-[12px] text-gray-500">{{ c.label }}</span>
-                <select :value="cityLeader(g, c.key)" @change="onAssign(g, c.key, $event)" :disabled="savingId === g.id"
-                  class="flex-1 min-w-[9rem] bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">
+            <div v-else class="flex-1 space-y-2">
+              <div v-for="c in CITIES" :key="c.key" class="flex items-center gap-2">
+                <span class="w-14 shrink-0 text-xs font-medium text-gray-500">{{ c.label }}</span>
+                <select :value="cityLeader(g, c.key)" :disabled="savingId === g.id" class="input flex-1 min-w-0"
+                  @change="onAssign(g, c.key, $event)">
                   <option value="">— tanlanmagan —</option>
                   <option v-for="o in optionsFor(g)" :key="o" :value="o">{{ poolLabel(o) }}</option>
                 </select>
               </div>
-              <div class="flex items-center gap-3 pt-0.5">
-                <p class="text-[11px] text-gray-400 flex-1">Jidda kuni Makka ellikboshisiga biriktiriladi.</p>
-                <button v-if="!isSplit(g)" type="button" @click="closeSplit(g)"
-                  class="text-[12px] text-gray-400 hover:text-gray-600 hover:underline whitespace-nowrap">
-                  Bekor qilish
-                </button>
+              <div v-if="!isSplit(g)" class="flex justify-end">
+                <button type="button" class="btn btn-sm btn-ghost" @click="closeSplit(g)">Bekor qilish</button>
               </div>
             </div>
           </div>
         </div>
       </template>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -241,14 +227,14 @@ const { confirm } = useConfirm()
 const toast = useToast()
 
 async function removeFromPool(e: Ellik) {
-  if (!(await confirm({ title: "Ro'yxatdan o'chirish", message: `"${e.name || e.username}" ro'yxatdan o'chirilsinmi?` }))) return
+  if (!(await confirm({ title: `${e.name || e.username} — o'chirish` }))) return
   poolBusy.value = true
   try {
     await api.delete(`/ellikboshilar/${e.id}`)
     pool.value = pool.value.filter(x => x.id !== e.id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   } finally {
     poolBusy.value = false
   }
@@ -286,7 +272,7 @@ async function onAssign(g: Grp, city: City | 'both', event: Event) {
     savedId.value = g.id
     setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2000)
   } catch {
-    toast.error('Saqlanmadi — qayta urinib ko\'ring')
+    toast.error('Saqlanmadi')
   } finally {
     savingId.value = null
   }

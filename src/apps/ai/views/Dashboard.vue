@@ -1,92 +1,71 @@
 <template>
-   <AppLayout>
-      <div class="space-y-6">
-         <div class="flex items-center justify-between animate-fade-up">
-            <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
-            <div class="flex items-center gap-2">
-               <button v-for="p in periods" :key="p.value" @click="selectedPeriod = p.value"
-                  class="px-4 py-1.5 rounded-2xl text-sm font-medium transition-colors border" :class="selectedPeriod === p.value
-                     ? 'bg-amber-50 text-amber-700 border-amber-200'
-                     : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'">
+   <AppShell>
+      <div class="page">
+         <div class="page-head">
+            <h1 class="page-title">Statistika</h1>
+            <div class="seg">
+               <button v-for="p in periods" :key="p.value" class="seg-btn"
+                  :class="{ 'seg-btn-on': selectedPeriod === p.value }" @click="selectedPeriod = p.value">
                   {{ p.label }}
                </button>
             </div>
          </div>
 
-         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4" v-if="stats.data">
-            <div class="lg:col-span-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
-               <div v-for="(card, i) in statCards" :key="card.label"
-                  class="bg-white rounded-3xl p-4 border border-gray-200 animate-fade-up"
-                  :style="{ animationDelay: (i + 1) * 30 + 'ms' }">
-                  <p class="text-xs font-medium text-gray-400 mb-1">{{ card.label }}</p>
-                  <p class="text-2xl font-bold text-gray-900">{{ card.value }}</p>
-                  <div class="mt-3 h-8">
+         <div v-if="stats.data" class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+            <div class="lg:col-span-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
+               <div v-for="card in statCards" :key="card.label" class="card p-4">
+                  <p class="text-xs font-medium text-gray-500 truncate">{{ card.label }}</p>
+                  <p class="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{{ card.value }}</p>
+                  <div class="mt-2 h-8">
                      <Line :data="sparklineData(card)" :options="sparklineOptions" />
                   </div>
                </div>
             </div>
 
-            <div class="lg:col-span-7 bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up"
-               style="animation-delay: 90ms">
+            <div class="lg:col-span-7 card p-5">
                <div class="flex items-center justify-between mb-4">
-                  <h3 class="text-sm font-semibold text-gray-900">Murojaatlar dinamikasi</h3>
+                  <h3 class="section-title">Murojaatlar</h3>
                   <span class="text-xs text-gray-400">{{ periodLabel }}</span>
                </div>
-               <div v-if="stats.data && stats.data.timeline.length > 0" class="h-52">
+               <div v-if="stats.data.timeline.length > 0" class="h-52">
                   <Bar :data="chartData" :options="chartOptions" />
                </div>
-               <p v-else class="text-gray-400 text-center py-12 text-sm">Ma'lumot yo'q</p>
+               <p v-else class="empty">Ma'lumot yo'q</p>
             </div>
          </div>
 
-         <div class="grid grid-cols-1 md:grid-cols-2 gap-4" v-if="stats.data">
-            <div class="bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 240ms">
-               <h3 class="text-sm font-semibold text-gray-900 mb-4">Kategoriyalar bo'yicha</h3>
-               <div class="space-y-4">
-                  <div v-for="(count, cat) in stats.data.categories" :key="cat" class="flex items-center gap-3">
-                     <div class="flex-1">
-                        <div class="flex items-center justify-between mb-1">
-                           <span class="text-sm font-medium text-gray-700">{{ categoryLabel(cat as string) }}</span>
-                           <span class="text-xs text-gray-400">{{ categoryPercent(count as number) }}%</span>
-                        </div>
-                        <div class="w-full bg-gray-100 rounded-full h-2">
-                           <div class="h-2 rounded-full transition-all" :class="categoryBarColor(cat as string)"
-                              :style="{ width: categoryPercent(count as number) + '%' }"></div>
-                        </div>
+         <div v-if="stats.data" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="card p-5">
+               <h3 class="section-title mb-4">Kategoriyalar</h3>
+               <div class="space-y-3.5">
+                  <div v-for="(count, cat) in stats.data.categories" :key="cat">
+                     <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium text-gray-700">{{ categoryLabel(cat as string) }}</span>
+                        <span class="text-xs text-gray-500 tabular-nums">{{ count }} · {{ categoryPercent(count as number) }}%</span>
+                     </div>
+                     <div class="w-full bg-gray-100 rounded-full h-1.5">
+                        <div class="h-1.5 rounded-full transition-all" :class="categoryBarColor(cat as string)"
+                           :style="{ width: categoryPercent(count as number) + '%' }"></div>
                      </div>
                   </div>
                </div>
             </div>
 
-            <div class="bg-white rounded-3xl p-6 border border-gray-200 animate-fade-up" style="animation-delay: 270ms">
-               <h3 class="text-sm font-semibold text-gray-900 mb-4">Guruhlar reytingi</h3>
-               <div class="space-y-3">
-                  <div v-for="(count, name, idx) in stats.data.groups" :key="name" class="flex items-center gap-3">
-                     <div class="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <span class="text-xs font-bold text-gray-500">{{ (idx as number) + 1 }}</span>
-                     </div>
-                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 truncate">{{ name }}</p>
-                        <p class="text-xs text-gray-400">{{ count }} ta murojaat</p>
-                     </div>
-                     <div class="flex items-center gap-1">
-                        <span class="text-sm font-semibold text-gray-900">{{ count }}</span>
-                        <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                           <path fill-rule="evenodd"
-                              d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z"
-                              clip-rule="evenodd" />
-                        </svg>
-                     </div>
+            <div class="card p-5">
+               <h3 class="section-title mb-3">Guruhlar</h3>
+               <div class="divide-y divide-gray-100">
+                  <div v-for="(count, name, idx) in stats.data.groups" :key="name" class="flex items-center gap-3 py-2">
+                     <span class="w-6 text-xs font-semibold text-gray-400 tabular-nums">{{ (idx as number) + 1 }}</span>
+                     <p class="flex-1 min-w-0 text-sm font-medium text-gray-900 truncate">{{ name }}</p>
+                     <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ count }}</span>
                   </div>
                </div>
             </div>
          </div>
 
-         <div v-if="stats.loading" class="flex justify-center py-12">
-            <div class="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-         </div>
+         <div v-if="stats.loading" class="flex justify-center py-12"><div class="spinner"></div></div>
       </div>
-   </AppLayout>
+   </AppShell>
 </template>
 
 <script setup lang="ts">
@@ -103,7 +82,7 @@ import {
    Tooltip,
    Filler,
 } from 'chart.js'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import { useStatsStore } from '../stores/stats'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Filler)

@@ -1,220 +1,156 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center justify-between animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Mehmonxonalar</h2>
-          <p class="text-sm text-gray-500 mt-1">Guruhlar va Bilimlar bazasidagi mehmonxona ro'yxati shu yerdan boshqariladi</p>
-        </div>
-        <button
-          @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Mehmonxonalar</h1>
+        <button class="btn btn-primary" @click="openAdd">
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi mehmonxona
+          Qo'shish
         </button>
       </div>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday ishlaydi</p>
-        <p class="text-amber-700">
-          Bu yerga qo'shilgan mehmonxonalar <b>Guruhlar</b> sahifasidagi (Makka / Madina / Jidda) va
-          <b>Bilimlar bazasi</b> dagi mehmonxona ro'yxatlarida tanlash uchun chiqadi. Nomini aniq yozing —
-          guruhga biriktirilgan nom va shu mehmonxonaga oid savol-javoblar ayni shu nom bo'yicha bog'lanadi.
-        </p>
-      </div>
+      <div v-if="store.loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-if="store.loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-else-if="!store.items.length" class="card empty">Ro'yxat bo'sh</div>
 
-      <div v-else-if="store.items.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up">
-        <font-awesome-icon icon="hotel" class="w-10 h-10 text-gray-300 mb-4" />
-        <p class="text-gray-400">Ro'yxat bo'sh — birinchi mehmonxonani qo'shing</p>
-      </div>
-
-      <div v-else class="space-y-3">
-        <div
-          v-for="(h, i) in store.items"
-          :key="h.id"
-          class="bg-white rounded-3xl border p-4 flex items-center justify-between gap-4 transition-all animate-fade-up"
-          :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-          :class="h.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
-        >
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
-              <font-awesome-icon icon="hotel" class="w-4 h-4 text-amber-600" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">{{ h.name }}</p>
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <span class="text-[11px] px-1.5 py-0.5 rounded-lg bg-sky-50 text-sky-600">{{ cityLabel(h.city) }}</span>
-                <span v-if="h.default_tier" class="text-[11px] px-1.5 py-0.5 rounded-lg bg-violet-50 text-violet-600">{{ h.default_tier }}</span>
-              </div>
-            </div>
+      <div v-else class="card divide-y divide-gray-100">
+        <div v-for="h in store.items" :key="h.id" class="flex items-center gap-3 px-4 py-3">
+          <div class="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"
+            :class="{ 'opacity-50': !h.is_active }">
+            <font-awesome-icon icon="hotel" class="w-3.5 h-3.5" />
           </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <button
-              @click="toggleActive(h)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-              :class="h.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
-            >
-              <font-awesome-icon :icon="h.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-              {{ h.is_active ? 'Faol' : 'Nofaol' }}
-            </button>
-            <button
-              @click="openEdit(h)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-            >
-              <font-awesome-icon icon="pen" class="w-3 h-3" />
-              Tahrirlash
-            </button>
-            <button
-              @click="askDelete(h.id)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <font-awesome-icon icon="trash" class="w-3 h-3" />
-              O'chirish
-            </button>
+          <div class="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1" :class="{ 'opacity-50': !h.is_active }">
+            <span class="text-sm font-medium text-gray-900 truncate">{{ h.name }}</span>
+            <span class="chip chip-blue">{{ cityLabel(h.city) }}</span>
+            <span v-if="h.default_tier" class="chip chip-violet">{{ h.default_tier }}</span>
           </div>
+          <ToggleSwitch :model-value="h.is_active" :title="h.is_active ? 'Faol' : 'Nofaol'" @update:model-value="toggleActive(h)" />
+          <button class="icon-btn" title="Tahrirlash" @click="openEdit(h)">
+            <font-awesome-icon icon="pen" class="w-3.5 h-3.5" />
+          </button>
+          <button class="icon-btn icon-btn-danger" title="O'chirish" @click="askDelete(h.id)">
+            <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>
 
-    <Transition name="modal">
-      <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Mehmonxonani tahrirlash' : 'Yangi mehmonxona' }}</h3>
+    <BaseModal :open="modalOpen" :title="modalEditId ? 'Tahrirlash' : 'Yangi mehmonxona'" width="sm:max-w-2xl" @close="closeModal">
+      <div>
+        <label class="label">Nomi</label>
+        <input v-model="form.name" type="text" placeholder="Fairmont" class="input" @keyup.enter="saveModal" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label">Shahar</label>
+          <select v-model="form.city" class="input">
+            <option value="">—</option>
+            <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Tarif</label>
+          <select v-model="form.default_tier" class="input">
+            <option value="">—</option>
+            <option value="premium">premium</option>
+            <option value="comfort">comfort</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Structured facts the bot answers automatically (verbatim). A BLANK field
+           means that place DOES NOT EXIST — the bot says so. Floors are free-text,
+           so "L (Tower 2)" or "M (Tower 3)" work, not just a bare number. -->
+      <div class="pt-4 border-t border-gray-100">
+        <p class="section-title mb-2">Qavatlar</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="label">Erkaklar masjidi</label>
+            <input v-model="form.mosque_floor_male" type="text" placeholder="2" class="input" />
           </div>
-          <div class="p-6 space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Mehmonxona nomi</label>
-              <input v-model="form.name" type="text" placeholder="Masalan: Fairmont" @keyup.enter="saveModal"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Shahar</label>
-                <select v-model="form.city"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                  <option value="">—</option>
-                  <option v-for="c in CITIES" :key="c.value" :value="c.value">{{ c.label }}</option>
-                </select>
-                <p class="text-[11px] text-gray-400 mt-1">Guruh roʻyxatida shu shahar uchun chiqadi.</p>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Tarif (ixtiyoriy)</label>
-                <select v-model="form.default_tier"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                  <option value="">—</option>
-                  <option value="premium">premium</option>
-                  <option value="comfort">comfort</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Structured facts the bot answers automatically (verbatim). A BLANK field
-                 means that place DOES NOT EXIST — the bot says so. Floors are free-text,
-                 so "L (Tower 2)" or "M (Tower 3)" work, not just a bare number. -->
-            <div class="pt-3 border-t border-gray-100">
-              <p class="text-xs font-semibold text-gray-600 mb-2">Qavatlar <span class="font-normal text-gray-400">(bo'sh = mavjud emas)</span></p>
-              <div class="grid grid-cols-3 gap-3">
-                <div>
-                  <label :class="labelCls">Erkaklar masjidi</label>
-                  <input v-model="form.mosque_floor_male" type="text" placeholder="2" :class="inputCls" />
-                </div>
-                <div>
-                  <label :class="labelCls">Ayollar masjidi</label>
-                  <input v-model="form.mosque_floor_female" type="text" placeholder="M (Tower 2)" :class="inputCls" />
-                </div>
-                <div>
-                  <label :class="labelCls">Haramga chiqish</label>
-                  <input v-model="form.haram_floor" type="text" placeholder="L" :class="inputCls" />
-                </div>
-                <div>
-                  <label :class="labelCls">Sartaroshxona</label>
-                  <input v-model="form.sartaroshxona_floor" type="text" placeholder="1" :class="inputCls" />
-                </div>
-                <div>
-                  <label :class="labelCls">Resepshn</label>
-                  <input v-model="form.reception_floor" type="text" placeholder="0" :class="inputCls" />
-                </div>
-                <div>
-                  <label :class="labelCls">Tashkiliy guruh</label>
-                  <input v-model="form.staff_floor" type="text" placeholder="1" :class="inputCls" />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <p class="text-xs font-semibold text-gray-600 mb-2">Ovqatlanish <span class="font-normal text-gray-400">(vaqti va joyi; bo'sh = berilmaydi)</span></p>
-              <div class="space-y-3">
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label :class="labelCls">Nonushta vaqti</label>
-                    <input v-model="form.breakfast_time" type="text" placeholder="07:00-09:00" :class="inputCls" />
-                  </div>
-                  <div>
-                    <label :class="labelCls">Nonushta joyi</label>
-                    <input v-model="form.breakfast_floor" type="text" placeholder="2-qavat (Tower 1)" :class="inputCls" />
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label :class="labelCls">Tushlik vaqti</label>
-                    <input v-model="form.lunch_time" type="text" placeholder="13:00-14:30" :class="inputCls" />
-                  </div>
-                  <div>
-                    <label :class="labelCls">Tushlik joyi</label>
-                    <input v-model="form.lunch_floor" type="text" placeholder="1-qavat" :class="inputCls" />
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label :class="labelCls">Kechki ovqat vaqti</label>
-                    <input v-model="form.dinner_time" type="text" placeholder="19:00-21:00" :class="inputCls" />
-                  </div>
-                  <div>
-                    <label :class="labelCls">Kechki ovqat joyi</label>
-                    <input v-model="form.dinner_floor" type="text" placeholder="2-qavat" :class="inputCls" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <p class="text-xs font-semibold text-gray-600 mb-2">Wi-Fi</p>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label :class="labelCls">Wi-Fi nomi</label>
-                  <input v-model="form.wifi_name" type="text" placeholder="EtihadHotel" :class="inputCls" />
-                </div>
-                <div>
-                  <label :class="labelCls">Wi-Fi paroli</label>
-                  <input v-model="form.wifi_code" type="text" placeholder="********" :class="inputCls" />
-                </div>
-              </div>
-            </div>
-
-            <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
+          <div>
+            <label class="label">Ayollar masjidi</label>
+            <input v-model="form.mosque_floor_female" type="text" placeholder="M (Tower 2)" class="input" />
           </div>
-          <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-            <button @click="saveModal" :disabled="!canSave || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
+          <div>
+            <label class="label">Haramga chiqish</label>
+            <input v-model="form.haram_floor" type="text" placeholder="L" class="input" />
+          </div>
+          <div>
+            <label class="label">Sartaroshxona</label>
+            <input v-model="form.sartaroshxona_floor" type="text" placeholder="1" class="input" />
+          </div>
+          <div>
+            <label class="label">Resepshn</label>
+            <input v-model="form.reception_floor" type="text" placeholder="0" class="input" />
+          </div>
+          <div>
+            <label class="label">Tashkiliy guruh</label>
+            <input v-model="form.staff_floor" type="text" placeholder="1" class="input" />
           </div>
         </div>
       </div>
-    </Transition>
-  </AppLayout>
+
+      <div>
+        <p class="section-title mb-2">Ovqatlanish</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Nonushta vaqti</label>
+            <input v-model="form.breakfast_time" type="text" placeholder="07:00-09:00" class="input" />
+          </div>
+          <div>
+            <label class="label">Nonushta joyi</label>
+            <input v-model="form.breakfast_floor" type="text" placeholder="2-qavat (Tower 1)" class="input" />
+          </div>
+          <div>
+            <label class="label">Tushlik vaqti</label>
+            <input v-model="form.lunch_time" type="text" placeholder="13:00-14:30" class="input" />
+          </div>
+          <div>
+            <label class="label">Tushlik joyi</label>
+            <input v-model="form.lunch_floor" type="text" placeholder="1-qavat" class="input" />
+          </div>
+          <div>
+            <label class="label">Kechki ovqat vaqti</label>
+            <input v-model="form.dinner_time" type="text" placeholder="19:00-21:00" class="input" />
+          </div>
+          <div>
+            <label class="label">Kechki ovqat joyi</label>
+            <input v-model="form.dinner_floor" type="text" placeholder="2-qavat" class="input" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="section-title mb-2">Wi-Fi</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Nomi</label>
+            <input v-model="form.wifi_name" type="text" placeholder="EtihadHotel" class="input" />
+          </div>
+          <div>
+            <label class="label">Paroli</label>
+            <input v-model="form.wifi_code" type="text" placeholder="********" class="input" />
+          </div>
+        </div>
+      </div>
+
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button class="btn btn-ghost" @click="closeModal">Bekor qilish</button>
+        <button class="btn btn-primary" :disabled="!canSave || saving" @click="saveModal">
+          {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+        </button>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import { useHotelsStore, type Hotel } from '../../../stores/hotels'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -225,9 +161,6 @@ const saving = ref(false)
 const modalOpen = ref(false)
 const modalEditId = ref<number | null>(null)
 const formError = ref('')
-// Shared styling for the added hotel-detail inputs.
-const inputCls = 'w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500'
-const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5'
 
 type HotelForm = {
   name: string; city: string; default_tier: string
@@ -255,7 +188,7 @@ const CITIES = [
   { value: 'makka', label: 'Makka' },
   { value: 'madina', label: 'Madina' },
   { value: 'jidda', label: 'Jidda' },
-  { value: 'flexible', label: 'Moslashuvchan (har shahar)' },
+  { value: 'flexible', label: 'Har shahar' },
 ]
 const cityLabel = (c: string | null) => CITIES.find(x => x.value === c)?.label || '—'
 
@@ -321,7 +254,7 @@ async function saveModal() {
     toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch (e: any) {
-    formError.value = e?.response?.data?.detail || 'Saqlashda xatolik yuz berdi'
+    formError.value = e?.response?.data?.detail || 'Saqlanmadi'
   } finally {
     saving.value = false
   }
@@ -339,35 +272,16 @@ const toast = useToast()
 async function askDelete(id: number) {
   if (!(await confirm({
     title: "Mehmonxonani o'chirish",
-    message: "Bu amalni ortga qaytarib bo'lmaydi. Guruhga biriktirilgan eski qiymat o'zgarmaydi.",
+    message: "Guruhlardagi qiymat o'zgarmaydi.",
   }))) return
   try {
     await store.remove(id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   }
 }
 
 onMounted(() => store.fetch(true))
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-</style>

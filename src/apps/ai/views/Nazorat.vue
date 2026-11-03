@@ -1,5 +1,5 @@
 <template>
-   <AppLayout>
+   <AppShell>
       <div class="nazorat">
          <!-- Watched by the observer below to tell the title bar whether anything has
               scrolled under it yet. A sentinel rather than a scroll listener: a listener
@@ -204,10 +204,8 @@
             </div>
 
             <div v-else-if="s.loadError" class="card p-6">
-               <p class="n-h mb-1.5">Ma'lumotni yuklab bo'lmadi</p>
-               <p class="text-[15px] text-[color:var(--n-ink-2)] leading-snug mb-5">
-                  Bu «murojaat yo'q» degani EMAS. Server javob bermadi yoki ruxsat yetmadi.
-               </p>
+               <p class="n-h mb-4">Ma'lumotni yuklab bo'lmadi</p>
+               
                <button @click="s.load()" class="btn-primary">Qayta urinish</button>
             </div>
 
@@ -267,13 +265,13 @@
 
          <Ogohlantirishlar v-if="showBell" @close="showBell = false" />
       </div>
-   </AppLayout>
+   </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import Holat from './nazorat/Holat.vue'
 import Reyting from './nazorat/Reyting.vue'
 import Kpi from './nazorat/Kpi.vue'

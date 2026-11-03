@@ -1,54 +1,47 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center gap-4 animate-fade-up">
-        <button
-          @click="$router.back()"
-          class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors"
-        >
+  <AppShell>
+    <div class="page max-w-3xl">
+      <div class="page-head">
+        <button class="icon-btn" title="Orqaga" @click="$router.back()">
           <font-awesome-icon icon="arrow-left" class="w-4 h-4" />
         </button>
-        <h2 class="text-2xl font-bold text-gray-900">{{ isEdit ? 'Postni tahrirlash' : 'Yangi post' }}</h2>
+        <h1 class="page-title">{{ isEdit ? 'Postni tahrirlash' : 'Yangi post' }}</h1>
       </div>
 
-      <form @submit.prevent="savePost" class="bg-white rounded-3xl border border-gray-200 p-6 space-y-4 animate-fade-up" style="animation-delay: 30ms">
-        <div class="grid grid-cols-3 gap-4">
+      <form class="card p-5 space-y-4" @submit.prevent="savePost">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Kun raqami</label>
-            <input v-model.number="form.day_number" type="number" min="1" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="1" />
+            <label class="label">Kun</label>
+            <input v-model.number="form.day_number" type="number" min="1" required class="input" placeholder="1" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Vaqt</label>
-            <input v-model="form.scheduled_time" type="time" required class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" />
+            <label class="label">Vaqt</label>
+            <input v-model="form.scheduled_time" type="time" required class="input" />
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Jo'natish rejimi</label>
-            <select v-model="form.send_mode" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm">
-              <option value="scheduled">Vaqtida</option>
-              <option value="now">Hoziroq</option>
-            </select>
+          <div class="col-span-2 sm:col-span-1">
+            <label class="label">Jo'natish</label>
+            <div class="seg w-full">
+              <button type="button" class="seg-btn flex-1" :class="{ 'seg-btn-on': form.send_mode === 'scheduled' }"
+                @click="form.send_mode = 'scheduled'">Vaqtida</button>
+              <button type="button" class="seg-btn flex-1" :class="{ 'seg-btn-on': form.send_mode === 'now' }"
+                @click="form.send_mode = 'now'">Hoziroq</button>
+            </div>
           </div>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Xabar matni</label>
-          <textarea
-            v-model="form.message_text"
-            rows="6"
-            required
-            class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-            placeholder="Post matnini yozing..."
-          ></textarea>
+          <label class="label">Matn</label>
+          <textarea v-model="form.message_text" rows="8" required class="input resize-y"></textarea>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Media path</label>
-            <input v-model="form.media_path" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm" placeholder="Ixtiyoriy" />
+            <label class="label">Media path</label>
+            <input v-model="form.media_path" class="input" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Media turi</label>
-            <select v-model="form.media_type" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm">
+            <label class="label">Media turi</label>
+            <select v-model="form.media_type" class="input">
               <option value="">Yo'q</option>
               <option value="photo">Rasm</option>
               <option value="video">Video</option>
@@ -57,23 +50,23 @@
           </div>
         </div>
 
-        <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
+        <p v-if="error" class="error-text">{{ error }}</p>
 
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" @click="$router.back()" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-          <button type="submit" :disabled="saving" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn btn-ghost" @click="$router.back()">Bekor qilish</button>
+          <button type="submit" class="btn btn-primary" :disabled="saving">
             {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
           </button>
         </div>
       </form>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppLayout from '../../components/AppLayout.vue'
+import AppShell from '../../../../components/AppShell.vue'
 import { usePostsStore } from '../../stores/posts'
 
 const route = useRoute()
