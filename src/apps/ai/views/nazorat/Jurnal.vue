@@ -98,7 +98,18 @@
                   <ul v-else class="space-y-2.5">
                      <li v-for="e in openEntries" :key="e.id"
                         class="pl-3 border-l-2" :style="{ borderColor: e.sum.rail }">
-                        <p class="text-[14px] leading-snug">{{ e.text }}</p>
+                        <ol v-if="e.followups.length" class="n-thread n-thread-sm">
+                           <li>
+                              <time>{{ fmtDateTime(e.created_at) }}</time>
+                              <span>{{ e.text || 'Matnsiz' }}</span>
+                           </li>
+                           <li v-for="f in e.followups" :key="f.id" class="is-again">
+                              <time>{{ fmtDateTime(f.created_at) }}</time>
+                              <span>{{ f.text || 'Matnsiz' }}</span>
+                              <a v-if="f.message_link" :href="f.message_link" target="_blank" rel="noopener">Xabar</a>
+                           </li>
+                        </ol>
+                        <p v-else class="text-[14px] leading-snug">{{ e.text }}</p>
                         <p class="text-[12.5px] mt-0.5" :style="{ color: e.sum.ink }">
                            {{ e.sum.text }}
                         </p>
@@ -181,7 +192,21 @@
                <font-awesome-icon :icon="r.outcome.icon" class="w-4 h-4" />
             </span>
             <div class="min-w-0 flex-1">
-               <p class="text-[15.5px] leading-snug clamp2">
+               <!-- Both of the pilgrim's messages when they came back (owner, 2026-11-02):
+                    the first ask, then what they wrote again — why the card is
+                    Bajarilmagan, readable without opening Telegram. -->
+               <ol v-if="r.followups.length" class="n-thread">
+                  <li>
+                     <time>{{ fmtDateTime(r.created_at) }}</time>
+                     <span class="clamp2">{{ r.text || 'Matnsiz' }}</span>
+                  </li>
+                  <li v-for="f in r.followups" :key="f.id" class="is-again">
+                     <time>{{ fmtDateTime(f.created_at) }}</time>
+                     <span class="clamp2">{{ f.text || 'Matnsiz' }}</span>
+                     <a v-if="f.message_link" :href="f.message_link" target="_blank" rel="noopener">Xabar</a>
+                  </li>
+               </ol>
+               <p v-else class="text-[15.5px] leading-snug clamp2">
                   <span v-if="r.is_repeat" class="badge badge-amber mr-1 align-middle">Takroriy</span>
                   <span v-if="r.text">{{ r.text }}</span>
                   <span v-else class="text-[color:var(--n-faint)]">Matnsiz</span>
