@@ -1,125 +1,95 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
+  <AppShell>
+    <div class="page">
       <!-- ───────────── Header ───────────── -->
-      <div class="flex items-start justify-between gap-4 animate-fade-up">
-        <div class="min-w-0">
-          <div v-if="editing" class="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <button @click="closeEditor" class="hover:text-gray-900 flex items-center gap-1.5">
-              <font-awesome-icon icon="arrow-left" class="w-3 h-3" /> Umra dasturi
+      <div v-if="!editing" class="page-head">
+        <h1 class="page-title">Umra dasturi</h1>
+        <div class="seg">
+          <button class="seg-btn" :class="{ 'seg-btn-on': tab === 'shablonlar' }" @click="tab = 'shablonlar'">Shablonlar</button>
+          <button class="seg-btn" :class="{ 'seg-btn-on': tab === 'joylar' }" @click="tab = 'joylar'">Joylar</button>
+        </div>
+        <button v-if="tab === 'shablonlar'" @click="openCreate()" class="btn btn-primary">
+          <font-awesome-icon icon="plus" class="w-3.5 h-3.5" /> Yangi dastur
+        </button>
+      </div>
+
+      <div v-else class="space-y-2">
+        <button @click="closeEditor" class="btn btn-ghost btn-sm -ml-2.5">
+          <font-awesome-icon icon="arrow-left" class="w-3 h-3" /> Umra dasturi
+        </button>
+        <div class="page-head">
+          <h1 class="page-title truncate min-w-0">{{ editing.name }}</h1>
+          <div class="flex flex-wrap items-center gap-2">
+            <button @click="previewOpen = true" class="btn btn-ghost">
+              <font-awesome-icon icon="eye" class="w-3.5 h-3.5" /> Ko'rish
             </button>
-            <span class="text-gray-300">/</span>
-            <span class="text-gray-700 truncate">{{ editing.name }}</span>
+            <button @click="openCopy(editing)" class="btn btn-ghost">
+              <font-awesome-icon icon="copy" class="w-3.5 h-3.5" /> Nusxalash
+            </button>
+            <!-- Russian: fills what is still untranslated; when nothing is missing, offers
+                 to redo the whole programme (the office's own edits included). -->
+            <button @click="translateProgram" :disabled="translating || dirty" :title="dirty ? 'Avval saqlang' : ''"
+              class="btn" :class="editing.ru_missing ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'btn-ghost'">
+              <font-awesome-icon icon="language" class="w-3.5 h-3.5" />
+              {{ translating ? 'Tarjima qilinmoqda...' : (editing.ru_missing ? `Ruscha (${editing.ru_missing} yo'q)` : 'Ruscha: to\'liq') }}
+            </button>
+            <button v-if="!editing.is_template" @click="revertToTemplate(editing.group_telegram_id!)"
+              class="btn btn-ghost text-rose-600 hover:text-rose-700 hover:bg-rose-50">
+              <font-awesome-icon icon="rotate-right" class="w-3.5 h-3.5" /> Shablonga qaytarish
+            </button>
+            <button @click="saveItems" :disabled="!dirty || saving" class="btn btn-primary">
+              {{ saving ? 'Saqlanmoqda...' : (dirty ? 'Saqlash' : 'Saqlangan') }}
+            </button>
           </div>
-          <h2 class="text-2xl font-bold text-gray-900 truncate">{{ editing ? editing.name : 'Umra dasturi' }}</h2>
-          <p class="text-sm text-gray-500 mt-1">
-            <template v-if="editing && editing.is_template">
-              <template v-if="editing.crm_package">Paket <b class="text-gray-700">{{ editing.crm_package }}</b> dasturi</template>
-              <template v-else>Paketsiz shablon</template>
-              · {{ cellLabel(editing.days, editing.tier) }} · {{ planeLabel(editing.city_order) }} ·
-              {{ nightsLabel(editing) }} · guruhlar shu dasturni jonli ko'radi
-            </template>
-            <template v-else-if="editing">
-              Guruhning o'z dasturi · {{ editing.group?.title || editing.group_telegram_id }}
-              <span v-if="editing.group?.shape"> · {{ cellLabel(editing.group.shape.days, editing.group.shape.tier) }} · {{ planeLabel(editing.group.shape.order) }}</span>
-              · shablon o'zgarishlari bu guruhga tegmaydi
-            </template>
-            <template v-else>
-              Kunlar bo'yicha dastur: kabinet «Umra rejasi» va vaucher shu yerdan o'qiydi. Har bir CRM paketi («TAJ 13») — o'z dasturi.
-            </template>
-          </p>
         </div>
-
-        <div v-if="!editing" class="flex items-center gap-2 shrink-0">
-          <button @click="tab = 'shablonlar'" class="px-3 py-1.5 rounded-2xl text-sm font-medium transition-colors"
-            :class="tab === 'shablonlar' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'">Shablonlar</button>
-          <button @click="tab = 'joylar'" class="px-3 py-1.5 rounded-2xl text-sm font-medium transition-colors"
-            :class="tab === 'joylar' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'">Joylar</button>
-          <button v-if="tab === 'shablonlar'" @click="openCreate()"
-            class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors">
-            <font-awesome-icon icon="plus" class="w-3.5 h-3.5" /> Yangi dastur
-          </button>
-        </div>
-
-        <div v-else class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <button @click="previewOpen = true" class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
-            <font-awesome-icon icon="eye" class="w-3.5 h-3.5" /> Ko'rish (kabinet)
-          </button>
-          <button @click="openCopy(editing)" class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
-            <font-awesome-icon icon="copy" class="w-3.5 h-3.5" /> Nusxalash
-          </button>
-          <!-- Russian: fills what is still untranslated; when nothing is missing, offers
-               to redo the whole programme (the office's own edits included). -->
-          <button @click="translateProgram" :disabled="translating || dirty"
-            :title="dirty ? 'Avval saqlang' : ''"
-            class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium transition-colors disabled:opacity-50"
-            :class="editing.ru_missing ? 'text-amber-700 bg-amber-50 hover:bg-amber-100' : 'text-gray-600 hover:bg-gray-100'">
-            <font-awesome-icon icon="language" class="w-3.5 h-3.5" />
-            {{ translating ? 'Tarjima qilinmoqda...' : (editing.ru_missing ? `Ruscha tarjima (${editing.ru_missing} ta yo'q)` : 'Ruscha: to\'liq') }}
-          </button>
-          <button v-if="!editing.is_template" @click="revertToTemplate(editing.group_telegram_id!)"
-            class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors">
-            <font-awesome-icon icon="rotate-right" class="w-3.5 h-3.5" /> Shablonga qaytarish
-          </button>
-          <button @click="saveItems" :disabled="!dirty || saving"
-            class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-            {{ saving ? 'Saqlanmoqda...' : (dirty ? 'Saqlash' : 'Saqlangan') }}
-          </button>
+        <div class="flex flex-wrap gap-1.5">
+          <template v-if="editing.is_template">
+            <span class="chip" :class="editing.crm_package ? 'chip-amber' : 'chip-gray'">{{ editing.crm_package || 'Paketsiz' }}</span>
+            <span class="chip chip-gray">{{ cellLabel(editing.days, editing.tier) }}</span>
+            <span class="chip chip-gray">{{ planeLabel(editing.city_order) }}</span>
+            <span v-if="nightsLabel(editing)" class="chip chip-gray">{{ nightsLabel(editing) }}</span>
+          </template>
+          <template v-else>
+            <span class="chip chip-violet">{{ editing.group?.title || editing.group_telegram_id }}</span>
+            <template v-if="editing.group?.shape">
+              <span class="chip chip-gray">{{ cellLabel(editing.group.shape.days, editing.group.shape.tier) }}</span>
+              <span class="chip chip-gray">{{ planeLabel(editing.group.shape.order) }}</span>
+            </template>
+          </template>
         </div>
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
       <!-- ───────────── Grid of cells ───────────── -->
       <template v-else-if="!editing && tab === 'shablonlar'">
-        <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-          <p class="font-medium mb-1">Qanday ishlaydi</p>
-          <p class="text-amber-700">
-            Har bir <b>CRM paketi</b> («TAJ 13», «ANJUM 6») — o'z dasturi. Paket nomlari va qaysi guruh qaysi paketdaligi
-            CRM'dan o'zi olinadi; kunlar va shaharlarni shu yerda kiritasiz. Dasturni o'zgartirsangiz, shu paketdagi hamma guruh
-            darhol yangisini ko'radi. Bitta guruhga alohida dastur kerak bo'lsa — Guruhlar sahifasida «Guruhga moslashtirish».
-            Paketi hali dasturga ega bo'lmagan guruh pastdagi <b>paketsiz shablonni</b> (kun soni × Daraja × marshrut) ko'radi.
-          </p>
-        </div>
-
         <!-- ───── Packages from the CRM ───── -->
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 animate-fade-up">
-          <h3 class="text-base font-semibold text-gray-900">Paketlar ({{ packages.length }})</h3>
-          <span v-if="!pkgConfigured" class="text-xs text-rose-600">CRM ulanmagan — paketlar olinmaydi</span>
-          <span v-else class="text-xs text-gray-500">
-            {{ pkgSyncedAt ? `CRM bilan oxirgi sinxronlash: ${fmtDateTime(pkgSyncedAt)}` : 'CRM bilan hali sinxronlanmagan' }}
-          </span>
-          <span v-if="pkgConflicts" class="text-xs text-amber-700">· {{ pkgConflicts }} chatda ikki xil paket guruhi bor — birinchisi olinadi</span>
-          <button v-if="pkgConfigured" @click="syncPackages" :disabled="syncing"
-            class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h2 class="section-title">Paketlar ({{ packages.length }})</h2>
+          <span v-if="!pkgConfigured" class="text-xs text-rose-600">CRM ulanmagan</span>
+          <span v-else class="text-xs text-gray-500">{{ pkgSyncedAt ? `Sinxron: ${fmtDateTime(pkgSyncedAt)}` : 'Sinxronlanmagan' }}</span>
+          <span v-if="pkgConflicts" class="text-xs text-amber-700">· {{ pkgConflicts }} chatda ikki paket</span>
+          <button v-if="pkgConfigured" @click="syncPackages" :disabled="syncing" class="btn btn-secondary btn-sm ml-auto">
             <font-awesome-icon icon="rotate-right" class="w-3 h-3" :class="syncing ? 'animate-spin' : ''" />
             {{ syncing ? 'Sinxronlanmoqda...' : 'CRM bilan sinxronlash' }}
           </button>
         </div>
 
-        <div v-if="packages.length === 0" class="bg-white rounded-3xl border border-gray-200 py-10 text-center text-sm text-gray-400 animate-fade-up">
-          Paketlar ro'yxati bo'sh — «CRM bilan sinxronlash» ni bosing
-        </div>
+        <div v-if="packages.length === 0" class="card empty">Paketlar yo'q</div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          <div v-for="(pk, i) in packages" :key="'p' + pk.name"
-            class="bg-white rounded-3xl border p-4 flex flex-col gap-3 animate-fade-up"
-            :class="pk.template ? 'border-gray-200' : 'border-rose-200'"
-            :style="{ animationDelay: `${(i + 1) * 20}ms` }">
+          <div v-for="pk in packages" :key="'p' + pk.name" class="card p-4 flex flex-col gap-3"
+            :class="pk.template ? '' : 'border-rose-200'">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="text-lg font-semibold text-gray-900 leading-tight truncate">{{ pk.name }}</p>
+                <p class="text-base font-semibold text-gray-900 leading-tight truncate">{{ pk.name }}</p>
                 <p v-if="pk.template" class="text-xs text-gray-500 mt-0.5">
                   {{ cellLabel(pk.template.days, pk.template.tier) }} · {{ planeLabel(pk.template.city_order) }} · {{ nightsLabel(pk.template) }}
                 </p>
               </div>
               <div class="flex flex-col items-end gap-1 shrink-0">
-                <span class="text-[11px] px-2 py-0.5 rounded-lg" :class="pk.template ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
-                  {{ pk.template ? 'dastur bor' : 'dastur yo\'q' }}
-                </span>
-                <span v-if="!pk.in_crm" class="text-[11px] px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700" title="CRM bu nomli paketni endi ko'rsatmaydi — nomi o'zgargan yoki sotuv tugagan">CRMda yo'q</span>
+                <span class="chip" :class="pk.template ? 'chip-green' : 'chip-red'">{{ pk.template ? 'dastur bor' : 'dastur yo\'q' }}</span>
+                <span v-if="!pk.in_crm" class="chip chip-amber">CRMda yo'q</span>
               </div>
             </div>
 
@@ -133,11 +103,11 @@
                   <span v-if="pk.fallback" class="text-amber-700"> · {{ pk.fallback }} paketsiz shablonda</span>
                   <span v-if="pk.without" class="text-rose-600"> · {{ pk.without }} dastursiz</span>
                 </template>
-                <span class="text-gray-400"> · CRMda {{ pk.crm_groups }} guruh</span>
+                <span class="text-gray-400"> · CRMda {{ pk.crm_groups }}</span>
               </p>
-              <p v-if="pk.template && pk.template.items_count" class="text-[11px] mt-1" :class="pk.template.ru_missing ? 'text-amber-600' : 'text-emerald-600'">
+              <p v-if="pk.template && pk.template.items_count" class="text-xs mt-1" :class="pk.template.ru_missing ? 'text-amber-600' : 'text-emerald-600'">
                 <font-awesome-icon icon="language" class="w-3 h-3 mr-0.5" />
-                {{ pk.template.ru_missing ? `Ruscha: ${pk.template.ru_missing} ta band tarjimasiz` : 'Ruscha tarjima to\'liq' }}
+                {{ pk.template.ru_missing ? `Ruscha: ${pk.template.ru_missing} ta yo'q` : 'Ruscha to\'liq' }}
               </p>
             </div>
 
@@ -149,109 +119,96 @@
               </div>
             </div>
 
-            <div class="flex items-center gap-1 mt-auto pt-1">
+            <div class="flex flex-wrap items-center gap-1 mt-auto">
               <template v-if="pk.template">
-                <button @click="openProgram(pk.template.id)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                <button @click="openProgram(pk.template.id)" class="btn btn-secondary btn-sm">
                   <font-awesome-icon icon="pen" class="w-3 h-3" /> Ochish
                 </button>
-                <button @click="openCopy(pk.template)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                <button @click="openCopy(pk.template)" class="btn btn-ghost btn-sm">
                   <font-awesome-icon icon="copy" class="w-3 h-3" /> Nusxalash
                 </button>
               </template>
-              <button v-else @click="openCreate(undefined, pk.name)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors">
+              <button v-else @click="openCreate(undefined, pk.name)" class="btn btn-primary btn-sm">
                 <font-awesome-icon icon="plus" class="w-3 h-3" /> Dastur yaratish
               </button>
-              <button v-if="pk.groups.length" @click="openPkg = openPkg === pk.name ? null : pk.name"
-                class="flex items-center gap-1 px-2 py-1.5 rounded-2xl text-xs text-gray-500 hover:bg-gray-100 transition-colors">
+              <button v-if="pk.groups.length" @click="openPkg = openPkg === pk.name ? null : pk.name" class="btn btn-ghost btn-sm">
                 Guruhlar <font-awesome-icon icon="chevron-down" class="w-2.5 h-2.5 transition-transform" :class="openPkg === pk.name ? 'rotate-180' : ''" />
               </button>
-              <button v-if="pk.template" @click="deleteTemplate(pk.template)"
-                class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
-                <font-awesome-icon icon="trash" class="w-3 h-3" />
+              <button v-if="pk.template" @click="deleteTemplate(pk.template)" class="icon-btn icon-btn-danger ml-auto" title="O'chirish">
+                <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
 
         <!-- ───── Cell templates: the older kind, no package ───── -->
-        <div v-if="templateCells.length" class="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 animate-fade-up">
-          <h3 class="text-base font-semibold text-gray-900">Paketsiz shablonlar ({{ templateCells.length }})</h3>
-          <span class="text-xs text-gray-500">— paketi noma'lum yoki paketida dastur yo'q guruhlar ko'radi. «Paketga» — shablonni paket dasturiga aylantiradi</span>
-        </div>
+        <template v-if="templateCells.length">
+          <h2 class="section-title pt-2">Paketsiz shablonlar ({{ templateCells.length }})</h2>
 
-        <div v-if="templateCells.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          <div v-for="(c, i) in templateCells" :key="cellKey(c)"
-            class="bg-white rounded-3xl border border-gray-200 p-4 flex flex-col gap-3 animate-fade-up"
-            :style="{ animationDelay: `${(i + 1) * 30}ms` }">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="text-lg font-semibold text-gray-900 leading-tight">{{ cellLabel(c.days, c.tier) }}</p>
-                <p class="text-xs text-gray-500 mt-0.5">{{ planeLabel(c.order) }}<template v-if="c.template"> · {{ nightsLabel(c.template) }}</template></p>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div v-for="c in templateCells" :key="cellKey(c)" class="card p-4 flex flex-col gap-3">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-base font-semibold text-gray-900 leading-tight">{{ cellLabel(c.days, c.tier) }}</p>
+                  <p class="text-xs text-gray-500 mt-0.5">{{ planeLabel(c.order) }}<template v-if="c.template"> · {{ nightsLabel(c.template) }}</template></p>
+                </div>
+                <span class="chip chip-green shrink-0">shablon</span>
               </div>
-              <span class="text-[11px] px-2 py-0.5 rounded-lg shrink-0 bg-emerald-50 text-emerald-600">shablon</span>
-            </div>
 
-            <div class="text-sm">
-              <p class="font-medium text-gray-800 truncate">{{ c.template!.name }}
-                <span class="text-gray-400 font-normal">· {{ c.template!.items_count }} band</span></p>
-              <p class="text-xs text-gray-500 mt-1">
-                {{ c.groups_total }} guruh:
-                <span class="text-gray-700">{{ c.on_template }} shablonda</span> ·
-                <span class="text-gray-700">{{ c.customized }} moslashtirilgan</span>
-                <span v-if="c.without" class="text-rose-600"> · {{ c.without }} dastursiz</span>
-              </p>
-              <p v-if="c.tier_inferred" class="text-[11px] text-amber-600 mt-1">
-                {{ c.tier_inferred }} guruhda Daraja «avtomatik» — nomidan taxmin qilindi. Guruhlar sahifasida aniq tanlang.
-              </p>
-              <p v-if="c.template!.items_count" class="text-[11px] mt-1" :class="c.template!.ru_missing ? 'text-amber-600' : 'text-emerald-600'">
-                <font-awesome-icon icon="language" class="w-3 h-3 mr-0.5" />
-                {{ c.template!.ru_missing ? `Ruscha: ${c.template!.ru_missing} ta band tarjimasiz` : 'Ruscha tarjima to\'liq' }}
-              </p>
-            </div>
+              <div class="text-sm">
+                <p class="font-medium text-gray-800 truncate">{{ c.template!.name }}
+                  <span class="text-gray-400 font-normal">· {{ c.template!.items_count }} band</span></p>
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ c.groups_total }} guruh:
+                  <span class="text-gray-700">{{ c.on_template }} shablonda</span> ·
+                  <span class="text-gray-700">{{ c.customized }} moslashtirilgan</span>
+                  <span v-if="c.without" class="text-rose-600"> · {{ c.without }} dastursiz</span>
+                </p>
+                <p v-if="c.tier_inferred" class="text-xs text-amber-600 mt-1">{{ c.tier_inferred }} guruhda Daraja avtomatik</p>
+                <p v-if="c.template!.items_count" class="text-xs mt-1" :class="c.template!.ru_missing ? 'text-amber-600' : 'text-emerald-600'">
+                  <font-awesome-icon icon="language" class="w-3 h-3 mr-0.5" />
+                  {{ c.template!.ru_missing ? `Ruscha: ${c.template!.ru_missing} ta yo'q` : 'Ruscha to\'liq' }}
+                </p>
+              </div>
 
-            <div class="flex items-center gap-1 mt-auto pt-1">
-              <button @click="openProgram(c.template!.id)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
-                <font-awesome-icon icon="pen" class="w-3 h-3" /> Ochish
-              </button>
-              <button @click="openCopy(c.template!)"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
-                <font-awesome-icon icon="copy" class="w-3 h-3" /> Nusxalash
-              </button>
-              <button @click="openAttach(c.template!)" :disabled="!freePackages.length"
-                :title="freePackages.length ? '' : 'Dasturi yo\'q paket qolmagan'"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
-                <font-awesome-icon icon="tag" class="w-3 h-3" /> Paketga
-              </button>
-              <button @click="deleteTemplate(c.template!)"
-                class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
-                <font-awesome-icon icon="trash" class="w-3 h-3" />
-              </button>
+              <div class="flex flex-wrap items-center gap-1 mt-auto">
+                <button @click="openProgram(c.template!.id)" class="btn btn-secondary btn-sm">
+                  <font-awesome-icon icon="pen" class="w-3 h-3" /> Ochish
+                </button>
+                <button @click="openCopy(c.template!)" class="btn btn-ghost btn-sm">
+                  <font-awesome-icon icon="copy" class="w-3 h-3" /> Nusxalash
+                </button>
+                <button @click="openAttach(c.template!)" :disabled="!freePackages.length"
+                  :title="freePackages.length ? '' : 'Bo\'sh paket yo\'q'"
+                  class="btn btn-ghost btn-sm text-amber-700 hover:text-amber-800 hover:bg-amber-50">
+                  <font-awesome-icon icon="tag" class="w-3 h-3" /> Paketga
+                </button>
+                <button @click="deleteTemplate(c.template!)" class="icon-btn icon-btn-danger ml-auto" title="O'chirish">
+                  <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
+
         <!-- Groups whose computed shape has no template. Presented as GROUPS with the
              nights the office typed, not as cells: a «14 kun» here is a group whose
              12-night trip was entered as 13 nights, and the fix is on its card, not a
              new template. A real new shape is one click away all the same. -->
-        <div v-if="unmatchedCells.length" class="space-y-3 animate-fade-up">
+        <div v-if="unmatchedCells.length" class="space-y-3">
           <div class="flex items-center gap-2 pt-2">
             <font-awesome-icon icon="triangle-exclamation" class="w-4 h-4 text-amber-500" />
-            <h3 class="text-base font-semibold text-gray-900">Shablonsiz guruhlar ({{ unmatchedTotal }})</h3>
-            <span class="text-xs text-gray-500">— kabinetda «Dastur tayyorlanmoqda» ko'rinadi</span>
+            <h2 class="section-title">Shablonsiz guruhlar ({{ unmatchedTotal }})</h2>
           </div>
-          <div v-for="c in unmatchedCells" :key="'u' + cellKey(c)" class="bg-white rounded-3xl border border-amber-200 overflow-hidden">
+          <div v-for="c in unmatchedCells" :key="'u' + cellKey(c)" class="card overflow-hidden border-amber-200">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 bg-amber-50/60 border-b border-amber-100">
               <span class="text-sm font-semibold text-gray-900">{{ cellLabel(c.days, c.tier) }}</span>
               <span class="text-xs text-gray-500">{{ planeLabel(c.order) }} · {{ c.groups.length }} guruh</span>
               <span v-if="c.order !== 'makka_only' && !KNOWN_DAYS.includes(c.days)" class="text-xs text-amber-700">
-                Kompaniyada {{ c.days }} kunlik safar yo'q — kechalarni tekshiring (kecha = kun − 1)
+                {{ c.days }} kunlik safar yo'q — kechalarni tekshiring
               </span>
-              <button @click="openCreate(c)" class="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors">
-                <font-awesome-icon icon="plus" class="w-3 h-3" /> Shu shakl uchun shablon
+              <button @click="openCreate(c)" class="btn btn-primary btn-sm ml-auto">
+                <font-awesome-icon icon="plus" class="w-3 h-3" /> Shablon yaratish
               </button>
             </div>
             <div class="divide-y divide-gray-100">
@@ -259,346 +216,324 @@
                 <span class="font-medium text-gray-800">{{ g.title || g.telegram_id }}</span>
                 <span class="text-xs text-gray-500 tabular-nums">{{ nightsText(g.nights, c.order) }}</span>
                 <span v-if="g.trip_start_date" class="text-xs text-gray-400 tabular-nums">{{ fmtDate(g.trip_start_date) }}</span>
-                <span v-if="g.tier_inferred" class="text-[11px] px-1.5 py-0.5 rounded-lg bg-amber-100 text-amber-700">Daraja avtomatik</span>
-                <router-link to="/ai/groups" class="ml-auto text-xs text-amber-700 hover:underline">Guruhlarda tuzatish</router-link>
+                <span v-if="g.tier_inferred" class="chip chip-amber h-5">Daraja avtomatik</span>
+                <router-link to="/ai/groups" class="ml-auto text-xs font-medium text-amber-700 hover:underline">Tuzatish</router-link>
               </div>
             </div>
           </div>
         </div>
-        <p v-if="groupsWithoutMap" class="text-[11px] text-gray-400">
-          {{ groupsWithoutMap }} guruhda jo'nash sanasi bor, lekin kechalar kiritilmagan — ular hech qaysi shaklga tushmaydi.
-        </p>
+        <p v-if="groupsWithoutMap" class="text-xs text-gray-400">{{ groupsWithoutMap }} guruhda kechalar kiritilmagan</p>
       </template>
 
       <!-- ───────────── Places dictionary ───────────── -->
       <template v-else-if="!editing && tab === 'joylar'">
-        <div class="flex items-center gap-3 animate-fade-up">
-          <input v-model="placeQuery" type="text" placeholder="Qidirish..."
-            class="flex-1 bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-          <form @submit.prevent="addPlace" class="flex items-center gap-2">
-            <input v-model="newPlace.name" type="text" placeholder="Yangi joy nomi" required
-              class="w-56 bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            <select v-model="newPlace.city" class="bg-white border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none">
+        <div class="flex flex-wrap items-center gap-2">
+          <input v-model="placeQuery" type="text" placeholder="Qidirish..." class="input flex-1 min-w-[12rem]" />
+          <form @submit.prevent="addPlace" class="flex flex-wrap items-center gap-2">
+            <input v-model="newPlace.name" type="text" placeholder="Yangi joy" required class="input w-48 sm:w-56" />
+            <select v-model="newPlace.city" class="input w-auto">
               <option value="">shahar —</option>
               <option v-for="c in CITY_OPTS" :key="c.value" :value="c.value">{{ c.label }}</option>
             </select>
-            <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl">Qo'shish</button>
+            <button type="submit" class="btn btn-primary">Qo'shish</button>
           </form>
         </div>
-        <div class="bg-white rounded-3xl border border-gray-200 divide-y divide-gray-100 overflow-hidden animate-fade-up">
-          <div v-if="filteredPlaces.length === 0" class="py-12 text-center text-gray-400 text-sm">Joylar ro'yxati bo'sh</div>
-          <div v-for="p in filteredPlaces" :key="p.id" class="flex items-center gap-3 px-4 py-2.5">
+        <div class="card divide-y divide-gray-100 overflow-hidden">
+          <div v-if="filteredPlaces.length === 0" class="empty">Joylar yo'q</div>
+          <div v-for="p in filteredPlaces" :key="p.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5">
             <span class="w-1.5 h-6 rounded-full shrink-0" :class="cityDot(p.city)"></span>
             <input v-if="placeEditId === p.id" v-model="placeEditName" @keyup.enter="savePlace(p)" @keyup.esc="placeEditId = null"
-              class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            <span v-else class="flex-1 text-sm text-gray-900">{{ p.name }}</span>
+              class="input input-sm flex-1 min-w-[8rem]" />
+            <span v-else class="flex-1 min-w-[8rem] text-sm text-gray-900">{{ p.name }}</span>
             <input v-if="placeEditId === p.id" v-model="placeEditNameRu" @keyup.enter="savePlace(p)" @keyup.esc="placeEditId = null"
-              placeholder="Русское название — avtomatik"
-              class="flex-1 bg-sky-50/40 border border-sky-100 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300" />
-            <span v-else class="flex-1 text-sm" :class="p.name_ru ? 'text-sky-700' : 'text-amber-500'">{{ p.name_ru || 'ruscha yo\'q' }}</span>
-            <select v-if="placeEditId === p.id" v-model="placeEditCity" class="bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-xs">
+              placeholder="Ruscha (avto)" class="input input-sm flex-1 min-w-[8rem] bg-sky-50/40 border-sky-100" />
+            <span v-else class="flex-1 min-w-[8rem] text-sm" :class="p.name_ru ? 'text-sky-700' : 'text-amber-500'">{{ p.name_ru || 'ruscha yo\'q' }}</span>
+            <select v-if="placeEditId === p.id" v-model="placeEditCity" class="input input-sm w-auto">
               <option value="">shahar —</option>
               <option v-for="c in CITY_OPTS" :key="c.value" :value="c.value">{{ c.label }}</option>
             </select>
-            <span v-else class="text-[11px] text-gray-400 w-16">{{ cityName(p.city) || '—' }}</span>
-            <span class="text-[11px] text-gray-400 w-20 text-right">{{ p.used }} bandda</span>
-            <template v-if="placeEditId === p.id">
-              <button @click="savePlace(p)" class="px-3 py-1.5 rounded-2xl text-xs font-medium text-white bg-amber-600 hover:bg-amber-700">Saqlash</button>
-              <button @click="placeEditId = null" class="px-3 py-1.5 rounded-2xl text-xs text-gray-500 hover:bg-gray-100">Bekor</button>
-            </template>
-            <template v-else>
-              <button @click="editPlace(p)" class="px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100"><font-awesome-icon icon="pen" class="w-3 h-3" /></button>
-              <button @click="deletePlace(p)" :disabled="p.used > 0" :title="p.used ? 'Dasturda ishlatilgan' : ''"
-                class="px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent"><font-awesome-icon icon="trash" class="w-3 h-3" /></button>
-            </template>
+            <span v-else class="text-xs text-gray-400 w-16">{{ cityName(p.city) || '—' }}</span>
+            <span class="text-xs text-gray-400 w-16 text-right tabular-nums">{{ p.used }} band</span>
+            <div class="flex items-center gap-1 shrink-0">
+              <template v-if="placeEditId === p.id">
+                <button @click="savePlace(p)" class="btn btn-primary btn-sm">Saqlash</button>
+                <button @click="placeEditId = null" class="btn btn-ghost btn-sm">Bekor</button>
+              </template>
+              <template v-else>
+                <button @click="editPlace(p)" class="icon-btn" title="Tahrirlash"><font-awesome-icon icon="pen" class="w-3.5 h-3.5" /></button>
+                <button @click="deletePlace(p)" :disabled="p.used > 0" :title="p.used ? 'Dasturda ishlatilgan' : 'O\'chirish'"
+                  class="icon-btn icon-btn-danger"><font-awesome-icon icon="trash" class="w-3.5 h-3.5" /></button>
+              </template>
+            </div>
           </div>
         </div>
       </template>
 
       <!-- ───────────── Editor ───────────── -->
       <template v-else-if="editing">
-        <div v-if="editing.warnings?.includes('copy_stale')" class="bg-rose-50 border border-rose-200 rounded-3xl p-3 text-sm text-rose-700">
-          Guruhning kechalari o'chirilgan — dastur nusxa olingan paytdagi shakl bo'yicha ko'rsatilmoqda.
-        </div>
+        <p v-if="editing.warnings?.includes('copy_stale')" class="text-sm text-rose-700 bg-rose-50 rounded-xl px-3 py-2">
+          Guruh kechalari o'chirilgan — eski shakl
+        </p>
 
         <!-- Template shape: the office's own nights, editable; groups on it inherit the days. -->
-        <div v-if="editing.is_template" class="bg-white rounded-3xl border border-gray-200 p-4 animate-fade-up">
+        <div v-if="editing.is_template" class="card p-4">
           <div class="flex flex-wrap items-end gap-3">
-            <div class="min-w-[14rem] flex-1">
-              <label class="block text-[11px] text-gray-400 mb-1">Shablon nomi</label>
-              <input v-model="shapeForm.name" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <div class="min-w-[12rem] flex-1">
+              <label class="label">Nomi</label>
+              <input v-model="shapeForm.name" type="text" class="input" />
             </div>
             <div>
-              <label class="block text-[11px] text-gray-400 mb-1">Paket (CRM)</label>
-              <select v-model="shapeForm.crm_package" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <label class="label">Paket (CRM)</label>
+              <select v-model="shapeForm.crm_package" class="input w-auto">
                 <option value="">— paketsiz —</option>
                 <option v-for="n in packageChoices(editing.crm_package)" :key="n" :value="n">{{ n }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-[11px] text-gray-400 mb-1">Daraja</label>
-              <select v-model="shapeForm.tier" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <label class="label">Daraja</label>
+              <select v-model="shapeForm.tier" class="input w-auto">
                 <option value="comfort">Comfort</option>
                 <option value="premium">Premium / Lux</option>
               </select>
             </div>
             <div>
-              <label class="block text-[11px] text-gray-400 mb-1">Marshrut</label>
-              <select v-model="shapeForm.city_order" class="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <label class="label">Marshrut</label>
+              <select v-model="shapeForm.city_order" class="input w-auto">
                 <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
               </select>
             </div>
             <div v-for="leg in legsFor(shapeForm.city_order)" :key="leg.key">
-              <label class="block text-[11px] text-gray-400 mb-1">{{ leg.label }} kechasi</label>
-              <input v-model.number="shapeForm[leg.key]" type="number" min="0" class="w-20 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <label class="label">{{ leg.label }}</label>
+              <input v-model.number="shapeForm[leg.key]" type="number" min="0" class="input w-16 text-center" />
             </div>
-            <div class="text-sm text-gray-500 pb-2">= <b class="text-gray-800">{{ shapeDays }} kun</b></div>
-            <button @click="saveShape" :disabled="!shapeDirty || saving"
-              class="px-4 py-2 rounded-2xl text-sm font-medium transition-colors"
-              :class="shapeDirty ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400'">Shaklni saqlash</button>
+            <div class="text-sm text-gray-500 h-9 flex items-center">= <b class="text-gray-800 ml-1">{{ shapeDays }} kun</b></div>
+            <button @click="saveShape" :disabled="!shapeDirty || saving" class="btn btn-secondary">Shaklni saqlash</button>
           </div>
         </div>
 
-        <div v-if="!dirty && editing.days_list.every(d => d.items.length === 0)" class="bg-amber-50 border border-amber-200 rounded-3xl p-3 text-sm text-amber-800">
-          Dastur bo'sh. Har bir kunga joylarni kiriting — «+ band» ni bosing yoki oxirgi izohda Enter.
-        </div>
-
         <div class="flex items-center justify-end gap-2 text-xs text-gray-500">
-          <span>Ruscha qatorlarni ko'rsatish</span>
-          <button @click="showRu = !showRu" type="button" role="switch" :aria-checked="showRu"
-            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-            :class="showRu ? 'bg-sky-500' : 'bg-gray-300'">
-            <span class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform" :class="showRu ? 'translate-x-4' : 'translate-x-0.5'"></span>
-          </button>
+          <span>Ruscha qatorlar</span>
+          <ToggleSwitch v-model="showRu" />
         </div>
 
-        <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up">
-          <div v-for="(d, di) in editing.days_list" :key="d.day" class="flex gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-700"
+        <div class="card overflow-hidden">
+          <div v-for="(d, di) in editing.days_list" :key="d.day"
+            class="flex flex-col sm:flex-row gap-2 sm:gap-3 px-4 py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-700"
             :class="movedDay === d.day ? 'bg-amber-100/70' : d.city === 'jidda' ? 'bg-amber-50/30' : d.city === 'madina' ? 'bg-sky-50/30' : ''">
-            <div class="w-16 shrink-0 pt-1.5">
-              <p class="text-sm font-semibold text-gray-900 tabular-nums">{{ d.day }}-kun</p>
-              <p class="text-[11px] text-gray-500">{{ weekdayName(d.weekday) }}</p>
-              <p class="text-[11px] text-gray-400 tabular-nums">{{ fmtDate(d.date) }}</p>
+            <div class="sm:w-24 shrink-0 flex sm:flex-col sm:items-start items-center flex-wrap gap-x-2 gap-y-0.5 sm:pt-1">
+              <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ d.day }}-kun</span>
+              <span class="text-[11px] text-gray-500">{{ weekdayName(d.weekday) }}</span>
+              <span class="text-[11px] text-gray-400 tabular-nums">{{ fmtDate(d.date) }}</span>
+              <span class="chip h-5 text-[11px] sm:mt-1" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
               <!-- The whole day's lines change places with the neighbouring day's. The
                    number, date and city stay put: they are the trip's shape, not content. -->
-              <div class="flex gap-0.5 mt-1 -ml-1">
-                <button @click="moveDay(di, -1)" :disabled="di === 0" class="p-1 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:hover:bg-transparent" title="Kunni yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
-                <button @click="moveDay(di, 1)" :disabled="di === editing.days_list.length - 1" class="p-1 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:hover:bg-transparent" title="Kunni pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
+              <div class="flex gap-0.5 ml-auto sm:ml-0 sm:mt-1 sm:-ml-1.5">
+                <button @click="moveDay(di, -1)" :disabled="di === 0" class="icon-btn w-6 h-6" title="Kunni yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
+                <button @click="moveDay(di, 1)" :disabled="di === editing.days_list.length - 1" class="icon-btn w-6 h-6" title="Kunni pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
               </div>
             </div>
-            <div class="w-[4.5rem] shrink-0 pt-1.5">
-              <span class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) || '—' }}</span>
-            </div>
-            <div class="flex-1 min-w-0 space-y-1.5">
+            <div class="flex-1 min-w-0 space-y-2">
               <div v-for="(it, idx) in d.items" :key="idx" class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="w-5 text-right text-[11px] text-gray-300 tabular-nums shrink-0">{{ idx + 1 }}</span>
+                <div class="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] sm:grid-cols-[1.25rem_14rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1 items-center">
+                  <span class="row-start-1 col-start-1 text-right text-[11px] text-gray-300 tabular-nums">{{ idx + 1 }}</span>
                   <input v-model="it.place_name" type="text" list="program-places" placeholder="Joy" @input="dirty = true"
                     :data-item="`${d.day}-${idx}`"
-                    class="w-56 bg-gray-50 border rounded-xl px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    :class="it.place_name.trim() ? 'border-gray-200' : 'border-rose-300 ring-1 ring-rose-200'" />
-                  <input v-model="it.note" type="text" placeholder="Izoh (nima bo'ladi)" @input="dirty = true"
+                    class="input input-sm row-start-1 col-start-2 font-medium"
+                    :class="it.place_name.trim() ? '' : 'border-rose-300 ring-1 ring-rose-200'" />
+                  <input v-model="it.note" type="text" placeholder="Izoh" @input="dirty = true"
                     @keydown.enter.prevent="addItem(d, idx)"
-                    class="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  <button @click="moveItem(d, idx, -1)" :disabled="idx === 0" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-20" title="Yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
-                  <button @click="moveItem(d, idx, 1)" :disabled="idx === d.items.length - 1" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-20" title="Pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
-                  <button @click="removeItem(d, idx)" class="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="O'chirish"><font-awesome-icon icon="xmark" class="w-3 h-3" /></button>
+                    class="input input-sm row-start-2 col-start-2 sm:row-start-1 sm:col-start-3" />
+                  <div class="row-start-1 col-start-3 sm:col-start-4 flex items-center">
+                    <button @click="moveItem(d, idx, -1)" :disabled="idx === 0" class="icon-btn w-7 h-7" title="Yuqoriga"><font-awesome-icon icon="arrow-up" class="w-3 h-3" /></button>
+                    <button @click="moveItem(d, idx, 1)" :disabled="idx === d.items.length - 1" class="icon-btn w-7 h-7" title="Pastga"><font-awesome-icon icon="arrow-down" class="w-3 h-3" /></button>
+                    <button @click="removeItem(d, idx)" class="icon-btn icon-btn-danger w-7 h-7" title="O'chirish"><font-awesome-icon icon="xmark" class="w-3 h-3" /></button>
+                  </div>
                 </div>
                 <!-- The Russian line the cabinet shows a Russian reader. Empty = the model fills
                      it on save; typed = kept as typed. The place's Russian is shared by every
                      programme naming that place, the note's belongs to this line. -->
-                <div v-if="showRu" class="flex items-center gap-2 pr-[5.75rem]">
-                  <span class="w-5 text-right text-[10px] font-semibold text-sky-400 shrink-0">RU</span>
-                  <input v-model="it.place_ru" type="text" placeholder="Название места — avtomatik" @input="dirty = true"
-                    class="w-56 bg-sky-50/40 border border-sky-100 rounded-xl px-3 py-1 text-xs text-gray-700 placeholder:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300" />
-                  <input v-if="it.note.trim()" v-model="it.note_ru" type="text" placeholder="Примечание — avtomatik" @input="dirty = true"
-                    class="flex-1 min-w-0 bg-sky-50/40 border border-sky-100 rounded-xl px-3 py-1 text-xs text-gray-700 placeholder:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-300" />
+                <div v-if="showRu" class="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] sm:grid-cols-[1.25rem_14rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1 items-center">
+                  <span class="row-start-1 col-start-1 text-right text-[10px] font-semibold text-sky-400">RU</span>
+                  <input v-model="it.place_ru" type="text" placeholder="Название — avto" @input="dirty = true"
+                    class="input input-sm row-start-1 col-start-2 h-7 bg-sky-50/40 border-sky-100 text-gray-700 placeholder:text-sky-300" />
+                  <input v-if="it.note.trim()" v-model="it.note_ru" type="text" placeholder="Примечание — avto" @input="dirty = true"
+                    class="input input-sm row-start-2 col-start-2 sm:row-start-1 sm:col-start-3 h-7 bg-sky-50/40 border-sky-100 text-gray-700 placeholder:text-sky-300" />
+                  <span class="row-start-1 col-start-3 sm:col-start-4 w-[5.25rem]"></span>
                 </div>
               </div>
-              <button @click="addItem(d, d.items.length - 1)" class="text-xs text-gray-400 hover:text-amber-600 px-1 py-1">+ band</button>
+              <button @click="addItem(d, d.items.length - 1)" class="btn btn-ghost btn-sm h-7 -ml-1 text-gray-400 hover:text-amber-700">+ band</button>
             </div>
           </div>
         </div>
         <datalist id="program-places">
           <option v-for="p in places" :key="p.id" :value="p.name">{{ cityName(p.city) }}</option>
         </datalist>
-        <p class="text-[11px] text-gray-400">
-          Joyni ro'yxatdan tanlang yoki yangisini yozing — u «Joylar» lug'atiga o'zi qo'shiladi. Tartib — strelkalar bilan:
-          band yonidagisi bandni kun ichida, kun raqami ostidagisi kunning hamma bandlarini qo'shni kun bilan almashtiradi.
-          Kun sanasi va shahri Guruhlar sahifasidagi kechalardan olinadi, bu yerda o'zgarmaydi.
-        </p>
       </template>
     </div>
 
     <!-- ───────────── Create template ───────────── -->
-    <div v-if="createOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="createOpen = false">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">Yangi dastur</h3>
-        <p class="text-sm text-gray-500">Bir paket uchun bitta dastur. Mavjud dasturdan nusxa oling yoki kechalarni o'zingiz kiriting.</p>
+    <BaseModal :open="createOpen" title="Yangi dastur" @close="createOpen = false">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label">Paket (CRM)</label>
+          <select v-model="createForm.crm_package" class="input">
+            <option value="">— paketsiz —</option>
+            <option v-for="n in packageChoices()" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Nusxa manbai</label>
+          <select v-model="createForm.source_id" class="input">
+            <option :value="null">— bo'sh —</option>
+            <option v-for="t in allTemplates" :key="t.id" :value="t.id">{{ t.crm_package ? `${t.crm_package} — ${t.name}` : t.name }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <button v-for="pr in PRESETS" :key="pr.name" @click="applyPreset(pr)" type="button"
+          class="chip h-7 px-2.5 border transition-colors"
+          :class="presetActive(pr) ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">
+          {{ pr.name }}
+        </button>
+      </div>
+      <div>
+        <label class="label">Nomi</label>
+        <input v-model="createForm.name" type="text" placeholder="Shanba 13 kun comfort" class="input" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label">Daraja</label>
+          <select v-model="createForm.tier" class="input">
+            <option value="comfort">Comfort</option>
+            <option value="premium">Premium / Lux</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Marshrut</label>
+          <select v-model="createForm.city_order" class="input">
+            <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div v-for="leg in legsFor(createForm.city_order)" :key="leg.key">
+          <label class="label">{{ leg.label }} kechasi</label>
+          <input v-model.number="createForm[leg.key]" type="number" min="0" class="input text-center" />
+        </div>
+      </div>
+      <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(createDays, createForm.tier) }}</b> · {{ planeLabel(createForm.city_order) }}</p>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button @click="createOpen = false" class="btn btn-ghost">Bekor qilish</button>
+        <button @click="createTemplate" :disabled="saving" class="btn btn-primary">Yaratish</button>
+      </template>
+    </BaseModal>
+
+    <!-- ───────────── Copy ───────────── -->
+    <BaseModal :open="copyOpen" :title="`Nusxalash: ${copySource?.name || ''}`" @close="copyOpen = false">
+      <div class="seg w-full">
+        <button type="button" class="seg-btn flex-1" :class="{ 'seg-btn-on': copyForm.mode === 'group' }" @click="copyForm.mode = 'group'">Guruhga</button>
+        <button type="button" class="seg-btn flex-1" :class="{ 'seg-btn-on': copyForm.mode === 'cell' }" @click="copyForm.mode = 'cell'">Paketga / shablonga</button>
+      </div>
+      <div v-if="copyForm.mode === 'group'">
+        <label class="label">Guruh</label>
+        <select v-model="copyForm.group_telegram_id" class="input">
+          <option :value="null">— tanlang —</option>
+          <option v-for="g in groupsForCopy" :key="g.id" :value="g.id">{{ g.title || g.id }}<template v-if="g.trip_start_date"> · {{ fmtDate(g.trip_start_date) }}</template></option>
+        </select>
+      </div>
+      <template v-else>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Paket (CRM)</label>
-            <select v-model="createForm.crm_package" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-              <option value="">— paketsiz (shakl bo'yicha) —</option>
+            <label class="label">Paket (CRM)</label>
+            <select v-model="copyForm.crm_package" class="input">
+              <option value="">— paketsiz —</option>
               <option v-for="n in packageChoices()" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Nusxa manbai</label>
-            <select v-model="createForm.source_id" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-              <option :value="null">— bo'sh dastur —</option>
-              <option v-for="t in allTemplates" :key="t.id" :value="t.id">{{ t.crm_package ? `${t.crm_package} — ${t.name}` : t.name }}</option>
-            </select>
+            <label class="label">Nomi</label>
+            <input v-model="copyForm.name" type="text" class="input" />
           </div>
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          <button v-for="pr in PRESETS" :key="pr.name" @click="applyPreset(pr)" type="button"
-            class="px-2.5 py-1 rounded-xl text-xs font-medium border transition-colors"
-            :class="presetActive(pr) ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">
-            {{ pr.name }}
-          </button>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1.5">Nomi</label>
-          <input v-model="createForm.name" type="text" placeholder="Masalan: Shanba 13 kun comfort" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Daraja</label>
-            <select v-model="createForm.tier" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+            <label class="label">Daraja</label>
+            <select v-model="copyForm.tier" class="input">
               <option value="comfort">Comfort</option>
               <option value="premium">Premium / Lux</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">Marshrut</label>
-            <select v-model="createForm.city_order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+            <label class="label">Marshrut</label>
+            <select v-model="copyForm.city_order" class="input">
               <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
         </div>
         <div class="grid grid-cols-3 gap-3">
-          <div v-for="leg in legsFor(createForm.city_order)" :key="leg.key">
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">{{ leg.label }} kechasi</label>
-            <input v-model.number="createForm[leg.key]" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          <div v-for="leg in legsFor(copyForm.city_order)" :key="leg.key">
+            <label class="label">{{ leg.label }} kechasi</label>
+            <input v-model.number="copyForm[leg.key]" type="number" min="0" class="input text-center" />
           </div>
         </div>
-        <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(createDays, createForm.tier) }}</b> · {{ planeLabel(createForm.city_order) }}
-          <span v-if="createForm.source_id" class="text-gray-400"> · bandlar nusxa manbaidan ko'chadi</span></p>
-        <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
-        <div class="flex justify-end gap-2 pt-2">
-          <button @click="createOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
-          <button @click="createTemplate" :disabled="saving" class="px-4 py-2 rounded-2xl text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50">Yaratish</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ───────────── Copy ───────────── -->
-    <div v-if="copyOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="copyOpen = false">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">Nusxalash: {{ copySource?.name }}</h3>
-        <div class="flex gap-2">
-          <button @click="copyForm.mode = 'group'" class="flex-1 px-3 py-2 rounded-2xl text-sm font-medium border transition-colors"
-            :class="copyForm.mode === 'group' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">Guruhga</button>
-          <button @click="copyForm.mode = 'cell'" class="flex-1 px-3 py-2 rounded-2xl text-sm font-medium border transition-colors"
-            :class="copyForm.mode === 'cell' ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">Paketga / yangi shablonga</button>
-        </div>
-        <template v-if="copyForm.mode === 'group'">
-          <p class="text-sm text-gray-500">Guruh o'z nusxasini oladi va shablondan ajraladi. Keyin uni shu yerda tahrirlaysiz.</p>
-          <select v-model="copyForm.group_telegram_id" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-            <option :value="null">— guruhni tanlang —</option>
-            <option v-for="g in groupsForCopy" :key="g.id" :value="g.id">{{ g.title || g.id }}<template v-if="g.trip_start_date"> · {{ fmtDate(g.trip_start_date) }}</template></option>
-          </select>
-        </template>
-        <template v-else>
-          <p class="text-sm text-gray-500">Boshqa paket yoki shakl uchun dastur: bandlar kunma-kun ko'chadi, yangi shakldan ortiq kunlar tushib qoladi.</p>
-          <select v-model="copyForm.crm_package" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-            <option value="">— paketsiz (shakl bo'yicha) —</option>
-            <option v-for="n in packageChoices()" :key="n" :value="n">{{ n }}</option>
-          </select>
-          <input v-model="copyForm.name" type="text" placeholder="Yangi dastur nomi" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-          <div class="grid grid-cols-2 gap-3">
-            <select v-model="copyForm.tier" class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-              <option value="comfort">Comfort</option>
-              <option value="premium">Premium / Lux</option>
-            </select>
-            <select v-model="copyForm.city_order" class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-              <option v-for="r in ROUTES" :key="r.value" :value="r.value">{{ r.label }}</option>
-            </select>
-          </div>
-          <div class="grid grid-cols-3 gap-3">
-            <div v-for="leg in legsFor(copyForm.city_order)" :key="leg.key">
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">{{ leg.label }} kechasi</label>
-              <input v-model.number="copyForm[leg.key]" type="number" min="0" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            </div>
-          </div>
-          <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(copyDays, copyForm.tier) }}</b> · {{ planeLabel(copyForm.city_order) }}</p>
-        </template>
-        <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
-        <div class="flex justify-end gap-2 pt-2">
-          <button @click="copyOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
-          <button @click="doCopy" :disabled="saving" class="px-4 py-2 rounded-2xl text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50">Nusxalash</button>
-        </div>
-      </div>
-    </div>
+        <p class="text-sm text-gray-600">Shakl: <b>{{ cellLabel(copyDays, copyForm.tier) }}</b> · {{ planeLabel(copyForm.city_order) }}</p>
+      </template>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button @click="copyOpen = false" class="btn btn-ghost">Bekor qilish</button>
+        <button @click="doCopy" :disabled="saving" class="btn btn-primary">Nusxalash</button>
+      </template>
+    </BaseModal>
 
     <!-- ───────────── Attach a cell template to a package ───────────── -->
-    <div v-if="attachOpen && attachTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="attachOpen = false">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">Paketga biriktirish: {{ attachTarget.name }}</h3>
-        <p class="text-sm text-gray-500">Shablon tanlangan paketning dasturi bo'ladi: shu paketdagi guruhlar uni ko'radi. Kunlar va bandlar o'zgarmaydi.</p>
-        <select v-model="attachPackage" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
-          <option value="">— paketni tanlang —</option>
+    <BaseModal :open="attachOpen && !!attachTarget" :title="`Paketga biriktirish: ${attachTarget?.name || ''}`" width="sm:max-w-md" @close="attachOpen = false">
+      <div>
+        <label class="label">Paket</label>
+        <select v-model="attachPackage" class="input">
+          <option value="">— tanlang —</option>
           <option v-for="n in freePackages" :key="n" :value="n">{{ n }}</option>
         </select>
-        <p v-if="formError" class="text-sm text-rose-600">{{ formError }}</p>
-        <div class="flex justify-end gap-2 pt-2">
-          <button @click="attachOpen = false" class="px-4 py-2 rounded-2xl text-sm text-gray-500 hover:bg-gray-100">Bekor qilish</button>
-          <button @click="doAttach" :disabled="saving || !attachPackage" class="px-4 py-2 rounded-2xl text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50">Biriktirish</button>
-        </div>
       </div>
-    </div>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button @click="attachOpen = false" class="btn btn-ghost">Bekor qilish</button>
+        <button @click="doAttach" :disabled="saving || !attachPackage" class="btn btn-primary">Biriktirish</button>
+      </template>
+    </BaseModal>
 
     <!-- ───────────── Preview, as the cabinet shows it ───────────── -->
-    <div v-if="previewOpen && editing" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="previewOpen = false">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
-        <div class="sticky top-0 bg-white/95 backdrop-blur px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <p class="text-base font-semibold text-gray-900">Umra rejasi</p>
-            <p class="text-xs text-gray-500">{{ editing.is_template ? 'Shablon ko\'rinishi (sana — eng yaqin reys)' : (editing.group?.title || '') }}</p>
+    <BaseModal :open="previewOpen && !!editing" title="Umra rejasi" width="sm:max-w-md" @close="previewOpen = false">
+      <template v-if="editing">
+        <p v-if="!editing.is_template && editing.group?.title" class="text-xs text-gray-500">{{ editing.group.title }}</p>
+        <div v-for="d in editing.days_list" :key="d.day">
+          <div class="flex items-baseline gap-2 mb-1">
+            <span class="text-sm font-semibold text-gray-900">{{ d.day }}-kun</span>
+            <span class="text-xs text-gray-500">{{ weekdayName(d.weekday) }}<template v-if="d.date">, {{ fmtDate(d.date) }}</template></span>
+            <span class="ml-auto chip h-5 text-[11px]" :class="cityBand(d.city)">{{ cityName(d.city) }}</span>
           </div>
-          <button @click="previewOpen = false" class="p-2 rounded-xl text-gray-400 hover:bg-gray-100"><font-awesome-icon icon="xmark" class="w-4 h-4" /></button>
-        </div>
-        <div class="px-5 py-3 space-y-4">
-          <div v-for="d in editing.days_list" :key="d.day">
-            <div class="flex items-baseline gap-2 mb-1">
-              <span class="text-sm font-semibold text-gray-900">{{ d.day }}-kun</span>
-              <span class="text-xs text-gray-500">{{ weekdayName(d.weekday) }}<template v-if="d.date">, {{ fmtDate(d.date) }}</template></span>
-              <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-lg" :class="cityBand(d.city)">{{ cityName(d.city) }}</span>
-            </div>
-            <p v-if="d.items.length === 0" class="text-xs text-gray-300 pl-1">—</p>
-            <div v-for="(it, i) in d.items" :key="i" class="flex gap-2 pl-1 py-0.5">
-              <span class="w-4 shrink-0 text-xs text-gray-300 tabular-nums pt-0.5">{{ i + 1 }}.</span>
-              <div class="text-sm">
-                <span class="font-medium text-gray-900">{{ it.place_name }}</span><span v-if="it.note" class="text-gray-500"> · {{ it.note }}</span>
-                <!-- What a Russian reader sees: the translation, or the Uzbek line where there is none yet. -->
-                <p class="text-xs" :class="it.place_ru || it.note_ru ? 'text-sky-700' : 'text-amber-600'">
-                  {{ it.place_ru || it.place_name }}<span v-if="it.note"> · {{ it.note_ru || it.note }}</span>
-                  <span v-if="!it.place_ru || (it.note && !it.note_ru)" class="text-amber-500"> (tarjimasiz)</span>
-                </p>
-              </div>
+          <p v-if="d.items.length === 0" class="text-xs text-gray-300 pl-1">—</p>
+          <div v-for="(it, i) in d.items" :key="i" class="flex gap-2 pl-1 py-0.5">
+            <span class="w-4 shrink-0 text-xs text-gray-300 tabular-nums pt-0.5">{{ i + 1 }}.</span>
+            <div class="text-sm">
+              <span class="font-medium text-gray-900">{{ it.place_name }}</span><span v-if="it.note" class="text-gray-500"> · {{ it.note }}</span>
+              <!-- What a Russian reader sees: the translation, or the Uzbek line where there is none yet. -->
+              <p class="text-xs" :class="it.place_ru || it.note_ru ? 'text-sky-700' : 'text-amber-600'">
+                {{ it.place_ru || it.place_name }}<span v-if="it.note"> · {{ it.note_ru || it.note }}</span>
+                <span v-if="!it.place_ru || (it.note && !it.note_ru)" class="text-amber-500"> (tarjimasiz)</span>
+              </p>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </AppLayout>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -872,8 +807,8 @@ async function openForGroup(telegramId: number) {
     const { data } = await api.get(`/programs/groups/${telegramId}`)
     if (data.program_id) return openProgram(data.program_id)
     toast.error(data.warnings?.includes('no_day_map')
-      ? 'Bu guruhda kechalar kiritilmagan — avval Guruhlar sahifasida to\'ldiring'
-      : 'Bu guruh shakli uchun shablon yo\'q — avval shablon yarating')
+      ? 'Guruhda kechalar kiritilmagan'
+      : 'Bu shakl uchun shablon yo\'q')
     router.replace({ query: {} })
   } catch (e: any) { toast.error(errText(e, 'Guruh dasturi ochilmadi')) }
 }
@@ -950,7 +885,7 @@ async function saveItems() {
   if (!editing.value) return
   const p = editing.value
   const empty = p.days_list.find(d => d.items.some(it => !it.place_name.trim()))
-  if (empty) { toast.error(`${empty.day}-kunda joysiz band bor — joyni yozing yoki bandni o'chiring`); return }
+  if (empty) { toast.error(`${empty.day}-kunda joy yozilmagan`); return }
   saving.value = true
   try {
     const { data } = await api.put(`/programs/${p.id}/items`, {
@@ -969,7 +904,7 @@ async function saveItems() {
     dirty.value = false
     // The save always lands; the Russian is filled by the model in the same request
     // and can fail on its own — then the button above says how many lines are left.
-    if (data.ru_pending) toast.info('Dastur saqlandi, ruscha tarjima qilinmadi — «Ruscha tarjima» tugmasini bosing')
+    if (data.ru_pending) toast.info('Saqlandi, ruscha tarjima qilinmadi')
     else toast.success('Dastur saqlandi')
     await loadPlaces()
   } catch (e: any) {
@@ -988,7 +923,7 @@ async function translateProgram() {
   const p = editing.value
   let force = false
   if (!p.ru_missing) {
-    if (!(await confirm({ title: 'Barcha ruscha matnni qaytadan tarjima qilish?', message: 'Qo\'lda tahrirlangan ruscha qatorlar ham model tarjimasi bilan almashadi.' }))) return
+    if (!(await confirm({ title: 'Ruschani qaytadan tarjima qilish?', message: 'Qo\'lda yozilgan ruscha ham almashadi.' }))) return
     force = true
   }
   translating.value = true
@@ -1033,7 +968,7 @@ async function saveShape() {
     const { data } = await api.put(`/programs/${editing.value.id}`, { ...shapeForm })
     editing.value = toView(data)
     resetShapeForm()
-    toast.success(data.dropped_items ? `Shakl saqlandi, ${data.dropped_items} ta band tushib qoldi (kunlar kamaydi)` : 'Shakl saqlandi')
+    toast.success(data.dropped_items ? `Shakl saqlandi, ${data.dropped_items} ta band tushib qoldi` : 'Shakl saqlandi')
     loadPackages().catch(() => {})
   } catch (e: any) {
     toast.error(errText(e, 'Shakl saqlanmadi'))
@@ -1107,8 +1042,8 @@ async function createTemplate() {
 
 async function deleteTemplate(t: ProgramSummary) {
   const message = t.crm_package
-    ? `«${t.crm_package}» paketidagi guruhlar paketsiz shablonni ko'radi (bo'lmasa — dastursiz qoladi). Guruhlarning o'z nusxalari saqlanadi.`
-    : 'Bu shakldagi guruhlar dastursiz qoladi. Guruhlarning o\'z nusxalari saqlanadi.'
+    ? 'Paket guruhlari paketsiz shablonga o\'tadi.'
+    : 'Bu shakldagi guruhlar dastursiz qoladi.'
   if (!(await confirm({ title: `Dasturni o'chirish: ${t.name}`, message }))) return
   try {
     await api.delete(`/programs/${t.id}`)
@@ -1118,7 +1053,7 @@ async function deleteTemplate(t: ProgramSummary) {
 }
 
 async function revertToTemplate(telegramId: number) {
-  if (!(await confirm({ title: 'Shablonga qaytarish', message: 'Guruhning o\'z dasturi o\'chiriladi, u yana shablonni ko\'radi.', confirmText: 'Qaytarish' }))) return
+  if (!(await confirm({ title: 'Shablonga qaytarish', message: 'Guruhning o\'z dasturi o\'chiriladi.', confirmText: 'Qaytarish' }))) return
   try {
     await api.delete(`/programs/groups/${telegramId}/customize`)
     toast.success('Guruh shablonga qaytdi')

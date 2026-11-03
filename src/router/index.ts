@@ -231,7 +231,9 @@ export function ofisAllows(path: string): boolean {
   return !OFIS_DENIED.some((p) => path === p || path.startsWith(p + '/'))
 }
 
-function roleAllows(path: string, role: string | null): boolean {
+/** May this role open this path — the guard below and the sidebar both ask this one
+ *  function, so a link is shown exactly when following it would not bounce. */
+export function roleAllows(path: string, role: string | null): boolean {
   if (role === 'ofis') return ofisAllows(path)
   if (role === 'flight') return path === '/ai/reyslar'
   if (role === 'qa') return QA_PATHS.includes(path)

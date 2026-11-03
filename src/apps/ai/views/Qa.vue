@@ -1,121 +1,85 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center justify-between animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Bilimlar bazasi (QA)</h2>
-          <p class="text-sm text-gray-500 mt-1">Bot tez-tez so'raladigan savollarga shu javoblardan foydalanadi</p>
-        </div>
-        <button
-          @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Bilimlar bazasi</h1>
+        <button class="btn btn-primary" @click="openAdd">
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi savol
+          Qo'shish
         </button>
-      </div>
-
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday ishlaydi</p>
-        <p class="text-amber-700">
-          Foydalanuvchi savol berganda bot mos keladigan yozuvni topadi va undan <b>faqat ma'lumot</b>
-          sifatida foydalanadi. Javob doimo foydalanuvchining <b>o'z tilida</b> (lotin / kirill / rus)
-          yoziladi — yo'l xaritasi (roadmap) esa asosiy manba bo'lib qoladi. "Kalit so'zlar" qidiruvni
-          yaxshilash uchun (turli yozuvlarda yozsangiz, mosligi oshadi).
-        </p>
       </div>
 
       <!-- Scope filters mirror the BOT's own rule: picking a city / hotel shows the
            entries a group THERE can receive (umumiy qatorlar + shu scope'ga
            biriktirilganlari) — i.e. exactly the bot's candidate pool. -->
-      <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-2 animate-fade-up">
-        <span class="text-xs font-medium text-gray-400 mr-1">Shahar:</span>
-        <button
-          v-for="c in [{ v: '', label: 'Barchasi' }, { v: 'makka', label: 'Makka' }, { v: 'madina', label: 'Madina' }]"
-          :key="c.v"
-          @click="cityFilter = c.v"
-          class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
-          :class="cityFilter === c.v ? 'bg-teal-50 text-teal-700 border-teal-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
-        >{{ c.label }}</button>
-        <span class="text-xs font-medium text-gray-400 ml-3 mr-1">Mehmonxona:</span>
-        <select v-model="hotelFilter"
-          class="bg-white border border-gray-200 rounded-2xl px-3 py-1.5 text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500">
-          <option value="">Barchasi</option>
+      <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-2">
+        <div class="seg">
+          <button
+            v-for="c in [{ v: '', label: 'Barchasi' }, { v: 'makka', label: 'Makka' }, { v: 'madina', label: 'Madina' }]"
+            :key="c.v"
+            class="seg-btn"
+            :class="{ 'seg-btn-on': cityFilter === c.v }"
+            @click="cityFilter = c.v"
+          >{{ c.label }}</button>
+        </div>
+        <select v-model="hotelFilter" class="input w-auto max-w-[14rem]">
+          <option value="">Barcha mehmonxonalar</option>
           <option v-for="h in hotelOptions()" :key="h" :value="h">{{ h }}</option>
         </select>
+        <div class="ml-auto flex items-center gap-1">
+          <button class="btn btn-sm btn-ghost" @click="setAllOpen(true)">Yoyish</button>
+          <button class="btn btn-sm btn-ghost" @click="setAllOpen(false)">Yig'ish</button>
+        </div>
       </div>
 
-      <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-2 animate-fade-up">
-        <span class="text-xs font-medium text-gray-400 mr-1">Kategoriya:</span>
+      <div v-if="!loading && entries.length" class="flex flex-wrap items-center gap-1.5">
         <button
+          class="chip"
+          :class="categoryFilter === '' ? 'chip-amber' : 'chip-gray hover:bg-gray-200'"
           @click="categoryFilter = ''"
-          class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
-          :class="categoryFilter === '' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
-        >Barchasi ({{ scoped.length }})</button>
+        >Barchasi · {{ scoped.length }}</button>
         <button
           v-for="c in categories"
           :key="c.name"
+          class="chip"
+          :class="categoryFilter === c.name ? 'chip-amber' : 'chip-gray hover:bg-gray-200'"
           @click="categoryFilter = c.name"
-          class="px-3 py-1.5 rounded-2xl text-xs font-medium border transition-colors"
-          :class="categoryFilter === c.name ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'"
-        >{{ c.name }} ({{ c.count }})</button>
+        >{{ c.name }} · {{ c.count }}</button>
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-else-if="entries.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up" style="animation-delay: 30ms">
-        <font-awesome-icon icon="circle-question" class="w-10 h-10 text-gray-300 mb-4" />
-        <p class="text-gray-400">Hozircha savollar yo'q</p>
-      </div>
+      <div v-else-if="entries.length === 0" class="card empty">Savollar yo'q</div>
 
       <div v-else class="space-y-3">
-        <div class="flex items-center justify-end gap-1">
-          <button @click="setAllOpen(true)" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">Barchasini yoyish</button>
-          <button @click="setAllOpen(false)" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">Barchasini yig'ish</button>
-        </div>
-
-        <div
-          v-for="(group, gi) in grouped"
-          :key="group.category"
-          class="bg-white rounded-3xl border border-gray-200 overflow-hidden animate-fade-up"
-          :style="{ animationDelay: `${(gi + 1) * 30}ms` }"
-        >
-          <!-- category header (tap +/- to open/close) -->
+        <div v-for="group in grouped" :key="group.category" class="card overflow-hidden">
+          <!-- category header (tap to open/close) -->
           <button
+            class="w-full flex items-center gap-2.5 px-4 h-12 text-left hover:bg-gray-50 transition-colors"
             @click="toggleCat(group.category)"
-            class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors"
           >
-            <span
-              class="w-6 h-6 flex items-center justify-center rounded-lg border text-base font-semibold leading-none shrink-0 transition-colors"
-              :class="isCatOpen(group.category) ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-200 text-gray-400'"
-            >{{ isCatOpen(group.category) ? '−' : '+' }}</span>
-            <font-awesome-icon icon="circle-question" class="w-4 h-4 text-amber-600 shrink-0" />
-            <h3 class="text-base font-semibold text-gray-900">{{ group.category }}</h3>
-            <span class="text-xs text-gray-400">({{ group.count }})</span>
+            <font-awesome-icon :icon="isCatOpen(group.category) ? 'chevron-down' : 'chevron-right'" class="w-3 h-3 text-gray-400 shrink-0" />
+            <span class="section-title">{{ group.category }}</span>
+            <span class="chip chip-gray">{{ group.count }}</span>
           </button>
 
-          <div v-if="isCatOpen(group.category)" class="px-3 pb-3 space-y-2">
+          <div v-if="isCatOpen(group.category)" class="border-t border-gray-100 divide-y divide-gray-100">
             <template v-for="sub in group.subs" :key="sub.name || '__loose__'">
               <!-- entries sitting directly under the category (no sub-group) -->
-              <div v-if="!sub.name" class="space-y-2">
+              <template v-if="!sub.name">
                 <QaEntryCard v-for="q in sub.items" :key="q.id" :q="q" @toggle="toggleActive" @edit="openEdit" @delete="askDelete" />
-              </div>
-              <!-- a sub-category (tap +/- to open/close) -->
-              <div v-else class="rounded-2xl border border-gray-100 bg-gray-50/60 overflow-hidden">
+              </template>
+              <!-- a sub-category (tap to open/close) -->
+              <div v-else>
                 <button
+                  class="w-full flex items-center gap-2.5 pl-8 pr-4 h-10 text-left bg-gray-50/70 hover:bg-gray-100 transition-colors"
                   @click="toggleSub(group.category, sub.name)"
-                  class="w-full flex items-center gap-2.5 px-4 py-2.5 text-left hover:bg-gray-100 transition-colors"
                 >
-                  <span
-                    class="w-5 h-5 flex items-center justify-center rounded-md border text-sm font-semibold leading-none shrink-0 transition-colors"
-                    :class="isSubOpen(group.category, sub.name) ? 'border-amber-300 bg-amber-50 text-amber-600' : 'border-gray-200 bg-white text-gray-400'"
-                  >{{ isSubOpen(group.category, sub.name) ? '−' : '+' }}</span>
+                  <font-awesome-icon :icon="isSubOpen(group.category, sub.name) ? 'chevron-down' : 'chevron-right'" class="w-2.5 h-2.5 text-gray-400 shrink-0" />
                   <span class="text-sm font-medium text-gray-700">{{ sub.name }}</span>
-                  <span class="text-xs text-gray-400">({{ sub.items.length }})</span>
+                  <span class="text-xs text-gray-400">{{ sub.items.length }}</span>
                 </button>
-                <div v-if="isSubOpen(group.category, sub.name)" class="px-2 pb-2 space-y-2">
+                <div v-if="isSubOpen(group.category, sub.name)" class="divide-y divide-gray-100 border-t border-gray-100 pl-4">
                   <QaEntryCard v-for="q in sub.items" :key="q.id" :q="q" @toggle="toggleActive" @edit="openEdit" @delete="askDelete" />
                 </div>
               </div>
@@ -125,95 +89,75 @@
       </div>
     </div>
 
-    <Transition name="modal">
-      <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Savolni tahrirlash' : 'Yangi savol' }}</h3>
-          </div>
-          <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Kategoriya (ixtiyoriy)</label>
-                <input v-model="form.category" type="text" list="qa-cat-list" placeholder="Masalan: Aviatsiya"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-                <datalist id="qa-cat-list"><option v-for="c in allCategories" :key="c" :value="c" /></datalist>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Kichik bo'lim (ixtiyoriy)</label>
-                <input v-model="form.subcategory" type="text" list="qa-sub-list" placeholder="Masalan: Bilet, Bagaj"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-                <datalist id="qa-sub-list"><option v-for="s in allSubcategories" :key="s" :value="s" /></datalist>
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Mehmonxona turi (tier)</label>
-              <select v-model="form.tier"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                <option value="">Barcha mehmonxonalar</option>
-                <option value="comfort">Komfort</option>
-                <option value="premium">Premium / Lux</option>
-              </select>
-              <p class="text-[11px] text-gray-400 mt-1">Faqat shu turdagi mehmonxonadagi guruhlarga ko'rsatiladi (suv, tozalash kabi farqli javoblar uchun).</p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Mehmonxona (ixtiyoriy)</label>
-              <select v-model="form.hotel"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                <option value="">Barcha mehmonxonalar</option>
-                <option v-for="h in hotelOptions(form.hotel)" :key="h" :value="h">{{ h }}</option>
-              </select>
-              <p class="text-[11px] text-gray-400 mt-1">Faqat shu mehmonxonadagi guruhlarga ko'rsatiladi (WiFi, qavatlar, ovqat vaqtlari kabi mehmonxonaga xos javoblar uchun). Bo'sh = barcha mehmonxonalar.</p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Shahar (ixtiyoriy)</label>
-              <select v-model="form.city"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                <option value="">Barcha shaharlar</option>
-                <option value="makka">Makka</option>
-                <option value="madina">Madina</option>
-              </select>
-              <p class="text-[11px] text-gray-400 mt-1">Guruh hozir shu shaharda bo'lgandagina ko'rsatiladi (yig'ilish joyi, shahar transporti kabi butun shaharga tegishli javoblar uchun). Mehmonxona tanlangan bo'lsa, shahar odatda kerak emas.</p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Savol</label>
-              <textarea v-model="form.question" rows="2" placeholder="Masalan: Viza qancha vaqtda chiqadi?"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"></textarea>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Javob (ma'lumot)</label>
-              <textarea v-model="form.answer" rows="4" placeholder="Bot shu ma'lumotdan foydalanib, foydalanuvchi tilida javob beradi"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"></textarea>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Kalit so'zlar (vergul bilan)</label>
-              <input v-model="form.keywords" type="text" placeholder="viza, visa, виза, viza chiqadi"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Mas'ul xodim (@username)</label>
-              <input v-model="form.staff_username" type="text" placeholder="Masalan: @Sabir_S7"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-              <p class="text-[11px] text-gray-400 mt-1">Shu mavzu uchun mas'ul xodim. Bot bu savolga javob berganda aynan shu xodimni @belgilab, unga va guruh ellikboshisiga shaxsiy xabar (DM) yuboradi. Bo'sh qoldirilsa — umumiy tashkiliy guruh tanlanadi.</p>
-            </div>
-            <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
-          </div>
-          <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-            <button @click="saveModal" :disabled="!form.question.trim() || !form.answer.trim() || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
+    <BaseModal :open="modalOpen" :title="modalEditId ? 'Tahrirlash' : 'Yangi savol'" @close="closeModal">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="label">Kategoriya</label>
+          <input v-model="form.category" type="text" list="qa-cat-list" placeholder="Aviatsiya" class="input" />
+          <datalist id="qa-cat-list"><option v-for="c in allCategories" :key="c" :value="c" /></datalist>
+        </div>
+        <div>
+          <label class="label">Kichik bo'lim</label>
+          <input v-model="form.subcategory" type="text" list="qa-sub-list" placeholder="Bilet, Bagaj" class="input" />
+          <datalist id="qa-sub-list"><option v-for="s in allSubcategories" :key="s" :value="s" /></datalist>
         </div>
       </div>
-    </Transition>
-  </AppLayout>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="label">Mehmonxona turi</label>
+          <select v-model="form.tier" class="input">
+            <option value="">Barchasi</option>
+            <option value="comfort">Komfort</option>
+            <option value="premium">Premium / Lux</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Mehmonxona</label>
+          <select v-model="form.hotel" class="input">
+            <option value="">Barchasi</option>
+            <option v-for="h in hotelOptions(form.hotel)" :key="h" :value="h">{{ h }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Shahar</label>
+          <select v-model="form.city" class="input">
+            <option value="">Barchasi</option>
+            <option value="makka">Makka</option>
+            <option value="madina">Madina</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="label">Savol</label>
+        <textarea v-model="form.question" rows="2" class="input"></textarea>
+      </div>
+      <div>
+        <label class="label">Javob</label>
+        <textarea v-model="form.answer" rows="4" class="input"></textarea>
+      </div>
+      <div>
+        <label class="label">Kalit so'zlar</label>
+        <input v-model="form.keywords" type="text" placeholder="viza, visa, виза" class="input" />
+      </div>
+      <div>
+        <label class="label">Mas'ul xodim</label>
+        <input v-model="form.staff_username" type="text" placeholder="@username" class="input" />
+      </div>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button class="btn btn-ghost" @click="closeModal">Bekor qilish</button>
+        <button class="btn btn-primary" :disabled="!form.question.trim() || !form.answer.trim() || saving" @click="saveModal">
+          {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+        </button>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
 import QaEntryCard from '../components/QaEntryCard.vue'
 import api from '../../../api'
 import { useHotelsStore } from '../../../stores/hotels'
@@ -364,7 +308,7 @@ async function saveModal() {
     toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch {
-    formError.value = 'Saqlashda xatolik yuz berdi'
+    formError.value = 'Saqlanmadi'
   } finally {
     saving.value = false
   }
@@ -385,7 +329,7 @@ async function askDelete(id: number) {
     entries.value = entries.value.filter(q => q.id !== id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   }
 }
 
@@ -404,22 +348,3 @@ async function loadQa() {
 onMounted(() => { hotelsStore.fetch(); loadQa() })
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-</style>

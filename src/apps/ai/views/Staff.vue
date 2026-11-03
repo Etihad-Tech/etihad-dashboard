@@ -1,165 +1,95 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center justify-between animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Xodimlar</h2>
-          <p class="text-sm text-gray-500 mt-1">Bot ehtiyoj (so'rov) xabarlarida shu xodimlarni @mention qiladi</p>
-        </div>
-        <button
-          @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Xodimlar</h1>
+        <button class="btn btn-primary" @click="openAdd">
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi xodim
+          Qo'shish
         </button>
       </div>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday ishlaydi</p>
-        <p class="text-amber-700">
-          Bu — umumiy xodimlar ro'yxati (barcha guruhlar uchun bitta jamoa). Qaysi mavzuga qaysi xodim
-          biriktirilishini <b>Bilimlar bazasi</b> sahifasida har bir savol uchun belgilaysiz. Tashkiliy guruh
-          ikkala shaharda ham bitta jamoa (joylashuv: «Ikkala shahar»); shifokor va aeroport esa shahar bo'yicha.
-          Xodim @mention orqali xabar olishi uchun u shu Telegram guruhining a'zosi bo'lishi shart.
-        </p>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-else-if="staff.length === 0" class="card empty">Xodimlar yo'q</div>
 
-      <div v-else-if="staff.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up">
-        <font-awesome-icon icon="users" class="w-10 h-10 text-gray-300 mb-4" />
-        <p class="text-gray-400">Hozircha xodimlar yo'q</p>
-      </div>
-
-      <div v-else class="space-y-8">
-        <div v-for="(group, li) in grouped" :key="group.location" class="animate-fade-up" :style="{ animationDelay: `${(li + 1) * 30}ms` }">
-          <div class="flex items-center gap-2 mb-3">
-            <font-awesome-icon icon="location-dot" class="w-4 h-4 text-amber-600" />
-            <h3 class="text-base font-semibold text-gray-900">{{ locationLabel(group.location) }}</h3>
-            <span class="text-xs text-gray-400">({{ group.items.length }})</span>
+      <div v-else class="space-y-4">
+        <div v-for="group in grouped" :key="group.location" class="card overflow-hidden">
+          <div class="flex items-center gap-2 px-4 h-11 border-b border-gray-100">
+            <font-awesome-icon icon="location-dot" class="w-3.5 h-3.5 text-gray-400" />
+            <span class="section-title">{{ locationLabel(group.location) }}</span>
+            <span class="chip chip-gray">{{ group.items.length }}</span>
           </div>
-
-          <div class="space-y-3">
-            <div
-              v-for="s in group.items"
-              :key="s.id"
-              class="bg-white rounded-3xl border p-4 flex items-center justify-between gap-4 transition-all"
-              :class="s.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" :class="roleMeta(s.role).bg">
-                  <font-awesome-icon :icon="roleMeta(s.role).icon" class="w-4 h-4" :class="roleMeta(s.role).fg" />
-                </div>
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">
-                    {{ s.username }}
-                    <span v-if="s.name" class="text-gray-400 font-normal">· {{ s.name }}</span>
-                  </p>
-                  <p class="text-xs text-gray-500">
-                    {{ roleMeta(s.role).label }}
-                    <span v-if="s.telegram_id" class="text-gray-400">· ID {{ s.telegram_id }}</span>
-                  </p>
-                </div>
+          <div class="divide-y divide-gray-100">
+            <div v-for="s in group.items" :key="s.id" class="flex items-center gap-3 px-4 py-2.5">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0" :class="[roleMeta(s.role).bg, { 'opacity-50': !s.is_active }]">
+                <font-awesome-icon :icon="roleMeta(s.role).icon" class="w-3.5 h-3.5" :class="roleMeta(s.role).fg" />
               </div>
-              <div class="flex items-center gap-1 shrink-0">
-                <button
-                  @click="toggleActive(s)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-                  :class="s.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
-                >
-                  <font-awesome-icon :icon="s.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-                  {{ s.is_active ? 'Faol' : 'Nofaol' }}
-                </button>
-                <button
-                  @click="openEdit(s)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-                >
-                  <font-awesome-icon icon="pen" class="w-3 h-3" />
-                  Tahrirlash
-                </button>
-                <button
-                  @click="askDelete(s.id)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <font-awesome-icon icon="trash" class="w-3 h-3" />
-                  O'chirish
-                </button>
+              <div class="min-w-0 flex-1" :class="{ 'opacity-50': !s.is_active }">
+                <p class="text-sm font-medium text-gray-900 truncate">
+                  {{ s.username }}
+                  <span v-if="s.name" class="text-gray-400 font-normal">· {{ s.name }}</span>
+                </p>
+                <p class="text-xs text-gray-500 truncate">
+                  {{ roleMeta(s.role).label }}<span v-if="s.telegram_id"> · ID {{ s.telegram_id }}</span>
+                </p>
               </div>
+              <ToggleSwitch :model-value="s.is_active" :title="s.is_active ? 'Faol' : 'Nofaol'" @update:model-value="toggleActive(s)" />
+              <button class="icon-btn" title="Tahrirlash" @click="openEdit(s)">
+                <font-awesome-icon icon="pen" class="w-3.5 h-3.5" />
+              </button>
+              <button class="icon-btn icon-btn-danger" title="O'chirish" @click="askDelete(s.id)">
+                <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <Transition name="modal">
-      <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Xodimni tahrirlash' : 'Yangi xodim' }}</h3>
-          </div>
-          <div class="p-6 space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Telegram username</label>
-              <input v-model="form.username" type="text" placeholder="@username"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Ism (ixtiyoriy)</label>
-              <input v-model="form.name" type="text" placeholder="Masalan: Farhod"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Turi</label>
-                <select v-model="form.role"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                  <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">Joylashuv</label>
-                <select v-model="form.location"
-                  class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                  <option v-for="l in LOCATIONS" :key="l.value" :value="l.value">{{ l.label }}</option>
-                </select>
-              </div>
-            </div>
-            <p class="text-[11px] text-gray-400">
-              Tashkiliy guruh uchun «Ikkala shahar» tanlang (bir jamoa); shifokor/aeroport uchun aniq shaharni tanlang.
-            </p>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">
-                Telegram ID (ixtiyoriy)
-              </label>
-              <input v-model.number="form.telegram_id" type="number" placeholder="Masalan: 123456789"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-              <p class="text-[11px] text-gray-400 mt-1.5">
-                Nazorat kartochkalari shaxsiy xabar orqali boradi. ID kiritilsa, bot bu
-                xodimga username o'zgarsa ham yeta oladi. Bo'sh qoldirilsa — xodim botga
-                o'zi «/start» yozishi shart, aks holda unga murojaat bormaydi.
-              </p>
-            </div>
-            <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
-          </div>
-          <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-            <button @click="saveModal" :disabled="!form.username.trim() || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
+    <BaseModal :open="modalOpen" :title="modalEditId ? 'Tahrirlash' : 'Yangi xodim'" @close="closeModal">
+      <div>
+        <label class="label">Telegram username</label>
+        <input v-model="form.username" type="text" placeholder="@username" class="input" />
+      </div>
+      <div>
+        <label class="label">Ism</label>
+        <input v-model="form.name" type="text" class="input" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label">Turi</label>
+          <select v-model="form.role" class="input">
+            <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Joylashuv</label>
+          <select v-model="form.location" class="input">
+            <option v-for="l in LOCATIONS" :key="l.value" :value="l.value">{{ l.label }}</option>
+          </select>
         </div>
       </div>
-    </Transition>
-  </AppLayout>
+      <div>
+        <label class="label">Telegram ID</label>
+        <input v-model.number="form.telegram_id" type="number" placeholder="123456789" class="input" />
+      </div>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button class="btn btn-ghost" @click="closeModal">Bekor qilish</button>
+        <button class="btn btn-primary" :disabled="!form.username.trim() || saving" @click="saveModal">
+          {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+        </button>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -185,7 +115,7 @@ const ROLES = [
 ]
 
 const LOCATIONS = [
-  { value: 'all', label: 'Ikkala shahar (umumiy)' },
+  { value: 'all', label: 'Ikkala shahar' },
   { value: 'makka', label: 'Makka' },
   { value: 'madina', label: 'Madina' },
 ]
@@ -276,7 +206,7 @@ async function saveModal() {
     toast.success(modalEditId.value ? 'Yangilandi' : "Qo'shildi")
     closeModal()
   } catch {
-    formError.value = 'Saqlashda xatolik yuz berdi'
+    formError.value = 'Saqlanmadi'
   } finally {
     saving.value = false
   }
@@ -300,7 +230,7 @@ async function askDelete(id: number) {
     staff.value = staff.value.filter(s => s.id !== id)
     toast.success("O'chirildi")
   } catch {
-    toast.error("O'chirishda xatolik yuz berdi")
+    toast.error("O'chirilmadi")
   }
 }
 
@@ -319,22 +249,3 @@ async function loadStaff() {
 onMounted(loadStaff)
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-</style>

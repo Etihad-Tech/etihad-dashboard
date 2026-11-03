@@ -1,33 +1,25 @@
 <template>
-  <Transition name="modal">
-    <div
-      v-if="visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
-      @click.self="$emit('cancel')"
-    >
-      <div class="bg-white rounded-3xl w-full max-w-xs border border-gray-200 shadow-xl mx-4 p-6 text-center">
-        <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-          <font-awesome-icon icon="trash" class="w-5 h-5 text-red-500" />
-        </div>
-        <h3 class="font-semibold text-gray-900 mb-1">{{ title }}</h3>
-        <p class="text-sm text-gray-500 mb-5">{{ message }}</p>
-        <div class="flex justify-center gap-3">
-          <button
-            @click="$emit('cancel')"
-            class="px-5 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors"
-          >
-            Bekor qilish
-          </button>
-          <button
-            @click="$emit('confirm')"
-            class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-2xl transition-colors"
-          >
-            {{ confirmText }}
-          </button>
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="visible"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/30 backdrop-blur-[2px] p-4"
+        @mousedown.self="$emit('cancel')"
+      >
+        <div class="modal-panel bg-white rounded-2xl w-full max-w-xs shadow-xl p-6 text-center">
+          <div class="w-11 h-11 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-3">
+            <font-awesome-icon icon="trash" class="w-4 h-4 text-rose-600" />
+          </div>
+          <h3 class="font-semibold text-gray-900">{{ title }}</h3>
+          <p v-if="message" class="text-sm text-gray-500 mt-1">{{ message }}</p>
+          <div class="grid grid-cols-2 gap-2 mt-5">
+            <button class="btn btn-secondary" @click="$emit('cancel')">Bekor qilish</button>
+            <button class="btn btn-danger" @click="$emit('confirm')">{{ confirmText }}</button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -38,7 +30,7 @@ withDefaults(defineProps<{
   confirmText?: string
 }>(), {
   title: "O'chirish",
-  message: "Bu amalni ortga qaytarib bo'lmaydi",
+  message: "Ortga qaytarib bo'lmaydi",
   confirmText: "O'chirish",
 })
 
@@ -48,19 +40,18 @@ defineEmits<{ confirm: []; cancel: [] }>()
 <style scoped>
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.18s ease;
 }
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+.modal-enter-active .modal-panel,
+.modal-leave-active .modal-panel {
+  transition: transform 0.18s ease;
 }
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
 }
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  transform: translateY(12px) scale(0.98);
 }
 </style>

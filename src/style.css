@@ -3,7 +3,7 @@
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -12,7 +12,25 @@
 }
 
 .animate-fade-up {
-  animation: fade-up 0.25s ease-out both;
+  animation: fade-up 0.2s ease-out both;
+}
+
+/* BaseModal and ConfirmDialog: the backdrop fades, the panel rises a little. */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.18s ease;
+}
+.modal-enter-active .modal-panel,
+.modal-leave-active .modal-panel {
+  transition: transform 0.18s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  transform: translateY(12px) scale(0.98);
 }
 
 button,
@@ -20,4 +38,129 @@ a,
 [role="button"],
 select {
   cursor: pointer;
+}
+
+/* The dashboard's building blocks. Every screen is put together from these, so a page
+   reads as the same product as the next one and a class list says what an element IS
+   rather than repeating twenty utilities. Plain classes in the components layer: any
+   utility on the same element (w-32, px-2, …) still wins over them. The Nazorat panel
+   has its own design system (nazorat.css) that reuses five of these names, so those five
+   stop at its border. */
+@layer components {
+  .page {
+    @apply space-y-5;
+  }
+  .page-head {
+    @apply flex flex-wrap items-center gap-3 min-h-9;
+  }
+  .page-title {
+    @apply text-xl font-semibold tracking-tight text-gray-900 mr-auto;
+  }
+  .section-title {
+    @apply text-sm font-semibold text-gray-900;
+  }
+
+  .card:not(.nazorat *) {
+    @apply bg-white rounded-2xl border border-gray-200/80 shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+  }
+
+  .label {
+    @apply block text-xs font-medium text-gray-500 mb-1;
+  }
+  .input {
+    @apply w-full h-9 bg-white border border-gray-200 rounded-xl px-3 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50 disabled:bg-gray-50;
+  }
+  textarea.input {
+    @apply h-auto py-2 leading-relaxed;
+  }
+  .input-sm {
+    @apply h-8 rounded-lg px-2.5 text-xs;
+  }
+  .checkbox {
+    @apply w-4 h-4 rounded border-gray-300 text-amber-600 accent-amber-600 focus:ring-amber-500;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-sm {
+    @apply h-8 px-2.5 rounded-lg text-xs gap-1.5;
+  }
+  .btn-primary:not(.nazorat *) {
+    @apply bg-amber-600 text-white hover:bg-amber-700;
+  }
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300;
+  }
+  .btn-ghost:not(.nazorat *) {
+    @apply text-gray-500 hover:text-gray-900 hover:bg-gray-100;
+  }
+  .btn-danger {
+    @apply bg-rose-600 text-white hover:bg-rose-700;
+  }
+  .icon-btn {
+    @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-gray-400 transition-colors hover:text-gray-700 hover:bg-gray-100 disabled:opacity-40;
+  }
+  .icon-btn-danger {
+    @apply hover:text-rose-600 hover:bg-rose-50;
+  }
+
+  .chip:not(.nazorat *) {
+    @apply inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs font-medium whitespace-nowrap;
+  }
+  .chip-gray {
+    @apply bg-gray-100 text-gray-600;
+  }
+  .chip-amber {
+    @apply bg-amber-50 text-amber-700;
+  }
+  .chip-green {
+    @apply bg-emerald-50 text-emerald-700;
+  }
+  .chip-red {
+    @apply bg-rose-50 text-rose-600;
+  }
+  .chip-blue {
+    @apply bg-sky-50 text-sky-700;
+  }
+  .chip-violet {
+    @apply bg-violet-50 text-violet-700;
+  }
+
+  /* Segmented control: a row of mutually exclusive buttons (periods, tabs, filters). */
+  .seg:not(.nazorat *) {
+    @apply inline-flex items-center gap-0.5 p-0.5 rounded-xl bg-gray-100;
+  }
+  .seg-btn {
+    @apply h-8 px-3 rounded-[0.6rem] text-sm font-medium text-gray-500 transition-colors hover:text-gray-900;
+  }
+  .seg-btn-on {
+    @apply bg-white text-gray-900 shadow-[0_1px_2px_rgba(16,24,40,0.08)];
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+  .table th {
+    @apply text-left text-xs font-medium text-gray-500 px-4 py-2.5 bg-gray-50/70 border-b border-gray-100 whitespace-nowrap;
+  }
+  .table td {
+    @apply px-4 py-3 border-b border-gray-100 align-middle;
+  }
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .table tbody tr {
+    @apply transition-colors hover:bg-gray-50/60;
+  }
+
+  .spinner {
+    @apply w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin;
+  }
+  .empty {
+    @apply py-12 text-center text-sm text-gray-400;
+  }
+  .error-text {
+    @apply text-xs text-rose-600;
+  }
 }

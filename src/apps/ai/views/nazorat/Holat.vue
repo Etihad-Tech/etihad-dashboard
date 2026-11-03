@@ -114,8 +114,7 @@
          <p v-if="ungraded"
             class="mt-3 pt-3 text-[12.5px] text-[color:var(--n-faint)] leading-snug"
             style="border-top: 1px solid var(--n-line-soft)">
-            Yana {{ ungraded }} ta murojaat bu yerda baholanmaydi
-            («Xatolik» yoki yetib bormagan) — Jurnalda ko'rinadi.
+            Yana {{ ungraded }} ta murojaat baholanmaydi («Xatolik» yoki yetib bormagan)
          </p>
       </section>
 

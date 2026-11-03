@@ -31,13 +31,10 @@
             {{ current.rows }} kishi · {{ money(current.payout_total) }} so'm
          </p>
          <p v-else-if="!monthOver" class="text-[13.5px] text-[color:var(--n-muted)]">
-            Oy hali tugamagan. Yopish keyingi oyning 1-sanasidan boshlab mumkin —
-            tugamagan oyni yopish qolgan kunlar rad etadigan oylikni yozib qo'yish
-            bo'lardi.
+            Oy hali tugamagan
          </p>
          <p v-else class="text-[13.5px] text-[color:var(--n-muted)]">
-            Bu oy hali yozib qo'yilmagan. Yopilgunicha har bir raqam jonli hisobdan
-            o'qiladi va kartochka o'zgarsa o'zi ham o'zgaradi.
+            Hali yopilmagan
          </p>
 
          <!-- A re-freeze is a CORRECTION and the server refuses it without a reason, so
@@ -58,11 +55,7 @@
             </button>
          </div>
 
-         <p v-if="current" class="text-[12.5px] text-[color:var(--n-faint)]">
-            Qayta yopish hech narsani o'chirmaydi: yangi reviziya yoziladi, eskisi
-            qanday bo'lsa shundayligicha qoladi — chunki odamlarga aynan o'sha raqam
-            bo'yicha to'langan.
-         </p>
+         
       </section>
 
       <!-- THE HISTORY. Every revision of every month, newest first — with the reason,

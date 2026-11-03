@@ -1,132 +1,68 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="flex items-center justify-between animate-fade-up">
-        <div>
-          <h2 class="text-2xl font-bold text-gray-900">Qora ro'yxat</h2>
-          <p class="text-sm text-gray-500 mt-1">Bot bu foydalanuvchilarning xabarlariga umuman javob bermaydi</p>
-        </div>
-        <button
-          @click="openAdd"
-          class="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-2xl transition-colors"
-        >
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Qora ro'yxat</h1>
+        <button class="btn btn-primary" @click="openAdd">
           <font-awesome-icon icon="plus" class="w-3.5 h-3.5" />
-          Yangi yozuv
+          Qo'shish
         </button>
       </div>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-800 animate-fade-up">
-        <p class="font-medium mb-1">Qanday ishlaydi</p>
-        <p class="text-amber-700">
-          Bu ro'yxatdagi odamning guruhdagi xabariga bot <b>javob bermaydi</b> (Telegram ID yoki @username bo'yicha aniqlanadi).
-          Barcha faol <b>Xodimlar</b>, <b>Ellikboshilar</b> va har guruhning <b>rahbari</b> avtomatik ravishda shu ro'yxatga kiradi —
-          ularni bu yerga qayta kiritish shart emas. Bu sahifa qolgan boshqa odamlarni qo'shish uchun.
-          Eslatma: bot baribir kerak bo'lganda ularni teglaydi va shaxsiy xabar yuboradi — faqat <b>ularning savoliga javob bermaydi</b>.
-        </p>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-else-if="!entries.length" class="card empty">Ro'yxat bo'sh</div>
 
-      <div v-else-if="entries.length === 0" class="bg-white rounded-3xl border border-gray-200 py-20 text-center animate-fade-up">
-        <font-awesome-icon icon="user-slash" class="w-10 h-10 text-gray-300 mb-4" />
-        <p class="text-gray-400">Qora ro'yxat bo'sh</p>
-      </div>
-
-      <div v-else class="space-y-3">
-        <div
-          v-for="(e, i) in entries"
-          :key="e.id"
-          class="bg-white rounded-3xl border p-4 flex items-center justify-between gap-4 transition-all animate-fade-up"
-          :style="{ animationDelay: `${(i + 1) * 30}ms` }"
-          :class="e.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'"
-        >
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
-              <font-awesome-icon icon="user-slash" class="w-4 h-4 text-rose-600" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">
-                {{ e.name || e.username || ('ID ' + e.telegram_id) }}
-                <span v-if="e.name && e.username" class="text-gray-400 font-normal">· {{ e.username }}</span>
-              </p>
-              <p class="text-xs text-gray-500">
-                <span v-if="e.telegram_id">Telegram ID: {{ e.telegram_id }}</span>
-                <span v-if="e.telegram_id && e.username"> · </span>
-                <span v-if="e.username && !e.name">{{ e.username }}</span>
-              </p>
-            </div>
+      <div v-else class="card divide-y divide-gray-100">
+        <div v-for="e in entries" :key="e.id" class="flex items-center gap-3 px-4 py-3">
+          <div class="w-9 h-9 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0"
+            :class="{ 'opacity-50': !e.is_active }">
+            <font-awesome-icon icon="user-slash" class="w-3.5 h-3.5" />
           </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <button
-              @click="toggleActive(e)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium transition-colors"
-              :class="e.is_active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-50'"
-            >
-              <font-awesome-icon :icon="e.is_active ? 'toggle-on' : 'toggle-off'" class="w-4 h-4" />
-              {{ e.is_active ? 'Faol' : 'Nofaol' }}
-            </button>
-            <button
-              @click="openEdit(e)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-            >
-              <font-awesome-icon icon="pen" class="w-3 h-3" />
-              Tahrirlash
-            </button>
-            <button
-              @click="askDelete(e.id)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <font-awesome-icon icon="trash" class="w-3 h-3" />
-              O'chirish
-            </button>
+          <div class="min-w-0 flex-1" :class="{ 'opacity-50': !e.is_active }">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ e.name || e.username || ('ID ' + e.telegram_id) }}</p>
+            <p class="text-xs text-gray-500 truncate">{{ subline(e) }}</p>
           </div>
+          <ToggleSwitch :model-value="e.is_active" :title="e.is_active ? 'Faol' : 'Nofaol'" @update:model-value="toggleActive(e)" />
+          <button class="icon-btn" title="Tahrirlash" @click="openEdit(e)">
+            <font-awesome-icon icon="pen" class="w-3.5 h-3.5" />
+          </button>
+          <button class="icon-btn icon-btn-danger" title="O'chirish" @click="askDelete(e.id)">
+            <font-awesome-icon icon="trash" class="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>
 
-    <Transition name="modal">
-      <div v-if="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-white rounded-3xl w-full max-w-lg border border-gray-200 shadow-xl mx-4">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-900">{{ modalEditId ? 'Yozuvni tahrirlash' : 'Yangi yozuv' }}</h3>
-          </div>
-          <div class="p-6 space-y-4">
-            <p class="text-xs text-gray-400">Telegram ID yoki username dan kamida bittasini kiriting.</p>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Telegram ID (ixtiyoriy)</label>
-              <input v-model.number="form.telegram_id" type="number" placeholder="Masalan: 123456789"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Username (ixtiyoriy)</label>
-              <input v-model="form.username" type="text" placeholder="@username"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">Ism (ixtiyoriy)</label>
-              <input v-model="form.name" type="text" placeholder="Masalan: Akmal"
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" />
-            </div>
-            <p v-if="formError" class="text-sm text-red-500">{{ formError }}</p>
-          </div>
-          <div class="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-            <button @click="closeModal" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-2xl transition-colors">Bekor qilish</button>
-            <button @click="saveModal" :disabled="!canSave || saving"
-              class="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-              {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
-            </button>
-          </div>
-        </div>
+    <BaseModal :open="modalOpen" :title="modalEditId ? 'Tahrirlash' : 'Yangi yozuv'" @close="closeModal">
+      <div>
+        <label class="label">Telegram ID</label>
+        <input v-model.number="form.telegram_id" type="number" placeholder="123456789" class="input" />
       </div>
-    </Transition>
-  </AppLayout>
+      <div>
+        <label class="label">Username</label>
+        <input v-model="form.username" type="text" placeholder="@username" class="input" />
+      </div>
+      <div>
+        <label class="label">Ism</label>
+        <input v-model="form.name" type="text" class="input" />
+      </div>
+      <p v-if="formError" class="error-text">{{ formError }}</p>
+      <template #footer>
+        <button class="btn btn-ghost" @click="closeModal">Bekor qilish</button>
+        <button class="btn btn-primary" :disabled="!canSave || saving" @click="saveModal">
+          {{ saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+        </button>
+      </template>
+    </BaseModal>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
@@ -151,6 +87,11 @@ const form = ref<{ telegram_id: number | null; username: string; name: string }>
 })
 
 const canSave = computed(() => !!form.value.telegram_id || !!form.value.username.trim())
+
+function subline(e: Entry): string {
+  return [e.name && e.username ? e.username : '', e.telegram_id ? `ID ${e.telegram_id}` : '']
+    .filter(Boolean).join(' · ')
+}
 
 function openAdd() {
   modalEditId.value = null
@@ -237,22 +178,3 @@ async function load() {
 onMounted(load)
 </script>
 
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-.modal-enter-active > div,
-.modal-leave-active > div {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-.modal-enter-from > div,
-.modal-leave-to > div {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-</style>

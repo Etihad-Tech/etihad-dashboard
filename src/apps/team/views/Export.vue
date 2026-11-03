@@ -1,47 +1,42 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <h2 class="text-2xl font-bold text-gray-900 animate-fade-up">Google Sheets Export</h2>
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Eksport</h1>
+      </div>
 
-      <div class="animate-fade-up" style="animation-delay: 30ms">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Safarni tanlang</label>
-        <select
-          v-model="selectedTrip"
-          class="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-sm w-full max-w-sm"
-        >
-          <option value="">Tanlang...</option>
+      <div class="max-w-sm">
+        <label class="label">Safar</label>
+        <select v-model="selectedTrip" class="input">
+          <option value="">Tanlang</option>
           <option v-for="t in tripsStore.items" :key="t.trip_id" :value="t.trip_id">{{ t.name }}</option>
         </select>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-up" style="animation-delay: 60ms">
-        <button
-          v-for="action in exportActions"
-          :key="action.key"
-          @click="doExport(action.key)"
-          :disabled="!selectedTrip || exporting === action.key"
-          class="bg-white rounded-3xl border border-gray-200 p-5 text-left hover:border-amber-300 disabled:opacity-50 transition-all group"
-        >
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-10 h-10 rounded-2xl flex items-center justify-center" :class="action.bg">
-              <font-awesome-icon :icon="action.icon" class="w-4 h-4" :class="action.iconColor" />
-            </div>
-            <h3 class="text-sm font-semibold text-gray-900">{{ action.label }}</h3>
+      <div class="card divide-y divide-gray-100">
+        <div v-for="action in exportActions" :key="action.key" class="flex items-center gap-3 px-4 py-3">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0" :class="action.tint">
+            <font-awesome-icon :icon="action.icon" class="w-3.5 h-3.5" />
           </div>
-          <p class="text-xs text-gray-400">{{ action.desc }}</p>
-          <p v-if="exporting === action.key" class="text-xs text-amber-600 mt-2">Eksport qilinmoqda...</p>
-          <p v-if="exportSuccess === action.key" class="text-xs text-emerald-600 mt-2">Muvaffaqiyatli!</p>
-        </button>
+          <span class="text-sm font-medium text-gray-900 flex-1 min-w-0">{{ action.label }}</span>
+          <span v-if="exportSuccess === action.key" class="chip chip-green">
+            <font-awesome-icon icon="check" class="w-3 h-3" /> Tayyor
+          </span>
+          <button class="btn btn-sm btn-secondary" :disabled="!selectedTrip || exporting === action.key"
+            @click="doExport(action.key)">
+            {{ exporting === action.key ? '...' : 'Eksport' }}
+          </button>
+        </div>
       </div>
 
-      <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
+      <p v-if="error" class="error-text">{{ error }}</p>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import { useTripsStore } from '../stores/trips'
 import { teamApi as api } from '../../../api'
 
@@ -52,10 +47,10 @@ const exportSuccess = ref('')
 const error = ref('')
 
 const exportActions = [
-  { key: 'trip-stats', label: 'Safarlar statistikasi', desc: 'Safarlar haqida umumiy ma\'lumotlar', icon: 'chart-line', bg: 'bg-blue-50', iconColor: 'text-blue-500' },
-  { key: 'users', label: 'Foydalanuvchilar', desc: 'Ishtirokchilar ro\'yxati', icon: 'users', bg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  { key: 'responses', label: 'So\'rovnoma javoblari', desc: 'Poll javoblar jadvali', icon: 'chart-pie', bg: 'bg-amber-50', iconColor: 'text-amber-500' },
-  { key: 'analytics', label: 'Analytics dashboard', desc: 'To\'liq analytics hisoboti', icon: 'file-export', bg: 'bg-purple-50', iconColor: 'text-purple-500' },
+  { key: 'trip-stats', label: 'Safarlar statistikasi', icon: 'chart-line', tint: 'bg-sky-50 text-sky-600' },
+  { key: 'users', label: 'Foydalanuvchilar', icon: 'users', tint: 'bg-emerald-50 text-emerald-600' },
+  { key: 'responses', label: "So'rovnoma javoblari", icon: 'chart-pie', tint: 'bg-amber-50 text-amber-600' },
+  { key: 'analytics', label: 'Analitika', icon: 'file-export', tint: 'bg-violet-50 text-violet-600' },
 ]
 
 async function doExport(key: string) {

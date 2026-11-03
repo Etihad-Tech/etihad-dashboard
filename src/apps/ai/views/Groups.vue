@@ -1,270 +1,229 @@
 <template>
-  <AppLayout>
-    <div class="space-y-6">
-      <div class="animate-fade-up">
-        <h2 class="text-2xl font-bold text-gray-900">Guruhlar</h2>
-        <p class="text-sm text-gray-500 mt-1">
-          Har bir guruhning jo'nash sanasi va shaharlarda necha <b>kecha</b> turishini yozing.
-          Safar uzunligi, qaytish sanasi va joriy shahar shu raqamlardan hisoblanadi — reys jadvalidan emas,
-          shuning uchun bir kunda uchadigan har xil uzunlikdagi safarlar bir-biriga xalaqit bermaydi.
-        </p>
-        <p class="text-xs text-gray-500 mt-1">
-          Odatda: <b>Payshanba</b> — 9 kecha (Madina 4, keyin Makka 5), <b>Shanba</b> — 12 kecha (Makka 9, keyin Madina 3).
-          6 kunlik safar — istisno, kechalari qo'lda yoziladi. Guruh nomi paketni emas, faqat nomni bildiradi.
-        </p>
-        <p class="text-xs text-gray-400 mt-1">
-          Faqat Turon tizimida ro'yxatdan o'tgan (safarga biriktirilgan) guruhlar ko'rsatiladi — botga tasodifan
-          qo'shilgan begona guruhlar bu yerda chiqmaydi.
-        </p>
+  <AppShell>
+    <div class="page">
+      <div class="page-head">
+        <h1 class="page-title">Guruh sozlamalari</h1>
+        <span v-if="!loading" class="text-sm text-gray-500">{{ filtered.length }} ta</span>
+        <input v-model="search" type="text" placeholder="Qidirish..." class="input w-full sm:w-56" />
       </div>
 
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <div v-if="loading" class="flex justify-center py-12"><div class="spinner"></div></div>
 
-      <template v-else>
-        <div class="flex items-center gap-3 animate-fade-up">
-          <font-awesome-icon icon="location-dot" class="w-4 h-4 text-amber-600" />
-          <h3 class="text-base font-semibold text-gray-900">Guruhlar ({{ filtered.length }})</h3>
-          <input v-model="search" type="text" placeholder="Guruhni qidirish..."
-            class="ml-auto bg-white border border-gray-200 rounded-2xl px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-amber-500" />
-        </div>
+      <div v-else-if="!filtered.length" class="card empty">Guruh topilmadi</div>
 
-        <div v-if="!filtered.length" class="text-center py-10 text-sm text-gray-400">Guruh topilmadi.</div>
-
-        <div v-else class="grid gap-3">
-          <div v-for="g in filtered" :key="g.id" class="bg-white rounded-2xl border border-gray-200 p-5 animate-fade-up">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
-                <p class="text-[11px] text-gray-400">{{ g.id }}</p>
-              </div>
-              <!-- The CRM binding at a glance. Unbound = the pilgrim cabinet has no group
-                   link and no ellikboshi for these pilgrims; the block below fixes it. -->
-              <span class="shrink-0 px-2.5 py-1 rounded-xl text-[11px] font-medium border"
-                :class="g.crm_link ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'"
-                :title="g.crm_link ? `CRM: ${g.crm_link.departure_id} / ${g.crm_link.group_index}` : `Pastdagi «CRM guruhi» qatoridan bog'lang yoki chatda bot taklifini tasdiqlang`">
-                {{ g.crm_link ? `CRM · ${crmLabel(g.crm_link)}-guruh` : "CRMga bog'lanmagan" }}
-              </span>
-              <!-- Fully-silent switch (admin here; the main nazoratchi has the same
-                   toggle in the Nazorat panel). Saves IMMEDIATELY via its own
-                   endpoint — deliberately independent of the Saqlash button, so
-                   silencing a group never rides along with unrelated form edits. -->
-              <button v-if="isAdmin" @click="toggleSilent(g)" :disabled="silentSavingId === g.id"
-                class="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-medium border transition-colors"
-                :class="g.bot_silent ? 'bg-rose-50 text-rose-600 border-rose-200' : 'border-gray-200 text-gray-400 hover:text-gray-600'"
-                :title="g.bot_silent ? 'Bot bu guruhda javob yozmaydi (kartochkalar baribir boradi)' : 'Bot bu guruhda javob beradi'">
-                <font-awesome-icon :icon="g.bot_silent ? 'toggle-off' : 'toggle-on'" class="w-3.5 h-3.5" />
-                {{ g.bot_silent ? 'Bot JIM' : 'Bot faol' }}
-              </button>
-              <span v-if="!hasLocation(g)" class="text-[11px] text-rose-600 shrink-0">Kechalar kiritilmagan — bot shaharni bilmaydi</span>
-              <span v-if="savedId === g.id" class="text-emerald-600 text-xs flex items-center gap-1 shrink-0">
-                <font-awesome-icon icon="circle" class="w-2 h-2" /> Saqlandi
-              </span>
+      <div v-else class="grid gap-3">
+        <div v-for="g in filtered" :key="g.id" class="card p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <div class="min-w-0 flex-1 basis-48">
+              <p class="text-sm font-semibold text-gray-900 truncate">{{ g.title || g.id }}</p>
+              <p class="text-xs text-gray-400 font-mono">{{ g.id }}</p>
             </div>
+            <span v-if="savedId === g.id" class="chip chip-green">
+              <font-awesome-icon icon="check" class="w-3 h-3" /> Saqlandi
+            </span>
+            <span v-if="!hasLocation(g)" class="chip chip-red">Kechalar yo'q</span>
+            <!-- The CRM binding at a glance. Unbound = the pilgrim cabinet has no group
+                 link and no ellikboshi for these pilgrims; the block below fixes it. -->
+            <span class="chip" :class="g.crm_link ? 'chip-green' : 'chip-red'"
+              :title="g.crm_link ? `CRM: ${g.crm_link.departure_id} / ${g.crm_link.group_index}` : undefined">
+              {{ g.crm_link ? `CRM · ${crmLabel(g.crm_link)}` : "CRMga bog'lanmagan" }}
+            </span>
+            <!-- Fully-silent switch (admin here; the main nazoratchi has the same
+                 toggle in the Nazorat panel). Saves IMMEDIATELY via its own
+                 endpoint — deliberately independent of the Saqlash button, so
+                 silencing a group never rides along with unrelated form edits. -->
+            <button v-if="isAdmin" @click="toggleSilent(g)" :disabled="silentSavingId === g.id"
+              class="chip transition-colors" :class="g.bot_silent ? 'chip-red' : 'chip-gray hover:bg-gray-200'"
+              :title="g.bot_silent ? 'Bot javob yozmaydi' : 'Bot javob beradi'">
+              <font-awesome-icon :icon="g.bot_silent ? 'toggle-off' : 'toggle-on'" class="w-3.5 h-3.5" />
+              {{ g.bot_silent ? 'Bot jim' : 'Bot faol' }}
+            </button>
+          </div>
 
-            <!-- CRM BINDING. «This chat is CRM group 006» — the row the pilgrim cabinet's
-                 group link, invite link and ellikboshi all hang off. Two ways in, one row:
-                 the bot proposes in the chat and the ellikboshi taps, or the office types
-                 the season number here and picks the departure. Both call the same server
-                 function, so whoever binds last moves the CRM group to their chat. Acts
-                 IMMEDIATELY through its own endpoints, like the Bot JIM switch — it never
-                 rides along with Saqlash. Admin binds and unbinds; qa sees the state. -->
-            <div class="mb-4 rounded-2xl border border-gray-200 bg-gray-50/60 px-3 py-2.5 text-xs space-y-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="text-[11px] text-gray-500 font-medium">CRM guruhi</span>
-                <template v-if="g.crm_link">
-                  <span class="font-medium text-gray-800">{{ crmLabel(g.crm_link) }}-guruh</span>
-                  <span class="text-gray-400" :title="g.crm_link.departure_id">{{ crmWho(g.crm_link) }}</span>
-                  <button v-if="isAdmin" @click="unbind(g)" :disabled="bindBusyId === g.id"
-                    class="ml-auto px-2.5 py-1 rounded-xl border border-gray-200 text-gray-500 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 transition-colors">
-                    {{ bindBusyId === g.id ? '...' : 'Uzish' }}
-                  </button>
-                </template>
-                <template v-else-if="isAdmin">
-                  <input v-model="bindForm(g.id).season" type="number" min="1" max="999" placeholder="raqam, m-n 006"
-                    @keyup.enter="searchCrm(g)"
-                    class="w-32 bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  <button @click="searchCrm(g)" :disabled="bindBusyId === g.id || !bindForm(g.id).season"
-                    class="px-2.5 py-1 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors">
-                    {{ bindBusyId === g.id && !bindForm(g.id).candidates ? 'Qidirilmoqda...' : 'Qidirish' }}
-                  </button>
-                  <span v-if="bindForm(g.id).error" class="text-rose-600">{{ bindForm(g.id).error }}</span>
-                  <span v-else class="text-[11px] text-gray-400">Mavsum raqami bo'yicha — chatda bot taklifini tasdiqlash bilan bir xil</span>
-                </template>
-                <span v-else class="text-gray-400">bog'lanmagan — chatda bot taklifini tasdiqlang</span>
-              </div>
-              <div v-if="!g.crm_link && isAdmin && bindForm(g.id).candidates" class="flex flex-col gap-1">
-                <p v-if="bindForm(g.id).candidates!.length === 0" class="text-gray-500">
-                  CRMda bunday raqamli ishchi guruh yo'q. Raqamni tekshiring.
-                </p>
-                <label v-for="c in bindForm(g.id).candidates" :key="c.departure_id + ':' + c.group_index"
-                  class="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" :name="`crm-${g.id}`" :value="c" v-model="bindForm(g.id).chosen" />
-                  <span class="text-gray-800">{{ candidateLabel(c) }}</span>
-                </label>
-                <div v-if="bindForm(g.id).candidates!.length">
-                  <button @click="bind(g)" :disabled="!bindForm(g.id).chosen || bindBusyId === g.id"
-                    class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium transition-colors">
-                    {{ bindBusyId === g.id ? "Bog'lanmoqda..." : "Bog'lash" }}
-                  </button>
-                </div>
-              </div>
-              <!-- The join link the bot minted (join-request style: pilgrims ask, the CRM
-                   match or the ellikboshi approves). Only once the chat is bound. -->
-              <div v-if="g.crm_link" class="flex flex-wrap items-center gap-2">
-                <span class="text-[11px] text-gray-500 font-medium">Taklif havolasi</span>
-                <template v-if="g.invite_link">
-                  <a :href="g.invite_link" target="_blank" rel="noopener"
-                    class="font-mono text-indigo-600 hover:underline truncate max-w-[16rem]">{{ g.invite_link }}</a>
-                  <button @click="copyLink(g)"
-                    class="px-2.5 py-1 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors">
-                    Nusxalash
-                  </button>
-                </template>
-                <span v-else class="text-amber-600">yo'q — bot guruhda admin emas</span>
-                <button v-if="isAdmin" @click="remint(g)" :disabled="remintingId === g.id"
-                  class="px-2.5 py-1 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors">
-                  {{ remintingId === g.id ? 'Yaratilmoqda...' : (g.invite_link ? 'Qayta yaratish' : 'Yaratish') }}
+          <!-- CRM BINDING. «This chat is CRM group 006» — the row the pilgrim cabinet's
+               group link, invite link and ellikboshi all hang off. Two ways in, one row:
+               the bot proposes in the chat and the ellikboshi taps, or the office types
+               the season number here and picks the departure. Both call the same server
+               function, so whoever binds last moves the CRM group to their chat. Acts
+               IMMEDIATELY through its own endpoints, like the Bot JIM switch — it never
+               rides along with Saqlash. Admin binds and unbinds; qa sees the state. -->
+          <div class="mb-3 rounded-xl bg-gray-50 px-3 py-2.5 text-xs space-y-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="w-14 shrink-0 font-medium text-gray-500">CRM</span>
+              <template v-if="g.crm_link">
+                <span class="font-medium text-gray-800">{{ crmLabel(g.crm_link) }}-guruh</span>
+                <span class="text-gray-400" :title="g.crm_link.departure_id">{{ crmWho(g.crm_link) }}</span>
+                <button v-if="isAdmin" @click="unbind(g)" :disabled="bindBusyId === g.id"
+                  class="btn btn-sm btn-secondary ml-auto hover:text-rose-600">
+                  {{ bindBusyId === g.id ? '...' : 'Uzish' }}
                 </button>
-                <span v-if="remintError[g.id]" class="text-rose-600">{{ remintError[g.id] }}</span>
+              </template>
+              <template v-else-if="isAdmin">
+                <input v-model="bindForm(g.id).season" type="number" min="1" max="999" placeholder="006"
+                  @keyup.enter="searchCrm(g)" class="input input-sm w-24" />
+                <button @click="searchCrm(g)" :disabled="bindBusyId === g.id || !bindForm(g.id).season"
+                  class="btn btn-sm btn-secondary">
+                  {{ bindBusyId === g.id && !bindForm(g.id).candidates ? 'Qidirilmoqda...' : 'Qidirish' }}
+                </button>
+                <span v-if="bindForm(g.id).error" class="text-rose-600">{{ bindForm(g.id).error }}</span>
+              </template>
+              <span v-else class="text-gray-400">bog'lanmagan</span>
+            </div>
+            <div v-if="!g.crm_link && isAdmin && bindForm(g.id).candidates" class="flex flex-col gap-1.5 pl-16">
+              <p v-if="bindForm(g.id).candidates!.length === 0" class="text-gray-500">Topilmadi</p>
+              <label v-for="c in bindForm(g.id).candidates" :key="c.departure_id + ':' + c.group_index"
+                class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" :name="`crm-${g.id}`" :value="c" v-model="bindForm(g.id).chosen" class="accent-amber-600" />
+                <span class="text-gray-800">{{ candidateLabel(c) }}</span>
+              </label>
+              <div v-if="bindForm(g.id).candidates!.length">
+                <button @click="bind(g)" :disabled="!bindForm(g.id).chosen || bindBusyId === g.id"
+                  class="btn btn-sm btn-primary">
+                  {{ bindBusyId === g.id ? "Bog'lanmoqda..." : "Bog'lash" }}
+                </button>
               </div>
             </div>
-
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div class="col-span-2 sm:col-span-1">
-                <label class="block text-[11px] text-gray-400 mb-1">Jo'nash sanasi</label>
-                <input v-model="g.trip_start_date" type="date" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <p class="text-[11px] text-gray-400 mt-1">{{ startWeekday(g) }}</p>
-              </div>
-              <div class="col-span-2 sm:col-span-2">
-                <label class="block text-[11px] text-gray-400 mb-1">Marshrut</label>
-                <select v-model="g.order" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="makka_madina">{{ routeLabel(g, 'makka_madina') }}</option>
-                  <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
-                  <option value="makka_only">{{ routeLabel(g, 'makka_only') }}</option>
-                </select>
-                <p v-if="routeLooksWrong(g)" class="text-[11px] text-amber-600 mt-1">
-                  {{ routeWarning(g) }}
-                </p>
-              </div>
-              <div>
-                <label class="block text-[11px] text-gray-400 mb-1">Ellikboshi</label>
-                <!-- Picked from the «Ellikboshilar» list, not typed: a typed @username
-                     with one wrong letter reached nobody and nothing said so. -->
-                <select v-model="g.ellikboshi_username" class="w-full bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">— tanlanmagan —</option>
-                  <option v-for="u in leaderOptions(g)" :key="u" :value="u">{{ leaderLabel(u) }}</option>
-                </select>
-                <!-- This box sets ONE leader for the whole trip. A group split between
-                     cities says so rather than pretending the box describes it: leaving
-                     it silent would let somebody flatten a split by saving an unrelated
-                     field on this card. (Saving it UNCHANGED never does — the server
-                     only propagates a value that actually changed.) -->
-                <p v-if="isSplit(g)" class="text-[11px] text-amber-600 mt-1 leading-snug">
-                  Shaharlar bo'yicha ajratilgan: Makka {{ g.ellikboshi_makka || '—' }},
-                  Madina {{ g.ellikboshi_madina || '—' }}. Bu yerga yozilsa, ikkalasi ham
-                  o'zgaradi — «Ellikboshilar» bo'limidan tahrirlang.
-                </p>
-              </div>
+            <!-- The join link the bot minted (join-request style: pilgrims ask, the CRM
+                 match or the ellikboshi approves). Only once the chat is bound. -->
+            <div v-if="g.crm_link" class="flex flex-wrap items-center gap-2">
+              <span class="w-14 shrink-0 font-medium text-gray-500">Havola</span>
+              <template v-if="g.invite_link">
+                <a :href="g.invite_link" target="_blank" rel="noopener"
+                  class="font-mono text-sky-700 hover:underline truncate max-w-[16rem]">{{ g.invite_link }}</a>
+                <button @click="copyLink(g)" class="icon-btn w-7 h-7" title="Nusxalash">
+                  <font-awesome-icon icon="copy" class="w-3.5 h-3.5" />
+                </button>
+              </template>
+              <span v-else class="text-amber-700">yo'q · bot admin emas</span>
+              <button v-if="isAdmin" @click="remint(g)" :disabled="remintingId === g.id" class="btn btn-sm btn-secondary">
+                {{ remintingId === g.id ? 'Yaratilmoqda...' : (g.invite_link ? 'Yangilash' : 'Yaratish') }}
+              </button>
+              <span v-if="remintError[g.id]" class="text-rose-600">{{ remintError[g.id] }}</span>
             </div>
+          </div>
 
-            <!-- One row per leg, in travel order: nights and hotel belong to the same
-                 stay, so they are read and fixed together, and each leg shows the trip
-                 days it works out to. -->
-            <div class="mt-3 rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-              <div v-for="leg in legs(g)" :key="leg.city"
-                class="flex items-center gap-3 px-3 py-2.5" :class="leg.nights ? 'bg-white' : 'bg-gray-50/60'">
-                <span class="w-1.5 h-6 rounded-full shrink-0" :class="leg.dot"></span>
-                <span class="w-14 text-sm font-medium text-gray-700 shrink-0">{{ leg.label }}</span>
-                <input v-model="g[leg.nightsKey]" type="number" min="0" placeholder="—"
-                  class="w-16 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                <span class="text-[11px] text-gray-400 shrink-0 hidden sm:inline">kecha</span>
-                <select v-model="g[leg.hotelKey]" @change="leg.city === 'makka' && applyHotelTier(g)"
-                  class="flex-1 min-w-0 bg-gray-50 border rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  :class="leg.nights && !g[leg.hotelKey] ? 'border-rose-300 ring-1 ring-rose-200' : 'border-gray-200'">
-                  <option value="">— mehmonxona —</option>
-                  <option v-for="h in hotelOptions(leg.city, g[leg.hotelKey])" :key="h" :value="h">{{ h }}</option>
-                </select>
-                <span class="w-20 text-right text-[11px] shrink-0"
-                  :class="leg.nights ? 'text-gray-500' : 'text-gray-300'">{{ leg.days }}</span>
-              </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="col-span-2 sm:col-span-1">
+              <label class="label">
+                Jo'nash sanasi
+                <span v-if="startWeekday(g)" class="font-normal text-gray-400">· {{ startWeekday(g) }}</span>
+              </label>
+              <input v-model="g.trip_start_date" type="date" class="input" />
             </div>
-
-            <!-- FORUM TOPIC. A group with a lot of traffic is split into topics: one
-                 where the bot answers, one where only announcements are posted. Fill
-                 this in and the bot works ONLY in that topic; leave it empty and
-                 nothing changes — it answers wherever it is spoken to, as today. -->
-            <div class="mt-3 flex flex-wrap items-center gap-2">
-              <label class="text-[11px] text-gray-500 font-medium">Bot ishlaydigan mavzu</label>
-              <input v-model="g.bot_topic_id" type="number" min="0" placeholder="—"
-                class="w-20 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              <p class="text-[11px] text-gray-400 leading-snug flex-1 min-w-[16rem]">
-                Guruh mavzularga (topics) bo'lingan bo'lsa, bot <b>faqat shu mavzuda</b> javob beradi —
-                e'lonlar mavzusiga umuman aralashmaydi. Bo'sh qoldirilsa, hozirgidek hamma joyda ishlaydi.
-                Raqamni mavzudagi istalgan xabar havolasidan oling: t.me/c/1234567890/<b>2</b>/15 — bu yerda <b>2</b>.
+            <div class="col-span-2 sm:col-span-2">
+              <label class="label">Marshrut</label>
+              <select v-model="g.order" class="input">
+                <option value="makka_madina">{{ routeLabel(g, 'makka_madina') }}</option>
+                <option value="madina_makka">{{ routeLabel(g, 'madina_makka') }}</option>
+                <option value="makka_only">{{ routeLabel(g, 'makka_only') }}</option>
+              </select>
+              <p v-if="routeLooksWrong(g)" class="text-xs text-amber-700 mt-1">{{ routeWarning(g) }}</p>
+            </div>
+            <div class="col-span-2 sm:col-span-1">
+              <label class="label">Ellikboshi</label>
+              <!-- Picked from the «Ellikboshilar» list, not typed: a typed @username
+                   with one wrong letter reached nobody and nothing said so. -->
+              <select v-model="g.ellikboshi_username" class="input">
+                <option value="">—</option>
+                <option v-for="u in leaderOptions(g)" :key="u" :value="u">{{ leaderLabel(u) }}</option>
+              </select>
+              <!-- This box sets ONE leader for the whole trip. A group split between
+                   cities says so rather than pretending the box describes it: leaving
+                   it silent would let somebody flatten a split by saving an unrelated
+                   field on this card. (Saving it UNCHANGED never does — the server
+                   only propagates a value that actually changed.) -->
+              <p v-if="isSplit(g)" class="text-xs text-amber-700 mt-1 truncate"
+                title="Bu yerda o'zgartirilsa, ikkala shahar ham o'zgaradi">
+                Makka {{ g.ellikboshi_makka || '—' }} · Madina {{ g.ellikboshi_madina || '—' }}
               </p>
             </div>
+          </div>
 
-            <!-- UMRA DASTURI. Which day-by-day programme this group shows: its own copy,
-                 its CRM package's programme, or the cell template (days x Daraja) when the
-                 package has none, or nothing. The package comes from the CRM; the nights
-                 and Daraja on THIS card still draw the days. -->
-            <div v-if="isAdmin && programs[String(g.id)]" class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-              <font-awesome-icon icon="route" class="w-3 h-3 text-gray-400" />
-              <span class="text-gray-400">Umra dasturi:</span>
-              <span v-if="programs[String(g.id)].package" class="px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600" title="CRM paketi">{{ programs[String(g.id)].package }}</span>
-              <template v-if="programs[String(g.id)].source === 'none'">
-                <span class="text-rose-600">{{ programNone(programs[String(g.id)]) }}</span>
-              </template>
-              <template v-else>
-                <span class="font-medium text-gray-700">{{ programs[String(g.id)].program_name }}</span>
-                <span class="px-1.5 py-0.5 rounded-lg"
-                  :class="programs[String(g.id)].source === 'group' ? 'bg-violet-50 text-violet-600' : 'bg-emerald-50 text-emerald-600'">
-                  {{ programs[String(g.id)].source === 'group' ? 'moslashtirilgan' : 'shablon' }}
-                </span>
-                <span v-if="programs[String(g.id)].warnings.includes('map_mismatch')" class="text-amber-600">kechalar shablondan farq qiladi</span>
-                <span v-if="programs[String(g.id)].warnings.includes('package_no_template')" class="text-amber-600">paketining dasturi yo'q — paketsiz shablon</span>
-                <span v-if="programs[String(g.id)].warnings.includes('tier_inferred')" class="text-amber-600">Daraja avtomatik</span>
-                <router-link :to="{ path: '/ai/umra-dasturi', query: { group: String(g.id) } }" class="text-amber-700 hover:underline">Ochish</router-link>
-                <button v-if="programs[String(g.id)].source === 'template'" @click="customizeProgram(g)" :disabled="programSavingId === g.id"
-                  class="text-gray-500 hover:text-gray-900 disabled:opacity-50">Guruhga moslashtirish</button>
-                <button v-else @click="revertProgram(g)" :disabled="programSavingId === g.id"
-                  class="text-gray-500 hover:text-rose-600 disabled:opacity-50">Shablonga qaytarish</button>
-              </template>
+          <!-- One row per leg, in travel order: nights and hotel belong to the same
+               stay, so they are read and fixed together, and each leg shows the trip
+               days it works out to. -->
+          <div class="mt-3 rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+            <div v-for="leg in legs(g)" :key="leg.city"
+              class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 px-3 py-2" :class="leg.nights ? 'bg-white' : 'bg-gray-50/60'">
+              <span class="w-1.5 h-6 rounded-full shrink-0" :class="leg.dot"></span>
+              <span class="w-14 text-sm font-medium text-gray-700 shrink-0">{{ leg.label }}</span>
+              <input v-model="g[leg.nightsKey]" type="number" min="0" placeholder="—" title="Kecha"
+                class="input input-sm w-14 text-center" />
+              <span class="text-xs text-gray-400 shrink-0">kecha</span>
+              <!-- On a phone the hotel takes its own line under the nights. -->
+              <select v-model="g[leg.hotelKey]" @change="leg.city === 'makka' && applyHotelTier(g)"
+                class="input input-sm order-last sm:order-none basis-full sm:basis-auto sm:flex-1 min-w-0"
+                :class="leg.nights && !g[leg.hotelKey] ? 'border-rose-300 ring-1 ring-rose-200' : ''">
+                <option value="">— mehmonxona —</option>
+                <option v-for="h in hotelOptions(leg.city, g[leg.hotelKey])" :key="h" :value="h">{{ h }}</option>
+              </select>
+              <span class="ml-auto sm:ml-0 sm:w-20 text-right text-xs shrink-0 tabular-nums"
+                :class="leg.nights ? 'text-gray-500' : 'text-gray-300'">{{ leg.days }}</span>
             </div>
+          </div>
 
-            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-              <span class="font-medium text-gray-700">{{ summary(g) }}</span>
-              <span class="text-gray-400">Daraja:</span>
-              <select v-model="g.hotel_tier" class="bg-transparent text-gray-600 border-0 p-0 text-[11px] focus:outline-none cursor-pointer">
+          <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+            <span class="font-medium text-gray-700">{{ summary(g) }}</span>
+            <label class="flex items-center gap-1.5 text-gray-500">
+              Daraja
+              <select v-model="g.hotel_tier" class="input input-sm w-auto">
                 <option value="">avtomatik</option>
                 <option value="comfort">comfort</option>
                 <option value="premium">premium</option>
               </select>
-            </div>
+            </label>
+            <!-- FORUM TOPIC. A group with a lot of traffic is split into topics: one
+                 where the bot answers, one where only announcements are posted. Fill
+                 this in and the bot works ONLY in that topic; leave it empty and
+                 nothing changes — it answers wherever it is spoken to, as today. -->
+            <label class="flex items-center gap-1.5 text-gray-500" title="t.me/c/…/2/15 → 2">
+              Bot mavzusi
+              <input v-model="g.bot_topic_id" type="number" min="0" placeholder="—"
+                class="input input-sm w-16 text-center" />
+            </label>
+          </div>
 
-            <div class="flex items-center justify-end gap-3 mt-4">
-              <p v-if="errorId === g.id" class="text-xs text-rose-600 mr-auto">{{ errorMsg }}</p>
-              <button @click="save(g)" :disabled="savingId === g.id"
-                class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded-2xl transition-colors">
-                {{ savingId === g.id ? 'Saqlanmoqda...' : 'Saqlash' }}
-              </button>
-            </div>
+          <!-- UMRA DASTURI. Which day-by-day programme this group shows: its own copy,
+               its CRM package's programme, or the cell template (days x Daraja) when the
+               package has none, or nothing. The package comes from the CRM; the nights
+               and Daraja on THIS card still draw the days. -->
+          <div v-if="isAdmin && programs[String(g.id)]" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <font-awesome-icon icon="route" class="w-3 h-3 text-gray-400" />
+            <span v-if="programs[String(g.id)].package" class="chip chip-gray h-5" title="CRM paketi">{{ programs[String(g.id)].package }}</span>
+            <template v-if="programs[String(g.id)].source === 'none'">
+              <span class="text-rose-600">{{ programNone(programs[String(g.id)]) }}</span>
+            </template>
+            <template v-else>
+              <span class="font-medium text-gray-700">{{ programs[String(g.id)].program_name }}</span>
+              <span class="chip h-5" :class="programs[String(g.id)].source === 'group' ? 'chip-violet' : 'chip-green'">
+                {{ programs[String(g.id)].source === 'group' ? 'moslashtirilgan' : 'shablon' }}
+              </span>
+              <span v-if="programs[String(g.id)].warnings.includes('map_mismatch')" class="text-amber-700">kechalar farq qiladi</span>
+              <span v-if="programs[String(g.id)].warnings.includes('package_no_template')" class="text-amber-700">paket dasturi yo'q</span>
+              <span v-if="programs[String(g.id)].warnings.includes('tier_inferred')" class="text-amber-700">Daraja avtomatik</span>
+              <router-link :to="{ path: '/ai/umra-dasturi', query: { group: String(g.id) } }" class="text-amber-700 font-medium hover:underline">Ochish</router-link>
+              <button v-if="programs[String(g.id)].source === 'template'" @click="customizeProgram(g)" :disabled="programSavingId === g.id"
+                class="text-gray-500 hover:text-gray-900 disabled:opacity-50">Moslashtirish</button>
+              <button v-else @click="revertProgram(g)" :disabled="programSavingId === g.id"
+                class="text-gray-500 hover:text-rose-600 disabled:opacity-50">Shablonga qaytarish</button>
+            </template>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 mt-3">
+            <p v-if="errorId === g.id" class="error-text mr-auto">{{ errorMsg }}</p>
+            <button @click="save(g)" :disabled="savingId === g.id" class="btn btn-primary">
+              {{ savingId === g.id ? 'Saqlanmoqda...' : 'Saqlash' }}
+            </button>
           </div>
         </div>
-        <p class="text-[11px] text-gray-400">
-          Shahar kechasi yo'q bo'lsa <b>0</b> yozing. Har bir kartochkada chiqadigan <b>qaytish sanasi</b> —
-          kechalar to'g'ri kiritilganini tekshirishning eng oson yo'li: uni jadvaldagi qaytish sanasi bilan solishtiring.
-        </p>
-      </template>
+      </div>
     </div>
-  </AppLayout>
+  </AppShell>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import AppLayout from '../components/AppLayout.vue'
+import AppShell from '../../../components/AppShell.vue'
 import api, { teamApi } from '../../../api'
 import { useAuthStore } from '../../../stores/auth'
 import { useHotelsStore } from '../../../stores/hotels'
@@ -375,14 +334,14 @@ async function customizeProgram(g: Grp) {
   programSavingId.value = g.id
   try {
     await api.post(`/programs/groups/${g.id}/customize`)
-    toast.success("Guruh o'z nusxasini oldi — Umra dasturi sahifasida tahrirlang")
+    toast.success('Moslashtirildi')
     await loadPrograms()
   } catch (e: any) {
     toast.error(e?.response?.data?.detail || 'Moslashtirilmadi')
   } finally { programSavingId.value = null }
 }
 async function revertProgram(g: Grp) {
-  if (!(await confirm({ title: 'Shablonga qaytarish', message: "Guruhning o'z dasturi o'chiriladi, u yana shablonni ko'radi.", confirmText: 'Qaytarish' }))) return
+  if (!(await confirm({ title: 'Shablonga qaytarish', message: "Guruh nusxasi o'chiriladi.", confirmText: 'Qaytarish' }))) return
   programSavingId.value = g.id
   try {
     await api.delete(`/programs/groups/${g.id}/customize`)
@@ -398,11 +357,9 @@ async function toggleSilent(g: Grp) {
   try {
     const { data } = await api.put(`/groups/${g.id}/bot-silent`, { silent: !g.bot_silent })
     g.bot_silent = !!data.bot_silent
-    toast.success(g.bot_silent
-      ? 'Bot bu guruhda JIM — kartochkalar va DMlar baribir boradi'
-      : 'Bot bu guruhda yana javob beradi')
+    toast.success(g.bot_silent ? 'Bot jim' : 'Bot faol')
   } catch {
-    toast.error('Saqlashda xatolik yuz berdi')
+    toast.error('Saqlanmadi')
   } finally {
     silentSavingId.value = null
   }
@@ -599,15 +556,15 @@ function routeLooksWrong(g: Grp): boolean {
 
 function routeWarning(g: Grp): string {
   return routeForWeekday(g.trip_start_date) === 'makka_madina'
-    ? "Shanba reysi Jiddaga qo'nadi — avval Makka bo'lishi kerak. Marshrut yoki sanani tekshiring."
-    : "Payshanba reysi Madinaga qo'nadi — avval Madina bo'lishi kerak. Marshrut yoki sanani tekshiring."
+    ? "Shanba reysi: avval Makka bo'lishi kerak"
+    : "Payshanba reysi: avval Madina bo'lishi kerak"
 }
 
 /** Departure weekday, spelled out — a date typed into the wrong week is otherwise
  *  invisible, and the weekday is what picks the flight. */
 function startWeekday(g: Grp): string {
   const d = parseStart(g.trip_start_date)
-  return d ? WEEKDAYS[d.getDay()] : 'Sana kiritilmagan'
+  return d ? WEEKDAYS[d.getDay()] : ''
 }
 
 function totalNights(g: Grp): number {
@@ -791,7 +748,7 @@ async function save(g: Grp) {
     setTimeout(() => { if (savedId.value === g.id) savedId.value = null }, 2500)
   } catch (e: any) {
     errorId.value = g.id
-    errorMsg.value = e?.response?.data?.detail || 'Saqlashda xatolik'
+    errorMsg.value = e?.response?.data?.detail || 'Saqlanmadi'
   } finally {
     savingId.value = null
   }
@@ -843,7 +800,7 @@ async function searchCrm(g: Grp) {
   const form = bindForm(g.id)
   const season = Number(form.season)
   if (!Number.isInteger(season) || season < 1 || season > 999) {
-    form.error = "Raqam 1 dan 999 gacha bo'lishi kerak"
+    form.error = '1–999'
     return
   }
   bindBusyId.value = g.id
@@ -858,7 +815,7 @@ async function searchCrm(g: Grp) {
   } catch (e: any) {
     // 503 is the CRM not answering, which is a different message from «no such group».
     form.error = e?.response?.status === 503
-      ? "CRM javob bermadi, keyinroq urinib ko'ring"
+      ? 'CRM javob bermadi'
       : (e?.response?.data?.detail || "Qidirib bo'lmadi")
   } finally {
     bindBusyId.value = null
@@ -894,8 +851,7 @@ async function unbind(g: Grp) {
   if (!g.crm_link) return
   const ok = await confirm({
     title: "CRM bog'lanishini uzish",
-    message: `${g.title || g.id} — ${crmLabel(g.crm_link)}-guruhdan uziladi, taklif havolasi bekor qilinadi. `
-      + "Kabinet bu guruhni ko'rmay qoladi.",
+    message: 'Taklif havolasi bekor qilinadi.',
     confirmText: 'Uzish',
   })
   if (!ok) return
@@ -920,7 +876,7 @@ async function copyLink(g: Grp) {
     toast.success('Havola nusxalandi')
   } catch {
     // Clipboard blocked (http, or no permission) — the link is still on screen to select.
-    toast.error("Nusxalab bo'lmadi — havolani qo'lda belgilang")
+    toast.error('Nusxalanmadi')
   }
 }
 
@@ -931,7 +887,7 @@ async function remint(g: Grp) {
     const { data } = await api.post(`/groups/${g.id}/invite-link`)
     g.invite_link = data.invite_link ?? g.invite_link
     if (data.error) remintError.value[g.id] = `Yaratilmadi: ${data.error}`
-    else toast.success('Yangi taklif havolasi yaratildi')
+    else toast.success('Havola yangilandi')
   } catch (e: any) {
     remintError.value[g.id] = e?.response?.data?.detail || 'Yaratilmadi'
   } finally {
