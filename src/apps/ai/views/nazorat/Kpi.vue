@@ -27,11 +27,8 @@
             {{ isCrew ? monthName(m.period) : m.label }}
          </button>
       </div>
-      <p class="px-1 text-[12.5px] text-[color:var(--n-muted)]" v-bind="isCrew ? crewDir() : {}">
-         <template v-if="isCrew">{{ tr('month_note', { m: monthName(s.kpiMonth) }) }}</template>
-         <template v-else>
-            {{ monthLabel(s.kpiMonth) }} — to'liq oy
-         </template>
+      <p v-if="isCrew" class="px-1 text-[12.5px] text-[color:var(--n-muted)]" v-bind="crewDir()">
+         {{ tr('month_note', { m: monthName(s.kpiMonth) }) }}
       </p>
 
       <!-- TASHKILIY GURUH — their own scheme since 26.09.2026 (60% doimiy + 40% KPI × Q × V,
@@ -56,12 +53,7 @@
            else lives behind the tap. Single-open accordion: comparing two people is
            what the collapsed list is for. -->
       <section v-else class="card p-5 n-enter">
-         <div class="flex items-baseline gap-2.5">
-            <h3 class="n-h">{{ board.scored ? 'Ball va oylik' : 'Ko‘rsatkichlar' }}</h3>
-            <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">
-               {{ board.scored ? '100 ballli' : 'ball qo‘yilmaydi' }}
-            </span>
-         </div>
+         <h3 class="n-h">{{ board.scored ? 'Ball va oylik' : 'Ko‘rsatkichlar' }}</h3>
 
          <div class="mt-3 space-y-0.5">
             <div v-for="r in board.rows" :key="keyOf(r.w)">
@@ -132,10 +124,10 @@
                           read as though only one of them was halved. -->
                      <template v-if="r.w.kpi.survey_ball !== null && r.w.kpi.survey_ball !== undefined">
                         <span>Kartochkalar bo'yicha</span>
-                        <span class="text-[color:var(--n-muted)]">yarmi</span>
+                        <span class="text-[color:var(--n-muted)]">50%</span>
                         <span class="font-semibold text-right">{{ r.w.kpi.total }}</span>
                         <span>Ziyoratchilar bahosi</span>
-                        <span class="text-[color:var(--n-muted)]">yarmi</span>
+                        <span class="text-[color:var(--n-muted)]">50%</span>
                         <span class="font-semibold text-right">{{ r.w.kpi.survey_ball }}</span>
                      </template>
                   </div>
@@ -179,14 +171,6 @@
                      </div>
                   </div>
 
-                  <!-- WHERE the month's work happened, beside the ball and never inside
-                       it: the score is percentage-based, so weighting it would make a
-                       Makka mistake cost more than a Madina one. Counts MUROJAAT; the SG
-                       line below counts assigned GROUPS. -->
-                  <p v-if="cityLoad(r.w)" class="text-[12.5px] text-[color:var(--n-muted)]">
-                     {{ cityLoad(r.w) }}
-                  </p>
-
                   <!-- Only a REAL ellikboshi holds a category; the doctor sits on this
                        board by display rule and is not paid by this table. WHO MAY WRITE
                        WHAT: the ellikboshi controller places people on a rung, what a
@@ -194,78 +178,41 @@
                   <div v-if="r.w.role === 'ellikboshi'"
                      class="pt-2 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5 text-[13.5px]">
                      <!-- FIRST WHAT THE MONTH WAS, LAST WHAT IT PAYS (owner, 19.09.2026: «везде
-                          структура такая: сначала что к чему, потом в конце оплата»). So the
-                          Sifat nazorati status opens the leader block where the pay lines
-                          used to be, the payslip breakdown follows, and Toifa / Asosiy oylik /
-                          KPI / Yakuniy oylik close it. -->
-                     <!-- SIFAT NAZORATI — the survey half's STATUS, not only its number (owner,
-                          19.09.2026: «где дается статус и информация»). Until now a missing
-                          survey half looked the same whether nobody was called or the calls
-                          fell short of the coverage bar; the pill and the per-group coverage
-                          are what tell those apart. Leader rows of a whole month only — the
-                          server sends the key exactly where the half can exist. -->
-                     <div v-if="board.scored && r.w.survey !== undefined"
-                        class="text-[12.5px] tabular-nums">
-                        <div class="flex items-center gap-2">
-                           <span class="font-semibold text-[13px]">Sifat nazorati</span>
-                           <span class="pill" :style="{ color: surveyStatus(r.w.survey).color,
-                                                        background: surveyStatus(r.w.survey).color + '17' }">
-                              <i></i>{{ surveyStatus(r.w.survey).label }}
-                           </span>
-                        </div>
-                        <template v-if="r.w.survey && r.w.survey.surveys">
-                           <div class="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[color:var(--n-muted)]">
-                              <span>Anketalar</span>
-                              <span class="text-right">
-                                 {{ r.w.survey.surveys }} ta · {{ r.w.survey.used }} tasi ballga kirdi
-                              </span>
-                              <span>Qamrov</span>
-                              <span class="text-right">
-                                 <template v-if="r.w.survey.assigned">
-                                    {{ r.w.survey.coverage_pct }}% · {{ r.w.survey.surveys }} / {{ r.w.survey.assigned }} ziyoratchi
-                                 </template>
-                                 <template v-else>ro'yxat yuklanmagan</template>
-                              </span>
-                              <span>Ziyoratchilar bahosi</span>
-                              <span class="text-right font-semibold" :class="{ 'text-[color:var(--n-muted)]': !r.w.survey.counted }">
-                                 {{ r.w.survey.ball !== null ? Math.round(r.w.survey.ball) : '—' }}
-                              </span>
-                           </div>
-                           <!-- Per group, because the coverage bar is PER GROUP: one group at
-                                80% and another at 20% is one half counted and one half not. -->
-                           <ul class="mt-1 space-y-0.5 text-[color:var(--n-muted)]">
-                              <li v-for="g in r.w.survey.groups" :key="g.chat_id" class="flex items-baseline gap-2">
-                                 <span class="min-w-0 flex-1 truncate">{{ g.title || ('Guruh ' + g.chat_id) }}</span>
-                                 <span class="shrink-0">
-                                    {{ g.surveyed }}<template v-if="g.assigned"> / {{ g.assigned }} · {{ g.coverage_pct }}%</template>
-                                    · {{ g.covered ? (g.mean !== null ? g.mean + ' ball' : 'ballsiz') : 'qamrov past' }}
-                                 </span>
-                              </li>
-                           </ul>
-                           <p v-if="!r.w.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
-                              Qamrov 50% dan kam — sanalmadi
-                           </p>
+                          структура такая: сначала что к чему, потом в конце оплата»).
+                          COUNTS ONLY here (owner, 05.11.2026: «не должно показывать все
+                          подробно»): how many groups, the extra ones with the coefficient
+                          each was weighed at, the survey's status. The groups by name and
+                          the survey per group are on Xodim sahifasi. -->
+                     <div class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-center
+                                 text-[12.5px] tabular-nums text-[color:var(--n-muted)]">
+                        <span>Guruhlar</span>
+                        <span class="text-right">{{ r.w.sg_groups ?? leaderGroups(r.w).length }}</span>
+                        <template v-if="extraGroupsText(leaderGroups(r.w))">
+                           <span>Ortiqcha guruh</span>
+                           <span class="text-right">{{ extraGroupsText(leaderGroups(r.w)) }}</span>
                         </template>
-                        <p v-else class="mt-1 text-[color:var(--n-muted)]">
-                           So'rovnoma yo'q
-                        </p>
+                        <template v-if="board.scored && r.w.survey !== undefined">
+                           <span>Sifat nazorati</span>
+                           <span class="text-right">
+                              <span class="pill" :style="{ color: surveyStatus(r.w.survey).color,
+                                                           background: surveyStatus(r.w.survey).color + '17' }">
+                                 <i></i>{{ surveyStatus(r.w.survey).label }}
+                              </span>
+                           </span>
+                        </template>
                      </div>
                      <!-- Where that one number came from, step by step. A KPI line
                           nobody can check is a KPI line everybody argues about, and this
                           is the screen a leader is shown on an appeal (§12). -->
                      <div v-if="r.w.salary && !r.w.salary.pending_manual"
-                        class="grid grid-cols-[0.75rem_1fr_auto] gap-x-2.5 gap-y-1
+                        class="pt-2 grid grid-cols-[0.75rem_1fr_auto] gap-x-2.5 gap-y-1
                                text-[12.5px] tabular-nums text-[color:var(--n-muted)]">
                         <span></span>
-                        <!-- The tier as it stands (18.09.2026): the coefficient no longer
-                             multiplies it, so there is no «×» line under the mukofot. -->
-                        <span>Ball mukofoti · {{ r.w.kpi ? (r.w.kpi.combined ?? r.w.kpi.total) : '—' }} ball</span>
+                        <span>Ball mukofoti</span>
                         <span class="text-right">{{ soum(r.w.salary.mukofot_base) }}</span>
                         <template v-if="r.w.salary.yuklama">
                            <span>+</span>
-                           <!-- «1,5 ortiqcha guruh × 1,6» — the extra load and the
-                                coefficient it was paid at, never a letter. -->
-                           <span>Ortiqcha guruh uchun · {{ extraText(r.w.salary) }}</span>
+                           <span>Ortiqcha guruh uchun</span>
                            <span class="text-right">{{ soum(r.w.salary.yuklama) }}</span>
                         </template>
                         <template v-if="r.w.salary.sovrin">
@@ -283,63 +230,12 @@
                            <span>Qo'lda tuzatish</span>
                            <span class="text-right">{{ soum(Math.abs(r.w.salary.manual_adjust)) }}</span>
                         </template>
-                        <span v-if="r.w.salary.floored" class="col-span-3">
-                           Jarima chegaraga tirandi — ko'pi bilan {{ soum(-r.w.salary.floor) }}
-                        </span>
-                        <!-- The month's load, on every payslip and not only on the ones
-                             where it multiplied something. «Why is my bonus 1,2 times» and
-                             «how much did I carry» are the same question, and a line that
-                             appears only in good months answers it only in good months. -->
-                        <!-- COUNT and LOAD as two different words (owner, 2026-08-26).
-                             This line used to read «1,0 guruh» and mean the load, so a
-                             leader who ran two Premium groups was shown a number saying
-                             one. «guruh» now only ever counts groups; «yuklama» is the
-                             daraja-weighted figure the money is calculated from. -->
-                        <!-- THE LIMIT (18.09.2026): «5 guruh · 4 oddiy + 1,5 ortiqcha».
-                             Groups up to the Qiymatlar limit are whole and unpaid; the
-                             ones beyond it are the weighted load the line above pays. -->
-                        <template v-if="r.w.sg !== null">
+                        <template v-if="r.w.salary.floored">
                            <span></span>
-                           <span>Oylik yuklama</span>
-                           <span class="text-right">{{ loadText(r.w) }}</span>
+                           <span>Ko'pi bilan ushlab qolinadi</span>
+                           <span class="text-right">{{ soum(-r.w.salary.floor) }}</span>
                         </template>
                      </div>
-                     <!-- WHICH groups made that load, one line each. «Why is my yuklama
-                          1,0 when I had two groups» is the question this line pays for,
-                          and until 26.08 the payslip printed the total and nothing else,
-                          so the Daraja halving was invisible arithmetic. Cities are
-                          merged back onto their group: the server sends one entry per
-                          city-LEG, and listing legs would answer the question with the
-                          same confusion in a different unit. -->
-                     <ul v-if="sgGroups(r.w).length"
-                        class="mt-1 space-y-0.5 text-[12.5px] text-[color:var(--n-muted)]">
-                        <li v-for="g in sgGroups(r.w)" :key="g.chat_id"
-                           class="flex items-baseline gap-2">
-                           <span class="min-w-0 flex-1 truncate">
-                              {{ g.title || ('Guruh ' + g.chat_id) }}
-                              <span class="text-[color:var(--n-faint)]">
-                                 · {{ g.cities.map(cityShort).join('+') || '—' }}
-                                 · {{ g.tier ? tierName(g.tier) : 'daraja yo\'q' }}
-                                 <!-- inside the limit: a whole group, the daraja and
-                                      the cities are shown but do not weigh anything -->
-                                 · {{ g.extra ? 'ortiqcha' : 'oddiy' }}
-                              </span>
-                           </span>
-                           <span class="tabular-nums shrink-0">{{ dec(g.sg) }}</span>
-                        </li>
-                     </ul>
-                     <!-- A group with no Daraja is an unanswered question, not a premium
-                          group: SG counts it as a WHOLE group and says so here rather
-                          than quietly paying half a load. -->
-                     <p v-if="r.w.sg_tier_unset"
-                        class="text-[12.5px] text-[color:var(--n-muted)]">
-                        {{ r.w.sg_tier_unset }} ta guruhda daraja belgilanmagan —
-                        to'liq guruh deb sanaldi
-                     </p>
-                     <p v-if="r.w.sg_over_ceiling"
-                        class="text-[12.5px] text-[color:var(--n-muted)]">
-                        2 guruhdan ortiq yuklama · rahbar ruxsati kerak
-                     </p>
                      <!-- THE PAY, LAST — under its own rule so the eye lands on it after
                           the facts it was computed from (owner, 19.09.2026). -->
                      <div class="pt-2 mt-1 border-t border-[color:var(--n-line,rgba(0,0,0,0.08))] space-y-1.5">
@@ -355,7 +251,7 @@
                            </option>
                         </select>
                         <span v-else class="font-semibold">
-                           {{ r.w.fiks_info ? r.w.fiks_info.unvon : '—' }}
+                           {{ r.w.fiks_info ? r.w.fiks_info.unvon : 'tanlanmagan' }}
                         </span>
                         <span v-if="r.w.fiks_info" class="badge badge-indigo ml-auto">
                            {{ soum(r.w.fiks_info.fiks) }} so'm
@@ -377,7 +273,6 @@
                         <span class="font-semibold">Yakuniy oylik</span>
                         <b class="text-right">{{ soum(r.w.salary.total) }} so'm</b>
                      </div>
-                     
 
                      <!-- The office's own ± on this line. It sits with the payslip it
                           changes rather than on a settings screen, because it is about
@@ -404,13 +299,6 @@
                         </p>
                      </div>
                      </div>
-                     <!-- Tied to the CATEGORY, not chained to the line above it: this
-                          `v-else` used to hang off `sg_over_ceiling`, so every leader
-                          under the 2,0 ceiling was told their category was unset —
-                          including the ones whose category was set. -->
-                     <p v-if="!r.w.fiks_info" class="text-[12.5px] text-[color:var(--n-muted)]">
-                        Toifa tanlanmagan
-                     </p>
                   </div>
 
                   <button v-if="r.w.telegram_id" type="button"
@@ -435,7 +323,8 @@ import { useAuthStore } from '../../../../stores/auth'
 import { useToast } from '../../../../composables/useToast'
 import { useNazoratStore, type Worker } from '../../stores/nazorat'
 import {
-   currentMonth, dur, kpiTab, lastMonths, monthLabel, surveyStatus, useNazoratView,
+   currentMonth, dur, extraGroupsText, kpiTab, lastMonths, leaderGroups, surveyStatus,
+   useNazoratView,
 } from './shared'
 import CrewKpi from './CrewKpi.vue'
 import CrewLangSwitch from './CrewLangSwitch.vue'
@@ -526,83 +415,6 @@ function jarimaWhy(sal: NonNullable<Worker['salary']>): string {
    if (sal.xatolik_abuse) parts.push("«Xatolik» tugmasidan suiiste'mol")
    return parts.join(' + ')
 }
-
-const CITY_NAMES: Record<string, string> = {
-   makka: 'Makka', madina: 'Madina', jidda: 'Jidda',
-}
-
-/** «Makka 12 · Madina 8 — 10.4 ish birligi»: where the month's MUROJAAT actually came
- *  from, and its city-weighted total (Makka 0.6 / Madina 0.4).
- *
- *  Empty for anybody who worked in one city only — for them the split says nothing the
- *  murojaat count above has not already said. Not to be confused with SG below, which
- *  weighs the GROUPS a person was assigned rather than the cards they fielded. */
-function cityLoad(w: Worker): string {
-   const entries = Object.entries(w.city_cards || {}).filter(([, n]) => n > 0)
-   if (entries.length < 2) return ''
-   const parts = entries
-      .sort((a, b) => b[1] - a[1])
-      .map(([c, n]) => `${CITY_NAMES[c] || c} ${n}`)
-   return `${parts.join(' · ')} — ${Number(w.weighted_load.toFixed(2))} ish birligi`
-}
-
-const TIER_NAMES: Record<string, string> = {
-   comfort: 'Komfort', premium: 'Premium / Lux',
-}
-function tierName(t?: string | null) {
-   return t ? (TIER_NAMES[t] || t) : ''
-}
-function cityShort(c?: string) {
-   return c ? (CITY_NAMES[c] || c) : ''
-}
-
-/** The month's segments folded back into GROUPS — one row per group, its cities merged
- *  and its SG summed.
- *
- *  The server sends one entry per city-LEG (a whole trip under one leader is two), which
- *  is right for the arithmetic and wrong for the reader: counting entries would report
- *  two groups for one, which is the exact confusion this breakdown exists to end. Sorted
- *  heaviest first, so the group that moved the number most is the one read first. */
-function sgGroups(w: Worker) {
-   const by = new Map<number, { chat_id: number; title: string | null
-                                cities: string[]; tier: string | null; sg: number
-                                extra: boolean }>()
-   for (const s of w.sg_segments || []) {
-      const row = by.get(s.chat_id) || {
-         chat_id: s.chat_id, title: s.title, cities: [],
-         tier: s.hotel_tier, sg: 0, extra: !!s.extra,
-      }
-      if (s.city && !row.cities.includes(s.city)) row.cities.push(s.city)
-      row.sg += s.sg ?? 0
-      by.set(s.chat_id, row)
-   }
-   return [...by.values()]
-      .map((r) => ({ ...r, sg: Number(r.sg.toFixed(2)) }))
-      .sort((a, b) => b.sg - a.sg || (a.title || '').localeCompare(b.title || ''))
-}
-
-/** «1,5 guruh × 1,6» — what was carried BEYOND the limit and the coefficient it was
- *  paid at (18.09.2026). Never named by its letter (owner, 2026-08-20: «не пиши как
- *  SG, K … не знающий человек не поймет вообще»). */
-function extraText(sal: NonNullable<Worker['salary']>): string {
-   return `${dec(sal.load ?? 0)} guruh × ${dec(sal.k)}`
-}
-
-/** «5 guruh · 4 oddiy + 1,5 ortiqcha» — the month's groups, split the way the money
- *  is: the ordinary ones (whole, unpaid) and the load beyond the limit (weighted,
- *  paid). A month at or under the limit says so («3 guruh · chegara 4»), so «why is
- *  there no yuklama line» is answered on the payslip itself. */
-function loadText(w: Worker): string {
-   const groups = w.sg_groups ?? sgGroups(w).length
-   const load = w.sg_load ?? 0
-   if (load > 0) return `${groups} guruh · ${w.sg_base_groups} oddiy + ${dec(load)} ortiqcha`
-   return w.sg_limit_groups != null
-      ? `${groups} guruh · chegara ${w.sg_limit_groups}`
-      : `${groups} guruh`
-}
-
-/** «1,2» — a coefficient with the decimal comma this panel writes numbers in. */
-const dec = (v: number) => v.toFixed(v % 1 === 0 ? 1 : 2).replace('.', ',')
 
 /** A SIGNED money figure: «+ 5 720 000» / «− 200 000». The sign is the whole point of
  *  the KPI line — it is the one number on this payslip that can go either way, and a
