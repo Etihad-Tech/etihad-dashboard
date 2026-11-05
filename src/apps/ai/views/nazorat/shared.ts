@@ -59,6 +59,53 @@ export function surveyStatus(s: { counted: boolean; surveys: number } | null | u
    return { label: 'qamrov yetarli emas', color: '#f59e0b' }
 }
 
+const CITY_NAMES: Record<string, string> = { makka: 'Makka', madina: 'Madina', jidda: 'Jidda' }
+export const cityName = (c?: string | null) => (c ? CITY_NAMES[c] || c : '')
+
+const TIER_NAMES: Record<string, string> = { comfort: 'Komfort', premium: 'Premium / Lux' }
+export const tierName = (t?: string | null) => (t ? TIER_NAMES[t] || t : '')
+
+/** «0,6» / «1,0» / «0,25» — a coefficient with the decimal comma the payslip writes
+ *  numbers in, no trailing zero after the first decimal. */
+export const decComma = (v: number) =>
+   v.toFixed(2).replace(/(\.\d)0$/, '$1').replace('.', ',')
+
+export interface LeaderGroup {
+   chat_id: number; title: string | null; start: string
+   cities: string[]; tier: string | null; sg: number; extra: boolean
+}
+
+/** A leader's groups for the month — one row per GROUP, its cities merged and its
+ *  coefficient summed. The server sends one entry per city-LEG (a whole trip under one
+ *  leader is two), so counting entries would report two groups for one. Departure
+ *  order — the order the limit is counted in — so the «ortiqcha» ones come last. */
+export function leaderGroups(w: Worker): LeaderGroup[] {
+   const by = new Map<number, LeaderGroup>()
+   for (const s of w.sg_segments || []) {
+      const row = by.get(s.chat_id) || {
+         chat_id: s.chat_id, title: s.title, start: s.trip_start_date, cities: [],
+         tier: s.hotel_tier, sg: 0, extra: !!s.extra,
+      }
+      if (s.city && !row.cities.includes(s.city)) row.cities.push(s.city)
+      row.sg += s.sg ?? 0
+      by.set(s.chat_id, row)
+   }
+   return [...by.values()]
+      .map((r) => ({ ...r, sg: Number(r.sg.toFixed(2)) }))
+      .sort((a, b) => a.start.localeCompare(b.start) || (a.title || '').localeCompare(b.title || ''))
+}
+
+/** «1 · 0,6 (Makka)» — how many groups went beyond the limit and the coefficient each
+ *  was weighed at, the city named when the group was in one city only (owner,
+ *  05.11.2026). Empty when every group is an ordinary one. */
+export function extraGroupsText(groups: LeaderGroup[]): string {
+   const extra = groups.filter((g) => g.extra)
+   if (!extra.length) return ''
+   const parts = extra.map((g) =>
+      decComma(g.sg) + (g.cities.length === 1 ? ` (${cityName(g.cities[0])})` : ''))
+   return `${extra.length} · ${parts.join(' + ')}`
+}
+
 /** The rolling windows. «Oylik» (the last 30 days) is gone (owner, 2026-10-06: «замени
  *  Oylik на месяцы и каждый месяц все начинается с нуля») — a month is now picked BY
  *  NAME and is the calendar month, so on the 1st everything starts from zero. */
