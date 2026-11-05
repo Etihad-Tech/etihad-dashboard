@@ -82,6 +82,51 @@
               the rule exists. A payslip a leader cannot argue with is a payslip the
               office has to argue about. -->
          <template v-if="worker.role === 'ellikboshi'">
+            <!-- THE MONTH'S GROUPS, by name (owner, 05.11.2026: «в странице сотрудника все
+                 подробно с названиями групп, но только за текущий месяц»). Read from the
+                 KPI month's row only — never the panel's rolling fallback above, which
+                 would list another window's trips. -->
+            <section v-if="monthWorker" class="card p-5 n-enter" style="--i: 1">
+               <div class="flex items-baseline gap-2.5">
+                  <h3 class="n-h">Guruhlar</h3>
+                  <span class="ml-auto text-[13px] text-[color:var(--n-muted)]">
+                     {{ monthLabel(s.kpiMonth) }}
+                  </span>
+               </div>
+               <ul v-if="groups.length" class="mt-3 space-y-2.5">
+                  <li v-for="g in groups" :key="g.chat_id" class="flex items-baseline gap-3">
+                     <span class="min-w-0 flex-1">
+                        <span class="block text-[14px] font-semibold break-words">
+                           {{ g.title || ('Guruh ' + g.chat_id) }}
+                        </span>
+                        <span class="block text-[12.5px] text-[color:var(--n-muted)] tabular-nums">
+                           {{ dayMonth(g.start) }}
+                           · {{ g.cities.length === 1 ? 'faqat ' + cityName(g.cities[0])
+                                                      : g.cities.map(cityName).join(' + ') }}
+                           · {{ g.tier ? tierName(g.tier) : "daraja yo'q" }}
+                           · {{ g.extra ? 'ortiqcha' : 'oddiy' }}
+                           <template v-if="surveyOf(g.chat_id)">
+                              · so'rovnoma {{ surveyOf(g.chat_id)!.surveyed }}<template
+                                 v-if="surveyOf(g.chat_id)!.assigned">/{{ surveyOf(g.chat_id)!.assigned }}</template>
+                           </template>
+                        </span>
+                     </span>
+                     <span class="shrink-0 text-[15px] font-semibold tabular-nums">{{ decComma(g.sg) }}</span>
+                  </li>
+               </ul>
+               <p v-else class="mt-3 text-[13.5px] text-[color:var(--n-muted)]">Guruh yo'q</p>
+               <div v-if="groups.length"
+                  class="mt-3 pt-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[13.5px] tabular-nums"
+                  style="border-top: 1px solid var(--n-line-soft)">
+                  <span class="text-[color:var(--n-muted)]">Oddiy</span>
+                  <span class="text-right">{{ groups.length - extraCount }}</span>
+                  <template v-if="extraCount">
+                     <span class="text-[color:var(--n-muted)]">Ortiqcha</span>
+                     <span class="text-right">{{ extraGroupsText(groups) }}</span>
+                  </template>
+               </div>
+            </section>
+
             <h3 class="n-group-h pt-2 pb-1">Hisob-kitob</h3>
 
             <div v-if="!worker.salary"
@@ -121,11 +166,11 @@
                            Kartochkalar bo'yicha
                         </span>
                         <span class="text-[color:var(--n-muted)] pt-1.5"
-                           style="border-top: 1px solid var(--n-line-soft)">yarmi</span>
+                           style="border-top: 1px solid var(--n-line-soft)">50%</span>
                         <span class="font-semibold text-right pt-1.5"
                            style="border-top: 1px solid var(--n-line-soft)">{{ worker.kpi.total }}</span>
                         <span>Ziyoratchilar bahosi</span>
-                        <span class="text-[color:var(--n-muted)]">yarmi</span>
+                        <span class="text-[color:var(--n-muted)]">50%</span>
                         <span class="font-semibold text-right">{{ worker.kpi.survey_ball }}</span>
                      </template>
                   </div>
@@ -163,20 +208,10 @@
                               {{ worker.survey.ball !== null ? Math.round(worker.survey.ball) : '—' }}
                            </span>
                         </div>
-                        <!-- Per group, because the coverage bar is PER GROUP: one group at
-                             80% and another at 20% is one half counted and one half not. -->
-                        <ul class="mt-1 space-y-0.5 text-[color:var(--n-muted)]">
-                           <li v-for="g in worker.survey.groups" :key="g.chat_id" class="flex items-baseline gap-2">
-                              <span class="min-w-0 flex-1 truncate">{{ g.title || ('Guruh ' + g.chat_id) }}</span>
-                              <span class="shrink-0">
-                                 {{ g.surveyed }}<template v-if="g.assigned"> / {{ g.assigned }} · {{ g.coverage_pct }}%</template>
-                                 · {{ g.covered ? (g.mean !== null ? g.mean + ' ball' : 'ballsiz') : 'qamrov past' }}
-                              </span>
-                           </li>
-                        </ul>
-                        <p v-if="!worker.survey.counted" class="mt-1 text-[color:var(--n-muted)]">
-                           Qamrov 50% dan kam — sanalmadi
-                        </p>
+                        <!-- Per group on the Guruhlar card, and only for this month's
+                             groups (owner, 05.11.2026: «только за текущий месяц, а не
+                             старые»). A survey saved this month about an earlier trip is
+                             in the totals above and not listed by name. -->
                      </template>
                      <p v-else class="mt-1 text-[color:var(--n-muted)]">
                         So'rovnoma yo'q
@@ -253,8 +288,9 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNazoratStore } from '../../stores/nazorat'
 import {
-   BUCKETS, dayNightText, dur, initials, isLeaderLevel, jobLabel,
-   personLabel, rowSegments, rowSplitHint, surveyStatus, uncounted, whereLabel, useNazoratView,
+   BUCKETS, cityName, dayNightText, decComma, dur, extraGroupsText, initials, isLeaderLevel,
+   jobLabel, leaderGroups, monthLabel, personLabel, rowSegments, rowSplitHint, surveyStatus,
+   tierName, uncounted, whereLabel, useNazoratView,
 } from './shared'
 
 const s = useNazoratStore()
@@ -275,8 +311,22 @@ const worker = computed(() =>
    || s.workers.find((w) => w.telegram_id === telegramId.value)
    || null)
 
+/** The same person on the KPI month's board, with no fallback: the groups card lists
+ *  that month's trips and nothing else. */
+const monthWorker = computed(() =>
+   s.kpiWorkers.find((w) => w.telegram_id === telegramId.value) || null)
+const groups = computed(() => (monthWorker.value ? leaderGroups(monthWorker.value) : []))
+const extraCount = computed(() => groups.value.filter((g) => g.extra).length)
+/** This month's survey of one of those groups, if there is one. */
+const surveyOf = (chatId: number) =>
+   monthWorker.value?.survey?.groups.find((g) => g.chat_id === chatId) || null
+/** «2026-11-12» -> «12.11». */
+const dayMonth = (iso: string) => {
+   const [, m, d] = (iso || '').split('-')
+   return d && m ? `${d}.${m}` : ''
+}
+
 const soum = (v: number) => v.toLocaleString('ru-RU')
-const dec = (v: number) => v.toFixed(v % 1 === 0 ? 1 : 2).replace('.', ',')
 const pct100 = (fault: number) => Math.round((100 - fault) * 10) / 10
 
 function signed(v: number): string {
@@ -326,7 +376,7 @@ const payRows = computed(() => {
    if (sal.yuklama) {
       rows.push({
          label: 'Ortiqcha guruh uchun',
-         how: `${dec(load)} guruh × ${soum(rate)} × ${dec(sal.k)}`,
+         how: `${decComma(load)} guruh × ${soum(rate)} × ${decComma(sal.k)}`,
          why: `Oyiga ${sal.limit} guruh — oddiy ish, ustama yo'q. Undan oshgan guruhlar `
             + "daraja va shahar og'irligi bilan sanaladi va koeffitsientga ko'paytiriladi. "
             + "Ball qanday bo'lishidan qat'i nazar beriladi — soatlar ishlangan.",
