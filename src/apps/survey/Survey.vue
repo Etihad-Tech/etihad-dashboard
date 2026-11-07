@@ -501,27 +501,22 @@
             </div>
 
             <template v-if="importMode === 'file'">
-               <input ref="fileEl" type="file" accept=".xlsx,.xlsm" class="hidden" @change="onFile" />
-               <button type="button" class="sn-drop" :disabled="importing" @click="pickFile">
-                  <Icon name="upload" :size="20" />
-                  <b>{{ importing ? "O'qilyapti…" : fileName || 'Excel faylni tanlang' }}</b>
-                  <small v-if="filePreview?.sheet">«{{ filePreview.sheet }}» varag'i</small>
-               </button>
-
                <!-- The columns to read (owner, 2026-11-02): «Avto» = found by the header,
-                    or a letter picked here. Remembered for the next file. -->
-               <div v-if="filePreview?.columns?.length" class="sn-cols">
+                    or a letter picked here. Remembered for the next file. Shown BEFORE the
+                    file since 2026-11-07 — behind the file they went unseen; letters until
+                    a file is read, then each with its first value. -->
+               <div class="sn-cols">
                   <label class="sn-field">Ism ustuni
                      <select v-model="colPick.name" class="sn-select" :disabled="importing" @change="reread">
-                        <option :value="null">Avto{{ colPick.name === null ? ` (${colLetterOf(filePreview.name_col)})` : '' }}</option>
-                        <option v-for="c in filePreview.columns" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
+                        <option :value="null">Avto{{ colPick.name === null && filePreview?.name_col != null ? ` (${colLetterOf(filePreview.name_col)})` : '' }}</option>
+                        <option v-for="c in colChoices" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
                      </select>
                   </label>
                   <label class="sn-field">Telefon ustuni
                      <select v-model="colPick.phone" class="sn-select" :disabled="importing" @change="reread">
-                        <option :value="null">Avto{{ colPick.phone === null ? ` (${colLetterOf(filePreview.phone_col)})` : '' }}</option>
+                        <option :value="null">Avto{{ colPick.phone === null && filePreview?.phone_col != null ? ` (${colLetterOf(filePreview.phone_col)})` : '' }}</option>
                         <option :value="-1">Yo'q</option>
-                        <option v-for="c in filePreview.columns" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
+                        <option v-for="c in colChoices" :key="c.index" :value="c.index">{{ colOption(c) }}</option>
                      </select>
                   </label>
                   <label class="sn-field sn-field-row">Qatordan
@@ -529,6 +524,13 @@
                         @change="reread" />
                   </label>
                </div>
+
+               <input ref="fileEl" type="file" accept=".xlsx,.xlsm" class="hidden" @change="onFile" />
+               <button type="button" class="sn-drop" :disabled="importing" @click="pickFile">
+                  <Icon name="upload" :size="20" />
+                  <b>{{ importing ? "O'qilyapti…" : fileName || 'Excel faylni tanlang' }}</b>
+                  <small v-if="filePreview?.sheet">«{{ filePreview.sheet }}» varag'i</small>
+               </button>
 
                <!-- The report BEFORE anything is written: the wrong tab, last month's
                     file — each looks like a successful import until somebody counts. -->
@@ -587,21 +589,41 @@
                <h2 id="sn-report-title">Excel hisobot</h2>
                <button type="button" class="sn-iconbtn" title="Yopish" @click="closeReport"><Icon name="x" :size="16" /></button>
             </header>
+            <!-- Only months and groups with SAVED surveys, each with its count (owner,
+                 2026-11-07: «пустые списки»), the groups ticked (same day: «tick the
+                 needed group and download») — no pick here can download an empty file. -->
             <label class="sn-field">Oy
-               <select id="sn-report-month" v-model="reportMonth" class="sn-select">
-                  <option v-for="m in reportMonths" :key="m.period" :value="m.period">{{ m.label }}</option>
+               <select id="sn-report-month" v-model="reportMonth" class="sn-select" :disabled="reportLoading" @change="onReportMonth">
+                  <option value="">Barcha oylar · {{ reportTotal }} ta</option>
+                  <option v-for="m in reportOpts.months" :key="m.period" :value="m.period">{{ monthLabel(m.period) }} · {{ m.saved }} ta</option>
                </select>
             </label>
-            <label class="sn-field">Guruh
-               <select id="sn-report-group" v-model="reportGroup" class="sn-select">
-                  <option :value="null">Barcha guruhlar</option>
-                  <option v-for="g in groups" :key="g.chat_id" :value="g.chat_id">{{ g.title || g.chat_id }}</option>
-               </select>
-            </label>
+            <div class="sn-field">Guruhlar
+               <input v-if="reportRows.length > 8" v-model="reportSearch" class="sn-input sn-rg-search" placeholder="Guruhni qidirish" />
+               <div class="sn-rgs">
+                  <button v-if="reportShown.length > 1" type="button" class="sn-rg sn-rg-all" :class="{ on: reportAllShown }"
+                     :aria-pressed="reportAllShown" @click="toggleReportAll">
+                     <span class="sn-peer-box"><Icon v-if="reportAllShown" name="check" :size="12" /></span>
+                     <span>Hammasi</span>
+                     <small>{{ reportShown.reduce((n, g) => n + g.n, 0) }} ta</small>
+                  </button>
+                  <button v-for="g in reportShown" :key="g.chat_id" type="button" class="sn-rg" :class="{ on: reportTicked.includes(g.chat_id) }"
+                     :aria-pressed="reportTicked.includes(g.chat_id)" @click="toggleReportGroup(g.chat_id)">
+                     <span class="sn-peer-box"><Icon v-if="reportTicked.includes(g.chat_id)" name="check" :size="12" /></span>
+                     <span>{{ g.title }}</span>
+                     <small>{{ g.n }} ta</small>
+                  </button>
+                  <p v-if="reportSearch && !reportShown.length" class="sn-empty-note">Guruh topilmadi</p>
+               </div>
+            </div>
+            <p v-if="!reportLoading && !reportCount" class="sn-empty-note">
+               {{ reportRows.length && !reportPicked.length ? 'Guruhni belgilang' : "Saqlangan so'rovnoma yo'q" }}
+            </p>
             <footer class="sn-modal-foot">
                <button type="button" class="sn-btn sn-btn-quiet" @click="closeReport">Bekor</button>
-               <button type="button" class="sn-btn sn-btn-primary" :disabled="reportBusy" @click="downloadReport">
-                  <Icon name="download" :size="14" /> {{ reportBusy ? "Tayyorlanmoqda…" : "Yuklab olish" }}
+               <button type="button" class="sn-btn sn-btn-primary" :disabled="reportBusy || reportLoading || !reportCount" @click="downloadReport">
+                  <Icon name="download" :size="14" />
+                  {{ reportBusy ? "Tayyorlanmoqda…" : reportLoading ? "Yuklanmoqda…" : `Yuklab olish · ${reportCount} ta` }}
                </button>
             </footer>
          </div>
@@ -1214,6 +1236,17 @@ function colLetterOf(i: number | null | undefined): string {
 function colOption(c: { letter: string; sample: string }): string {
    return c.sample ? `${c.letter} · ${c.sample}` : c.letter
 }
+/** The file's own columns once it is read; A–Z before, so the pick can come first. A
+ *  remembered pick past the file's last column stays listed rather than going blank. */
+const colChoices = computed(() => {
+   const cols: { index: number; letter: string; sample: string }[] = filePreview.value?.columns?.length
+      ? filePreview.value.columns.slice()
+      : Array.from({ length: 26 }, (_, i) => ({ index: i, letter: colLetterOf(i), sample: '' }))
+   for (const i of [colPick.name, colPick.phone]) {
+      if (i != null && i >= 0 && !cols.some((c) => c.index === i)) cols.push({ index: i, letter: colLetterOf(i), sample: '' })
+   }
+   return cols.sort((a, b) => a.index - b.index)
+})
 /** A changed column or row: read the SAME bytes again with it, and remember the pick. */
 async function reread() {
    try { localStorage.setItem(COLS_KEY, JSON.stringify(colPick)) } catch { /* per-browser nicety only */ }
@@ -1701,48 +1734,129 @@ async function save() {
    } finally { saving.value = false }
 }
 
-// ── Excel report (owner, 2026-10-15) — the month is the KPI's: surveys SAVED in it. ──
+// ── Excel report (owner, 2026-10-15) — a month is the KPI's: surveys SAVED in it. ──
+// 2026-11-07 («пустые списки»): the dialog opened on THIS month and listed every group,
+// so a group surveyed last month downloaded an empty sheet. Now it offers only what the
+// server says has saved surveys (GET /survey/report/options), with counts, and the
+// groups are TICKED (same day: «tick the needed group and download») into one file.
+// Opened on a group: that group, every month. Otherwise: the latest month, all groups.
 // Month names spelled as the Nazorat panel spells them (nazorat/shared.ts UZ_MONTHS).
 const UZ_MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul',
    'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr']
+type ReportMonth = { period: string; saved: number }
+type ReportGroup = { chat_id: number; title: string; saved: number; months: Record<string, number> }
 const reportOpen = ref(false)
 const reportBusy = ref(false)
-const reportMonth = ref('')
-const reportGroup = ref<number | null>(null)
-const reportMonths = computed(() => {
-   const now = new Date()
-   return Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      return {
-         period: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-         label: `${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}`,
-      }
-   })
-})
+const reportLoading = ref(false)
+const reportMonth = ref('')            // '' = barcha oylar
+const reportTicked = ref<number[]>([])
+const reportAll = ref(true)            // «Hammasi» — kept when the month changes
+const reportSearch = ref('')
+const reportOpts = ref<{ months: ReportMonth[]; groups: ReportGroup[] }>({ months: [], groups: [] })
 
-function openReport() {
-   reportMonth.value = reportMonths.value[0]!.period
-   reportGroup.value = openGroupObj.value ? openGroupObj.value.chat_id : null
+function monthLabel(period: string) {
+   const [y, m] = period.split('-')
+   return `${UZ_MONTHS[Number(m) - 1]} ${y}`
+}
+const reportTotal = computed(() => reportOpts.value.months.reduce((n, m) => n + m.saved, 0))
+/** The groups with surveys in the chosen month, each with its count there. The open
+ *  group stays even with none — the dialog says so instead of quietly picking others. */
+const reportRows = computed(() => {
+   const m = reportMonth.value
+   const list = reportOpts.value.groups
+      .map((g) => ({ chat_id: g.chat_id, title: g.title, n: m ? g.months[m] || 0 : g.saved }))
+      .filter((g) => g.n > 0)
+   const og = openGroupObj.value
+   if (og && !list.some((g) => g.chat_id === og.chat_id)) list.push({ chat_id: og.chat_id, title: og.title || String(og.chat_id), n: 0 })
+   return list.sort(byNumberDesc)
+})
+const reportShown = computed(() => {
+   const q = reportSearch.value.trim().toLowerCase()
+   return q ? reportRows.value.filter((g) => (g.title || '').toLowerCase().includes(q)) : reportRows.value
+})
+const reportAllShown = computed(() => reportShown.value.length > 0
+   && reportShown.value.every((g) => reportTicked.value.includes(g.chat_id)))
+const reportPicked = computed(() => reportRows.value.filter((g) => reportTicked.value.includes(g.chat_id)))
+const reportCount = computed(() => reportPicked.value.reduce((n, g) => n + g.n, 0))
+
+function toggleReportGroup(id: number) {
+   const i = reportTicked.value.indexOf(id)
+   if (i >= 0) reportTicked.value.splice(i, 1)
+   else reportTicked.value.push(id)
+   reportAll.value = reportRows.value.every((g) => reportTicked.value.includes(g.chat_id))
+}
+function toggleReportAll() {
+   const ids = reportShown.value.map((g) => g.chat_id)
+   reportTicked.value = reportAllShown.value
+      ? reportTicked.value.filter((id) => !ids.includes(id))
+      : [...new Set([...reportTicked.value, ...ids])]
+   reportAll.value = reportRows.value.every((g) => reportTicked.value.includes(g.chat_id))
+}
+/** «Hammasi» stays «Hammasi» in another month; a hand-picked set stays as picked. */
+function onReportMonth() {
+   if (reportAll.value) reportTicked.value = reportRows.value.map((g) => g.chat_id)
+}
+
+async function openReport() {
+   const og = openGroupObj.value
+   reportMonth.value = ''
+   reportSearch.value = ''
+   reportTicked.value = og ? [og.chat_id] : []
+   reportAll.value = !og
    reportOpen.value = true
+   reportLoading.value = true
+   try {
+      reportOpts.value = (await api.get('/survey/report/options')).data
+   } catch (e) {
+      reportOpts.value = { months: [], groups: [] }
+      toast.error(errText(e, "Hisobot ro'yxati yuklanmadi"))
+   } finally {
+      reportLoading.value = false
+   }
+   if (!og) {
+      reportMonth.value = reportOpts.value.months[0]?.period || ''
+      onReportMonth()
+   }
 }
 
 function closeReport() {
    if (!reportBusy.value) reportOpen.value = false
 }
 
+/** Every group with surveys this month ticked = the whole month, asked as such. */
+function reportWholeMonth() {
+   return reportRows.value.every((g) => g.n === 0 || reportTicked.value.includes(g.chat_id))
+}
+
+/** The server's rule (survey_report.report_filename): month, then the groups' «#NNN»
+ *  joined for up to three, «N_guruh» past that, nothing for all of them. */
+function reportFileName() {
+   const parts = ['Sifat_nazorati']
+   if (reportMonth.value) parts.push(reportMonth.value)
+   const gs = reportPicked.value.filter((g) => g.n > 0)
+   if (!reportWholeMonth()) {
+      parts.push(gs.length > 3 ? `${gs.length}_guruh`
+         : gs.map((g) => ((g.title || '').match(/#\s*(\d+)/) || [])[1] || String(Math.abs(g.chat_id))).join('-'))
+   }
+   return parts.join('_') + '.xlsx'
+}
+
 async function downloadReport() {
-   if (reportBusy.value) return
+   if (reportBusy.value || !reportCount.value) return
    reportBusy.value = true
    try {
-      const params: Record<string, any> = { month: reportMonth.value }
-      if (reportGroup.value !== null) params.chat_id = reportGroup.value
+      // URLSearchParams: `chat_id` repeated, the way FastAPI reads a list (axios would
+      // write `chat_id[]`).
+      const params = new URLSearchParams()
+      if (reportMonth.value) params.set('month', reportMonth.value)
+      if (!reportWholeMonth()) {
+         for (const g of reportPicked.value) if (g.n > 0) params.append('chat_id', String(g.chat_id))
+      }
       const res = await api.get('/survey/report.xlsx', { params, responseType: 'blob' })
-      const g = groups.value.find((x) => x.chat_id === reportGroup.value)
-      const num = g ? ((g.title || '').match(/#\s*(\d+)/) || [])[1] || String(Math.abs(g.chat_id)) : ''
       const url = URL.createObjectURL(res.data as Blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Sifat_nazorati_${reportMonth.value}${num ? '_' + num : ''}.xlsx`
+      a.download = reportFileName()
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -2172,7 +2286,21 @@ textarea.sn-input { resize: vertical; min-height: 44px; }
 .sn-peer.on .sn-peer-box { background: var(--brand); border-color: var(--brand); }
 .sn-peer-add { width: auto; border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 .sn-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
-.sn-modal-sm { max-width: 400px; }
+.sn-modal-sm { max-width: 440px; }
+/* Excel dialog — the groups to tick, the same box as «Shu baholar yana kimga?». */
+.sn-rgs { display: flex; flex-direction: column; max-height: min(320px, 45vh); overflow-y: auto; border: 1px solid var(--line);
+   border-radius: 10px; background: #fff; }
+.sn-rg { display: flex; align-items: center; gap: 10px; width: 100%; font: inherit; font-size: 13.5px; font-weight: 500;
+   color: var(--ink-2); text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 8px 12px;
+   cursor: pointer; }
+.sn-rg:last-child { border-bottom: 0; }
+.sn-rg:hover { background: #faf9f5; }
+.sn-rg > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sn-rg small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sn-rg.on { color: var(--ink); }
+.sn-rg.on .sn-peer-box { background: var(--brand); border-color: var(--brand); }
+.sn-rg-all { font-weight: 700; position: sticky; top: 0; background: #fff; z-index: 1; }
+.sn-rg-search { font-weight: 400; font-size: 13.5px; padding: 7px 10px; }
 .sn-modal-foot .sn-btn { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ── narrower screens ── */
