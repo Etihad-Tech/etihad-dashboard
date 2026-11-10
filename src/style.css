@@ -154,6 +154,27 @@ select {
     @apply transition-colors hover:bg-gray-50/60;
   }
 
+  /* A row that scrolls sideways on a narrow screen without showing a scrollbar. */
+  .scroll-x {
+    @apply overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  }
+
+  /* A row of one-tap filters (a trip's days): the chosen one is filled. */
+  .filter-chip {
+    @apply shrink-0 h-8 min-w-8 px-2.5 rounded-lg text-xs font-medium text-gray-600 bg-white border border-gray-200 whitespace-nowrap transition-colors hover:border-gray-300 hover:text-gray-900;
+  }
+  .filter-chip-on {
+    @apply bg-amber-600 border-amber-600 text-white hover:text-white hover:border-amber-600;
+  }
+
+  /* The choices inside a dropdown panel. */
+  .menu-head {
+    @apply px-2.5 pt-2 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider;
+  }
+  .menu-item {
+    @apply w-full flex items-center gap-2 h-8 px-2.5 rounded-lg text-sm text-gray-700 text-left transition-colors hover:bg-gray-100 hover:text-gray-900;
+  }
+
   .spinner {
     @apply w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin;
   }

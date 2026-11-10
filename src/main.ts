@@ -63,6 +63,9 @@ import {
    faChevronLeft,
    faChevronDown,
    faLanguage,
+   // Etihad Jamoasi
+   faSquarePollHorizontal, faImage, faPaperclip, faThumbtack, faBolt,
+   faLocationArrow, faRotateLeft, faBoxArchive, faUserPlus, faBold, faItalic,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -77,6 +80,8 @@ library.add(
    faGaugeHigh, faRankingStar, faListUl, faRotateRight, faBell, faCheck,
    faClock, faTriangleExclamation, faChevronRight, faMagnifyingGlass,
    faSliders, faChevronLeft, faChevronDown, faLanguage,
+   faSquarePollHorizontal, faImage, faPaperclip, faThumbtack, faBolt,
+   faLocationArrow, faRotateLeft, faBoxArchive, faUserPlus, faBold, faItalic,
    faStar,
 )
 

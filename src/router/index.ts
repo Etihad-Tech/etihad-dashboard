@@ -128,11 +128,9 @@ const router = createRouter({
       ],
     },
 
-    {
-      path: '/team',
-      name: 'TeamDashboard',
-      component: () => import('../apps/team/views/Dashboard.vue'),
-    },
+    // «Etihad Jamoasi» (remade 2026-11-10): the trips list is its first screen; a post is
+    // added and edited in a dialog on its trip's page, so the old post pages lead there.
+    { path: '/team', redirect: '/team/trips' },
     {
       path: '/team/trips',
       name: 'TeamTrips',
@@ -143,16 +141,7 @@ const router = createRouter({
       name: 'TeamTripDetail',
       component: () => import('../apps/team/views/trips/TripDetail.vue'),
     },
-    {
-      path: '/team/trips/:tripId/posts/new',
-      name: 'TeamPostNew',
-      component: () => import('../apps/team/views/posts/PostEditor.vue'),
-    },
-    {
-      path: '/team/trips/:tripId/posts/:postId/edit',
-      name: 'TeamPostEdit',
-      component: () => import('../apps/team/views/posts/PostEditor.vue'),
-    },
+    { path: '/team/trips/:id/posts/:rest(.*)*', redirect: to => `/team/trips/${to.params.id}` },
     {
       path: '/team/templates',
       name: 'TeamTemplates',
@@ -168,11 +157,8 @@ const router = createRouter({
       name: 'TeamPolls',
       component: () => import('../apps/team/views/polls/PollsList.vue'),
     },
-    {
-      path: '/team/polls/responses',
-      name: 'TeamPollResponses',
-      component: () => import('../apps/team/views/polls/PollResponses.vue'),
-    },
+    // The answers are on each trip's page now («Javoblar»).
+    { path: '/team/polls/responses', redirect: '/team/trips' },
     {
       path: '/team/export',
       name: 'TeamExport',
