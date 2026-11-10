@@ -106,7 +106,6 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     { to: '/ai/qora-royxat', label: "Qora ro'yxat", icon: 'user-slash' },
   ] },
   { title: 'Etihad Jamoasi', items: [
-    { to: '/team', label: 'Umumiy', icon: 'chart-pie' },
     { to: '/team/trips', label: 'Safarlar', icon: 'plane-arrival' },
     { to: '/team/templates', label: 'Post shablonlari', icon: 'clone' },
     { to: '/team/polls', label: "So'rovnomalar", icon: 'list-ul' },
