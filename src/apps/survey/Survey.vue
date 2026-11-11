@@ -91,14 +91,19 @@
                         :size="13" :class="{ 'sn-spin': crmStatus.tone === 'busy' }" />
                      <span>{{ crmStatus.text }}</span>
                   </div>
-                  <div class="sn-gtools">
-                     <button type="button" class="sn-btn sn-btn-soft" @click="openImport">
+                  <!-- A group bound to a CRM group has the CRM's list alone (owner,
+                       2026-11-10): no sheet, no typing, no clearing. -->
+                  <div v-if="!openGroupObj.crm_linked || isAdmin" class="sn-gtools">
+                     <button v-if="!openGroupObj.crm_linked" type="button" class="sn-btn sn-btn-soft" @click="openImport">
                         <Icon name="plus" :size="14" /> Qo'shish
                      </button>
                      <!-- The whole list at once — the sheet went into the wrong group.
                           Saved surveys stay (server rule), and the toast says so. -->
                      <button v-if="deletableOf(openGroupObj.chat_id)" type="button" class="sn-btn sn-btn-quiet sn-danger-hover"
                         @click="clearGroup(openGroupObj)">Ro'yxatni tozalash</button>
+                     <button v-if="isAdmin" type="button" class="sn-btn sn-btn-quiet" @click="openCheck">
+                        <Icon name="sync" :size="14" /> CRM bilan solishtirish
+                     </button>
                   </div>
                </div>
 
@@ -123,21 +128,22 @@
                      :class="{ on: current && current.id === p.id, saved: p.survey_status === 'saved', sub, dim }">
                      <div class="sn-prow-main" role="button" tabindex="0" @click="open(p)"
                         @keydown.enter.prevent="open(p)" @keydown.space.prevent="open(p)">
+                        <span v-if="unit.no" class="sn-pno">{{ sub ? '' : unit.no }}</span>
                         <span class="sn-dot" :class="dotClass(p)"></span>
                         <span class="sn-prow-text">
                            <b>{{ p.full_name }}</b>
                            <small v-if="!sub" :class="{ 'sn-warn-text': !p.phone }">{{ p.phone ? '+' + p.phone : NO_PHONE }}</small>
                            <small v-else-if="p.phone && p.phone !== unit.head.phone">+{{ p.phone }}</small>
                         </span>
-                        <span class="sn-pstatus" :class="'cs-' + p.call_status">
-                           {{ p.survey_status === 'saved' ? 'Saqlangan' : (CALL_LABELS[p.call_status] || p.call_status) }}
+                        <span class="sn-pstatus" :class="['cs-' + p.call_status, { 'cs-out': p.kpi_excluded }]">
+                           {{ p.survey_status === 'saved' ? (p.kpi_excluded ? KPI_OUT : 'Saqlangan') : (CALL_LABELS[p.call_status] || p.call_status) }}
                         </span>
                      </div>
                      <button v-if="!sub && unit.members.length" type="button" class="sn-fam" :class="{ open: unit.open }"
                         :aria-expanded="unit.open" @click="toggleUnit(unit)">
                         +{{ unit.members.length }}<Icon name="chevron" :size="12" />
                      </button>
-                     <button type="button" class="sn-iconbtn sn-prow-x" :disabled="p.survey_status === 'saved'"
+                     <button v-if="!openGroupObj.crm_linked" type="button" class="sn-iconbtn sn-prow-x" :disabled="p.survey_status === 'saved'"
                         :title="p.survey_status === 'saved' ? SAVED_NO_DELETE : 'Ro\'yxatdan o\'chirish'"
                         @click="removePilgrim(p)"><Icon name="x" :size="14" /></button>
                   </div>
@@ -197,7 +203,7 @@
                         <!-- A MOVE, not an assignment: there is no «— tanlang —» to take
                              the group away again. The full trip range in each label —
                              two groups can share a name, never a name AND its dates. -->
-                        <select v-model="pickedGroup" class="sn-select" :disabled="isSaved" @change="assignGroup">
+                        <select v-model="pickedGroup" class="sn-select" :disabled="isSaved || currentLocked" @change="assignGroup">
                            <option v-for="g in pickableGroups" :key="g.chat_id" :value="g.chat_id">
                               {{ g.title }}{{ g.trip_start_date ? ` · ${dmy(g.trip_start_date)} — ${g.trip_end_date ? dmy(g.trip_end_date) : '?'}` : '' }}
                            </option>
@@ -246,15 +252,17 @@
                         :disabled="isSaved && k !== 'boldi'" :aria-pressed="current.call_status === k"
                         @click="setStatus(k)">{{ l }}</button>
                   </div>
-                  <button v-if="!isSaved" type="button" class="sn-link sn-link-danger sn-callrow-del"
+                  <button v-if="!isSaved && !currentLocked" type="button" class="sn-link sn-link-danger sn-callrow-del"
                      @click="removePilgrim(current)">Ro'yxatdan o'chirish</button>
                </div>
 
                <div v-if="isSaved" class="sn-banner sn-banner-ok">
                   <Icon name="check" :size="15" />
                   <span>
-                     Saqlangan — <b>{{ savedScore === null ? "Q1 to'liq emas" : savedScore + ' ball' }}</b>
+                     Saqlangan — <b>{{ savedScore === null ? "Q1 to'liq emas" : savedScore + ' ball' }}</b><template v-if="current.kpi_excluded"> · {{ KPI_OUT.toLowerCase() }}</template>
                   </span>
+                  <!-- Taken out by the owner's CRM check (2026-11-10); one click puts it back. -->
+                  <button v-if="isAdmin && current.kpi_excluded" type="button" class="sn-link" @click="setCounted(current, true)">Hisobga qaytarish</button>
                   <button v-if="nextPilgrim" type="button" class="sn-btn sn-btn-primary sn-banner-btn" @click="open(nextPilgrim)">
                      Keyingisi <Icon name="chevron" :size="14" />
                   </button>
@@ -628,6 +636,74 @@
             </footer>
          </div>
       </div>
+
+      <!-- ─────────── THE GROUP'S LIST BESIDE THE CRM'S (owner, 2026-11-10) ───────────
+           Read first; nothing changes until «Tasdiqlash». Admin only. -->
+      <div v-if="checkFor !== null" class="sn-modal" @click.self="closeCheck">
+         <div class="sn-modal-card" role="dialog" aria-modal="true" aria-labelledby="sn-check-title">
+            <header class="sn-modal-head">
+               <div>
+                  <h2 id="sn-check-title">CRM bilan solishtirish</h2>
+                  <p class="sn-muted">{{ checkGroup?.title || checkFor }}<template v-if="check && check.crm_total !== null"> · CRMda {{ check.crm_total }} ta · ro'yxatda {{ check.rows.length }} ta</template></p>
+               </div>
+               <button type="button" class="sn-iconbtn" title="Yopish" @click="closeCheck"><Icon name="x" :size="16" /></button>
+            </header>
+
+            <p v-if="checkLoading" class="sn-empty-note">Yuklanmoqda…</p>
+            <template v-else-if="check">
+               <label v-if="!check.linked && check.candidates.length > 1" class="sn-field">CRM guruhi
+                  <select class="sn-select" :value="checkPick" @change="pickCandidate(($event.target as HTMLSelectElement).value)">
+                     <option value="" disabled>— tanlang —</option>
+                     <option v-for="c in check.candidates" :key="c.departure_id + ':' + c.group_index" :value="c.departure_id + ':' + c.group_index">
+                        #{{ String(c.season_no).padStart(3, '0') }} · {{ c.package_name || '—' }} · {{ dmy(c.departure_date) }} · {{ c.group_index }}-guruh
+                     </option>
+                  </select>
+               </label>
+               <p v-else-if="!check.linked && !check.candidates.length" class="sn-empty-note">
+                  {{ check.season_no ? `CRMda #${String(check.season_no).padStart(3, '0')} guruh ${checkGroup?.trip_start_date ? dmy(checkGroup.trip_start_date) : ''} topilmadi` : "Guruh raqami topilmadi" }}
+               </p>
+
+               <template v-if="check.crm_total !== null">
+                  <div class="sn-field"><span class="sn-check-head">CRMda yo'q · baho saqlangan <small>{{ checkOutSaved.length }} ta</small></span>
+                     <div v-if="checkOutSaved.length" class="sn-rgs">
+                        <button v-if="checkTickable.length > 1" type="button" class="sn-rg sn-rg-all" :class="{ on: checkAllTicked }"
+                           :aria-pressed="checkAllTicked" @click="toggleCheckAll">
+                           <span class="sn-peer-box"><Icon v-if="checkAllTicked" name="check" :size="12" /></span>
+                           <span>Hammasi</span>
+                           <small>{{ checkTickable.length }} ta</small>
+                        </button>
+                        <button v-for="r in checkOutSaved" :key="r.pilgrim_id" type="button" class="sn-rg"
+                           :class="{ on: r.kpi_excluded || checkTicked.has(r.pilgrim_id) }" :disabled="r.kpi_excluded"
+                           :aria-pressed="r.kpi_excluded || checkTicked.has(r.pilgrim_id)" @click="toggleCheck(r.pilgrim_id)">
+                           <span class="sn-peer-box"><Icon v-if="r.kpi_excluded || checkTicked.has(r.pilgrim_id)" name="check" :size="12" /></span>
+                           <span>{{ r.full_name }}</span>
+                           <small>{{ r.kpi_excluded ? KPI_OUT.toLowerCase() : (r.phone ? '+' + r.phone : NO_PHONE) }}</small>
+                        </button>
+                     </div>
+                  </div>
+                  <div v-if="checkOutUnsaved.length" class="sn-field"><span class="sn-check-head">CRMda yo'q · ro'yxatdan chiqadi <small>{{ checkOutUnsaved.length }} ta</small></span>
+                     <p class="sn-check-names">{{ checkOutUnsaved.map((r: any) => r.full_name).join(', ') }}</p>
+                  </div>
+                  <div v-if="checkRenamed.length" class="sn-field"><span class="sn-check-head">CRMda boshqacha yozilgan <small>{{ checkRenamed.length }} ta</small></span>
+                     <p class="sn-check-names">
+                        <template v-for="(r, i) in checkRenamed" :key="r.pilgrim_id">{{ i ? ', ' : '' }}{{ r.full_name }} → {{ r.crm_name }}</template>
+                     </p>
+                  </div>
+                  <div v-if="check.missing.length" class="sn-field"><span class="sn-check-head">CRMdan qo'shiladi <small>{{ check.missing.length }} ta</small></span>
+                     <p class="sn-check-names">{{ check.missing.join(', ') }}</p>
+                  </div>
+               </template>
+            </template>
+
+            <footer class="sn-modal-foot">
+               <button type="button" class="sn-btn sn-btn-quiet" @click="closeCheck">Bekor</button>
+               <button type="button" class="sn-btn sn-btn-primary" :disabled="checkBusy || checkLoading || !check || check.crm_total === null"
+                  @click="applyCheck">
+                  {{ checkBusy ? 'Saqlanmoqda…' : checkTicked.size ? `Tasdiqlash · ${checkTicked.size} ta baho hisobdan chiqadi` : 'Tasdiqlash' }}
+               </button>
+            </footer>
+         </div>
+      </div>
    </div>
 </template>
 
@@ -675,6 +751,8 @@ const CALL_LABELS: Record<string, string> = {
    qayta: "Qayta qo'ng'iroq", bosh_tortdi: 'Bosh tortdi',
 }
 const NO_PHONE = "telefon yo'q"
+/** A saved rating the owner took out of the ellikboshi's ball (2026-11-10). */
+const KPI_OUT = 'Hisobga olinmaydi'
 const SAVED_NO_DELETE = "So'rovnomasi saqlangan — o'chirilmaydi"
 const EMPTY_GROUP = "Ziyoratchi yo'q"
 const REASON_PLACEHOLDER = "Ziyoratchi aytgan sabab — o'z so'zlari bilan"
@@ -901,10 +979,17 @@ function byPax(a: any, b: any): number {
    return Number(!a.booking_primary) - Number(!b.booking_primary)
       || (a.booking_pax ?? 32768) - (b.booking_pax ?? 32768) || a.full_name.localeCompare(b.full_name)
 }
+/** The pilgrim's place in the CRM's list of the group; a row the CRM did not bring has none. */
+const crmPos = (p: any): number => p.crm_order ?? Infinity
+function byCrm(a: any, b: any): number {
+   return (crmPos(a) - crmPos(b)) || byPax(a, b)
+}
 /** One group's people by CRM booking (owner, 2026-10-15: «показывались только главные в
  *  брони и внутри списком остальные»): the head the server marks — the booking's primary
- *  passenger — with the rest under them. A pilgrim with no booking stands alone. A booking
- *  goes to the bottom once everybody in it is saved. */
+ *  passenger — with the rest under them. A pilgrim with no booking stands alone.
+ *  In the CRM's order, booking by booking, numbered (owner, 2026-11-10: «in real sorted
+ *  order»). Rows the CRM did not bring (a sheet, a typed name) follow, unnumbered — the
+ *  ones still to call first. */
 function bookingUnits(people: any[]) {
    const byKey = new Map<string, any[]>()
    for (const p of people) {
@@ -912,11 +997,17 @@ function bookingUnits(people: any[]) {
       if (!byKey.has(key)) byKey.set(key, [])
       byKey.get(key)!.push(p)
    }
-   return [...byKey.entries()].map(([key, list]) => {
-      const head = list.find((p) => p.booking_head) || list.slice().sort(byPax)[0]
-      return { key, head, members: list.filter((p) => p !== head).sort(byPax),
-         done: list.every((p) => p.survey_status === 'saved') }
-   }).sort((a, b) => Number(a.done) - Number(b.done) || a.head.full_name.localeCompare(b.head.full_name))
+   const units = [...byKey.entries()].map(([key, list]) => {
+      const sorted = list.slice().sort(byCrm)
+      const head = list.find((p) => p.booking_head) || sorted[0]
+      return { key, head, members: sorted.filter((p) => p !== head),
+         done: list.every((p) => p.survey_status === 'saved'),
+         pos: Math.min(...list.map(crmPos)), no: null as number | null }
+   }).sort((a, b) => (a.pos - b.pos) || Number(a.done) - Number(b.done)
+      || a.head.full_name.localeCompare(b.head.full_name))
+   let n = 0
+   for (const u of units) u.no = Number.isFinite(u.pos) ? ++n : null
+   return units
 }
 const openUnits = reactive(new Set<string>())
 function toggleUnit(u: any) {
@@ -1055,7 +1146,7 @@ async function syncFromCrm(chatId: number) {
    try {
       const { data } = await api.post(`/survey/groups/${chatId}/crm-sync`)
       crmState[chatId] = { loading: false, ...data }
-      if (data.added || data.adopted || data.updated || data.removed) {
+      if (data.added || data.adopted || data.updated || data.removed || data.moved) {
          await Promise.all([loadQueue(), loadGroups()])
          if (current.value) {
             const fresh = queue.value.find((p) => p.id === current.value.id)
@@ -1084,7 +1175,7 @@ const crmStatus = computed<{ tone: string; text: string } | null>(() => {
 })
 
 function openImport() {
-   if (!openGroupObj.value) return
+   if (!openGroupObj.value || openGroupObj.value.crm_linked) return
    closeImport()
    importFor.value = openGroupObj.value.chat_id
    if (importMode.value === 'manual') nextTick(() => newNameEl.value?.focus())
@@ -1315,7 +1406,112 @@ async function removePilgrim(p: any) {
 /** «Tozalash» removes every pilgrim of the group without a saved survey — the whole
  *  group, not the search-filtered view. */
 function deletableOf(chatId: number) {
+   if (isLocked(chatId)) return 0
    return queue.value.filter((p) => p.chat_id === chatId && p.survey_status !== 'saved').length
+}
+
+const isAdmin = computed(() => auth.role === 'admin')
+/** Bound to a CRM group: the list is the CRM's alone (owner, 2026-11-10) — nobody is
+ *  imported, typed in, removed or moved in or out by hand; the server refuses too. */
+function isLocked(chatId: number | null | undefined): boolean {
+   return !!groups.value.find((g) => g.chat_id === chatId)?.crm_linked
+}
+const currentLocked = computed(() => isLocked(current.value?.chat_id))
+
+/** Put one saved rating back into the KPI, or take it out (admin). */
+async function setCounted(p: any, counted: boolean) {
+   try {
+      await api.put(`/survey/${p.id}/kpi`, { counted })
+      p.kpi_excluded = !counted
+      toast.success(counted ? 'Hisobga qaytarildi' : KPI_OUT)
+      await Promise.all([loadQueue(), loadGroups()])
+   } catch (e: any) {
+      toast.error(errText(e, "O'zgartirilmadi"))
+   }
+}
+
+// ── the group's list beside the CRM's (owner, 2026-11-10) ───────────────────────────
+// Read only until «Tasdiqlash»: then the group is bound to its CRM group (if it was not),
+// its list made the CRM's, and the ticked saved ratings of people the CRM never placed in
+// it stop counting in the ellikboshi's KPI.
+const checkFor = ref<number | null>(null)
+const check = ref<any>(null)
+const checkLoading = ref(false)
+const checkBusy = ref(false)
+const checkPick = ref('')
+const checkTicked = reactive(new Set<number>())
+const checkGroup = computed(() => groups.value.find((g) => g.chat_id === checkFor.value) || null)
+const checkRows = computed<any[]>(() => check.value?.rows || [])
+const checkOutSaved = computed(() => checkRows.value.filter((r) => r.saved && !r.in_crm))
+const checkTickable = computed(() => checkOutSaved.value.filter((r) => !r.kpi_excluded))
+const checkOutUnsaved = computed(() => checkRows.value.filter((r) => !r.saved && !r.draft && !r.in_crm))
+const checkRenamed = computed(() => checkRows.value.filter((r) => r.in_crm && r.crm_name))
+const checkAllTicked = computed(() => checkTickable.value.every((r) => checkTicked.has(r.pilgrim_id)))
+
+async function loadCheck(pair?: { departure_id: string; group_index: number }) {
+   if (checkFor.value === null) return
+   checkLoading.value = true
+   checkTicked.clear()
+   try {
+      const { data } = await api.get(`/survey/groups/${checkFor.value}/crm-check`, { params: pair || {} })
+      check.value = data
+      checkPick.value = data.departure_id ? `${data.departure_id}:${data.group_index}` : ''
+      for (const r of checkOutSaved.value) if (!r.kpi_excluded) checkTicked.add(r.pilgrim_id)
+   } catch (e: any) {
+      toast.error(errText(e, 'CRM javob bermadi'))
+      closeCheck()
+   } finally { checkLoading.value = false }
+}
+function openCheck() {
+   if (!openGroupObj.value) return
+   checkFor.value = openGroupObj.value.chat_id
+   check.value = null
+   checkPick.value = ''
+   void loadCheck()
+}
+function closeCheck() {
+   if (checkBusy.value) return
+   checkFor.value = null
+   check.value = null
+}
+function pickCandidate(v: string) {
+   const [departure_id, idx] = v.split(':')
+   if (!departure_id || !idx) return
+   void loadCheck({ departure_id, group_index: Number(idx) })
+}
+function toggleCheck(id: number) {
+   if (checkTicked.has(id)) checkTicked.delete(id)
+   else checkTicked.add(id)
+}
+function toggleCheckAll() {
+   const on = !checkAllTicked.value
+   for (const r of checkTickable.value) {
+      if (on) checkTicked.add(r.pilgrim_id)
+      else checkTicked.delete(r.pilgrim_id)
+   }
+}
+async function applyCheck() {
+   const chatId = checkFor.value
+   if (chatId === null || !check.value) return
+   checkBusy.value = true
+   try {
+      const pair = check.value.linked ? {} : { departure_id: check.value.departure_id, group_index: check.value.group_index }
+      const { data } = await api.post(`/survey/groups/${chatId}/crm-check`, { ...pair, exclude: [...checkTicked] })
+      toast.success(`${data.excluded.length} ta baho hisobdan chiqarildi`
+         + (data.bound_now ? ", guruh CRMga bog'landi" : ''))
+      crmState[chatId] = { loading: false, linked: true, ok: true, crm_total: data.sync?.crm_total }
+      checkBusy.value = false
+      closeCheck()
+      await Promise.all([loadQueue(), loadGroups()])
+      if (current.value?.chat_id === chatId) {
+         // The open person may have left the list (the CRM does not place them here).
+         const fresh = queue.value.find((p) => p.id === current.value.id)
+         if (!fresh) current.value = null
+         else current.value.kpi_excluded = fresh.kpi_excluded
+      }
+   } catch (e: any) {
+      toast.error(errText(e, 'Saqlanmadi'))
+   } finally { checkBusy.value = false }
 }
 
 /** The group's whole list. The confirm names the numbers the server will act on —
@@ -1379,10 +1575,12 @@ watch(() => current.value?.id, () => {
 /** The picker's options. Narrowed to the groups that departed on the day Bitrix
  *  recorded — but only while that leaves something to pick. */
 const pickableGroups = computed(() => {
+   // Nobody is moved INTO a group whose list is the CRM's (owner, 2026-11-10).
+   const open = groups.value.filter((g) => !g.crm_linked || g.chat_id === current.value?.chat_id)
    const hint = current.value?.depart_hint
-   if (!hint || showAllGroups.value) return groups.value
-   const sameDay = groups.value.filter((g) => g.trip_start_date === hint)
-   return sameDay.length ? sameDay : groups.value
+   if (!hint || showAllGroups.value) return open
+   const sameDay = open.filter((g) => g.trip_start_date === hint)
+   return sameDay.length ? sameDay : open
 })
 
 /** 2026-08-15 -> 15.08.2026, the way the office writes a date. */
@@ -1557,7 +1755,7 @@ function setAns(k: string, v: any) {
  *  and a zero are different facts — one keeps the survey out of the mean, the other
  *  scores it at nothing. */
 function onKey(e: KeyboardEvent) {
-   if (!current.value || isSaved.value || importFor.value !== null || reportOpen.value) return
+   if (!current.value || isSaved.value || importFor.value !== null || reportOpen.value || checkFor.value !== null) return
    const tag = (e.target as HTMLElement)?.tagName
    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
    const k = focusKey.value
@@ -1886,6 +2084,7 @@ function logout() {
 function onEsc(e: KeyboardEvent) {
    if (e.key === 'Escape' && reportOpen.value) closeReport()
    if (e.key === 'Escape' && importFor.value !== null) closeImport()
+   if (e.key === 'Escape' && checkFor.value !== null) closeCheck()
 }
 
 onMounted(() => {
@@ -2032,6 +2231,13 @@ onUnmounted(() => {
 .sn-pstatus { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .sn-prow.saved .sn-pstatus { color: var(--good); }
 .sn-pstatus.cs-qayta { color: #8a5408; }
+.sn-prow.saved .sn-pstatus.cs-out { color: var(--muted); text-decoration: line-through; }
+/* The booking's place in the CRM's list (2026-11-10). */
+.sn-pno { min-width: 1.6em; flex-shrink: 0; text-align: right; font-size: 11.5px; font-weight: 600;
+   color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sn-check-head small { margin-left: 4px; }
+.sn-check-names { margin: 0; font-size: 12.5px; font-weight: 400; color: var(--ink-2); line-height: 1.5;
+   max-height: 120px; overflow-y: auto; }
 .sn-prow.sub { margin-left: 16px; padding-left: 6px; border-left: 2px solid var(--line); border-radius: 0 10px 10px 0; }
 .sn-prow.sub .sn-prow-main { padding-top: 5px; padding-bottom: 5px; }
 .sn-prow.sub .sn-prow-text b { font-weight: 500; font-size: 13px; }
