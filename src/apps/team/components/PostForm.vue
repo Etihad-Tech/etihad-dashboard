@@ -39,31 +39,30 @@
           </p>
         </div>
 
-        <div>
-          <span class="label">Qayerga</span>
-          <div class="seg flex-wrap">
-            <button v-for="o in placeChoices" :key="String(o.slot)" type="button" class="seg-btn"
-              :class="{ 'seg-btn-on': form.topic_slot === o.slot }" :disabled="o.slot === 0 && !!cabinetBlock"
-              :title="o.slot === 0 ? cabinetBlock || '' : ''" @click="form.topic_slot = o.slot">
-              {{ o.label }}
-            </button>
+        <div class="flex flex-wrap gap-x-6 gap-y-4">
+          <div>
+            <span class="label">Qayerga</span>
+            <div class="seg flex-wrap">
+              <button v-for="o in placeChoices" :key="String(o.slot)" type="button" class="seg-btn"
+                :class="{ 'seg-btn-on': form.topic_slot === o.slot }" @click="form.topic_slot = o.slot">
+                {{ o.label }}
+              </button>
+            </div>
+          </div>
+          <div v-if="!isPoll">
+            <label class="label" for="pf-cabinet">Kabinetga</label>
+            <select id="pf-cabinet" :value="cabinetChoice ?? 'other'" class="input w-auto pr-8"
+              @change="pickCabinet(($event.target as HTMLSelectElement).value)">
+              <option v-for="c in cabinetOptions" :key="c.key" :value="c.key"
+                :disabled="c.key === 'only' && !!cabinetBlock" :title="c.key === 'only' ? cabinetBlock : ''">
+                {{ c.label }}
+              </option>
+              <option v-if="!cabinetChoice" value="other" disabled>{{ topicLabel(form.topic_slot) }} va kabinetga</option>
+            </select>
           </div>
         </div>
 
         <div class="flex flex-wrap gap-x-6 gap-y-3">
-          <label v-if="!cabinetOnly && !isPoll" class="flex items-center gap-2.5 text-sm text-gray-700">
-            <template v-if="kind === 'trip'">
-              <ToggleSwitch v-model="tripCabinet" />Kabinetga ham
-            </template>
-            <template v-else>
-              Kabinetga ham
-              <select v-model="templateCabinet" class="input input-sm w-auto">
-                <option value="follow">Shablon bo'yicha ({{ templateCabinetDefault ? 'ha' : "yo'q" }})</option>
-                <option value="yes">Ha</option>
-                <option value="no">Yo'q</option>
-              </select>
-            </template>
-          </label>
           <label v-if="!cabinetOnly" class="flex items-center gap-2.5 text-sm text-gray-700">
             <ToggleSwitch v-model="form.pin_message" />Guruhda qadash
           </label>
@@ -116,7 +115,7 @@ import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
 import { errorText, posts as postsApi, type Post, type PostButton, type PostFields, type PostKind, type TopicSlot, type Trip } from '../api'
-import { dayDate, fmtDate, fmtDelay, mediaInfo, pollOptions, topicLabel, tripTopics } from '../format'
+import { cabinetChoiceOf, cabinetChoices, dayDate, fmtDate, fmtDelay, mediaInfo, pollOptions, topicLabel, tripTopics } from '../format'
 
 // Every setting of one post on one screen (owner, 2026-11-10) — the bot spreads them over
 // a screen per flag. Media stays with the bot (it is the bot's own Telegram file);
@@ -146,8 +145,8 @@ const form = reactive({
   is_active: true,
   send_mode: 'scheduled' as 'scheduled' | 'now',
 })
-const tripCabinet = ref(false)
-const templateCabinet = ref<'follow' | 'yes' | 'no'>('follow')
+/** to_cabinet as stored: null = follow the template (a template post only). */
+const toCabinet = ref<boolean | null>(false)
 const buttons = ref<PostButton[]>([])
 const savedButtons = ref('[]')
 const busy = ref(false)
@@ -180,8 +179,7 @@ watch(() => props.open, async (v) => {
   form.pin_message = p?.pin_message ?? false
   form.is_active = p?.is_active ?? true
   form.send_mode = p?.send_mode ?? 'scheduled'
-  tripCabinet.value = !!p?.to_cabinet
-  templateCabinet.value = p?.to_cabinet == null ? 'follow' : p.to_cabinet ? 'yes' : 'no'
+  toCabinet.value = props.kind === 'trip' ? !!p?.to_cabinet : (p?.to_cabinet ?? null)
   buttons.value = []
   savedButtons.value = '[]'
   if (p && !pollOptions(p).length) {
@@ -227,17 +225,24 @@ const placeChoices = computed(() => {
       list.push({ slot: form.topic_slot, label: topicLabel(form.topic_slot) })
     }
   }
-  if (!isPoll.value) list.push({ slot: 0, label: 'Faqat kabinetga' })
   return list
 })
 
+// «Faqat kabinetga» is chosen under «Kabinetga», not «Qayerga» (owner, 2026-11-11).
+const cabinetOptions = computed(() => cabinetChoices(props.kind, props.trip ?? null, props.templateCabinetDefault))
+const cabinetChoice = computed(() => cabinetChoiceOf(cabinetOptions.value, props.kind, form.topic_slot, toCabinet.value))
+
+function pickCabinet(key: string) {
+  const c = cabinetOptions.value.find(o => o.key === key)
+  if (!c) return
+  if (c.fields.topic_slot !== undefined) form.topic_slot = c.fields.topic_slot
+  else if (cabinetOnly.value) form.topic_slot = placeChoices.value[0]!.slot
+  toCabinet.value = c.fields.to_cabinet ?? null
+}
+
 function fields(): PostFields {
   const f: PostFields = { ...form, day_number: Number(form.day_number) }
-  if (!cabinetOnly.value && !isPoll.value) {
-    f.to_cabinet = props.kind === 'trip'
-      ? tripCabinet.value
-      : templateCabinet.value === 'follow' ? null : templateCabinet.value === 'yes'
-  }
+  if (!isPoll.value) f.to_cabinet = toCabinet.value
   return f
 }
 

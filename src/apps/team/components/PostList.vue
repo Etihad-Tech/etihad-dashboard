@@ -106,15 +106,10 @@
         <button v-for="o in topicChoices" :key="String(o.slot)" type="button" class="menu-item" data-close @click="setFields({ topic_slot: o.slot })">
           {{ o.label }}
         </button>
-        <button type="button" class="menu-item" data-close @click="setFields({ topic_slot: 0 })">
-          <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>Faqat kabinetga
+        <p class="menu-head">Kabinetga</p>
+        <button v-for="c in cabinetMenu" :key="c.key" type="button" class="menu-item h-auto min-h-8 py-1.5 sm:whitespace-nowrap" data-close @click="setFields(c.fields)">
+          <span v-if="c.key === 'only'" class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>{{ c.label }}
         </button>
-        <p class="menu-head">Kabinetga ham</p>
-        <div class="flex gap-1 px-1 pb-1">
-          <button v-if="kind === 'template'" type="button" class="btn btn-sm btn-secondary flex-1" data-close @click="setFields({ to_cabinet: null })">Shablon bo'yicha</button>
-          <button type="button" class="btn btn-sm btn-secondary flex-1" data-close @click="setFields({ to_cabinet: true })">Ha</button>
-          <button type="button" class="btn btn-sm btn-secondary flex-1" data-close @click="setFields({ to_cabinet: false })">Yo'q</button>
-        </div>
       </Dropdown>
 
       <button type="button" :class="BAR_BTN" title="Faol qilish" @click="setFields({ is_active: true })">
@@ -136,7 +131,7 @@ import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
 import { errorText, posts as postsApi, type BulkResult, type Post, type PostFields, type PostKind, type Trip } from '../api'
 import {
-  dayDate, daysBetween, effectiveTime, fmtDate, fmtDelay, mediaInfo, parseDate, plainText,
+  cabinetChoices, dayDate, daysBetween, effectiveTime, fmtDate, fmtDelay, mediaInfo, parseDate, plainText,
   pollOptions, today, topicLabel, topicMark, tripTopics,
 } from '../format'
 import { useSelection } from '../selection'
@@ -247,6 +242,9 @@ const topicChoices = computed(() => {
   if (topics.length > 1) list.push({ slot: null, label: topicLabel(null) })
   return list
 })
+
+/** «Kabinetga» for the ticked posts — the post form's own choices (owner, 2026-11-11). */
+const cabinetMenu = computed(() => cabinetChoices(props.kind, props.trip ?? null, props.templateCabinet))
 
 function report(r: BulkResult, verb: string) {
   if (r.done.length) toast.success(`${r.done.length} ta post ${verb}`)
