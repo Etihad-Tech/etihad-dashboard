@@ -203,11 +203,11 @@ const dayHint = computed(() => {
   return d ? fmtDate(d, true) : ''
 })
 
-/** Why «Faqat kabinetga» cannot be chosen for this post, or ''. The cabinet takes text only. */
+/** Why «Faqat kabinetga» cannot be chosen for this post, or ''. The pilgrim bot takes the
+ *  text and, since 2026-11-11, the media too; the post's buttons do not reach it. */
 const cabinetBlock = computed(() => {
   if (isPoll.value) return "So'rovnoma kabinetga yuborilmaydi"
-  if (media.value) return 'Kabinetga faqat matn boradi — postda media bor'
-  if (buttons.value.some(b => b.name.trim())) return 'Kabinetga faqat matn boradi — tugmalarni olib tashlang'
+  if (buttons.value.some(b => b.name.trim())) return 'Tugmalar kabinet botiga yetmaydi — ularni olib tashlang'
   return ''
 })
 
