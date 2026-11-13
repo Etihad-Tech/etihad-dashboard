@@ -51,13 +51,12 @@
           </div>
           <div v-if="!isPoll">
             <label class="label" for="pf-cabinet">Kabinetga</label>
-            <select id="pf-cabinet" :value="cabinetChoice ?? 'other'" class="input w-auto pr-8"
+            <select id="pf-cabinet" :value="cabinetChoice" class="input w-auto pr-8"
               @change="pickCabinet(($event.target as HTMLSelectElement).value)">
-              <option v-for="c in cabinetOptions" :key="c.key" :value="c.key"
+              <option v-for="c in CABINET_CHOICES" :key="c.key" :value="c.key"
                 :disabled="c.key === 'only' && !!cabinetBlock" :title="c.key === 'only' ? cabinetBlock : ''">
                 {{ c.label }}
               </option>
-              <option v-if="!cabinetChoice" value="other" disabled>{{ topicLabel(form.topic_slot) }} va kabinetga</option>
             </select>
           </div>
         </div>
@@ -115,7 +114,7 @@ import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
 import { errorText, posts as postsApi, type Post, type PostButton, type PostFields, type PostKind, type TopicSlot, type Trip } from '../api'
-import { cabinetChoiceOf, cabinetChoices, dayDate, fmtDate, fmtDelay, mediaInfo, pollOptions, topicLabel, tripTopics } from '../format'
+import { CABINET_CHOICES, NEW_POST_PLACE, cabinetChoiceOf, dayDate, fmtDate, fmtDelay, mediaInfo, pollOptions, topicLabel, tripTopics } from '../format'
 
 // Every setting of one post on one screen (owner, 2026-11-10) — the bot spreads them over
 // a screen per flag. Media stays with the bot (it is the bot's own Telegram file);
@@ -175,11 +174,12 @@ watch(() => props.open, async (v) => {
   const t = p?.scheduled_time ?? '09:00'
   form.scheduled_time = t.length > 5 && !t.endsWith(':00') ? t.slice(0, 8) : t.slice(0, 5)
   form.message_text = p?.message_text ?? ''
-  form.topic_slot = p ? p.topic_slot : 1
+  // a new post: «Kabinet va guruhga» in the announcements topic, the bot's own default (2026-11-13)
+  form.topic_slot = p ? p.topic_slot : NEW_POST_PLACE.topic_slot!
   form.pin_message = p?.pin_message ?? false
   form.is_active = p?.is_active ?? true
   form.send_mode = p?.send_mode ?? 'scheduled'
-  toCabinet.value = props.kind === 'trip' ? !!p?.to_cabinet : (p?.to_cabinet ?? null)
+  toCabinet.value = !p ? NEW_POST_PLACE.to_cabinet! : props.kind === 'trip' ? !!p.to_cabinet : p.to_cabinet
   buttons.value = []
   savedButtons.value = '[]'
   if (p && !pollOptions(p).length) {
@@ -229,11 +229,10 @@ const placeChoices = computed(() => {
 })
 
 // «Faqat kabinetga» is chosen under «Kabinetga», not «Qayerga» (owner, 2026-11-11).
-const cabinetOptions = computed(() => cabinetChoices(props.kind, props.trip ?? null, props.templateCabinetDefault))
-const cabinetChoice = computed(() => cabinetChoiceOf(cabinetOptions.value, props.kind, form.topic_slot, toCabinet.value))
+const cabinetChoice = computed(() => cabinetChoiceOf(form.topic_slot, toCabinet.value, props.templateCabinetDefault))
 
 function pickCabinet(key: string) {
-  const c = cabinetOptions.value.find(o => o.key === key)
+  const c = CABINET_CHOICES.find(o => o.key === key)
   if (!c) return
   if (c.fields.topic_slot !== undefined) form.topic_slot = c.fields.topic_slot
   else if (cabinetOnly.value) form.topic_slot = placeChoices.value[0]!.slot

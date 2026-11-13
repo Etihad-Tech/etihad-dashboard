@@ -1,4 +1,4 @@
-import type { Participant, Post, PostFields, PostKind, TopicSlot, Trip } from './api'
+import type { Participant, Post, PostFields, TopicSlot, Trip } from './api'
 
 // How «Etihad Jamoasi» writes dates, times and a post's place — one definition, so the
 // trips list, a trip's posts and a template's posts say the same thing the same way.
@@ -101,44 +101,38 @@ export const TOPIC_LABEL: Record<string, string> = {
 }
 export const topicLabel = (slot: TopicSlot) => TOPIC_LABEL[String(slot)]
 
-export type CabinetKey = 'only' | 'all' | 'ann' | 'off' | 'follow'
+export type CabinetKey = 'only' | 'group' | 'both'
 export interface CabinetChoice {
   key: CabinetKey
   label: string
-  /** What the choice sets. «Yo'q» / «Shablon bo'yicha» name no topic: a «Faqat kabinetga»
-   *  post then goes back to the announcements topic (the server does it too). */
+  /** What the choice sets. «Faqat guruhga» / «Kabinet va guruhga» name no topic: the post
+   *  keeps its «Qayerga», and a «Faqat kabinetga» post goes back to the announcements
+   *  topic (the server does it too). */
   fields: Pick<PostFields, 'topic_slot' | 'to_cabinet'>
 }
 
-/** «Kabinetga» (owner, 2026-11-11) — the bot's own choices: «Faqat kabinetga» moved here
- *  from «Qayerga», and each choice sets the group topic too. A template post also keeps
- *  «Shablon bo'yicha»; a trip without an announcements topic is not offered it. */
-export function cabinetChoices(kind: PostKind, trip: Trip | null, templateCabinet?: boolean | null): CabinetChoice[] {
-  // a trip without topics posts to the group itself, which this form calls slot 1
-  const noTopics = kind === 'trip' && tripTopics(trip).length === 0
-  const list: CabinetChoice[] = [
-    { key: 'only', label: 'Faqat kabinetga (guruhga emas)', fields: { topic_slot: 0, to_cabinet: true } },
-    noTopics
-      ? { key: 'all', label: 'Guruhga va kabinetga', fields: { topic_slot: 1, to_cabinet: true } }
-      : { key: 'all', label: 'Barcha mavzular va kabinetga', fields: { topic_slot: null, to_cabinet: true } },
-  ]
-  if (kind === 'template' || trip?.topic_id) {
-    list.push({ key: 'ann', label: "Faqat e'lonlar mavzusi va kabinetga", fields: { topic_slot: 1, to_cabinet: true } })
-  }
-  list.push({ key: 'off', label: "Yo'q", fields: { to_cabinet: false } })
-  if (kind === 'template') {
-    list.push({ key: 'follow', label: `Shablon bo'yicha (${templateCabinet ? 'ha' : "yo'q"})`, fields: { to_cabinet: null } })
-  }
-  return list
+/** «Kabinetga» — the bot's own three choices (Turon #124/#126, 2026-11-12: «📲 Фақат
+ *  кабинетга / 👥 Фақат гуруҳга / 🔀 Кабинет ва гуруҳга»; «Shablon bo'yicha» left the menu).
+ *  Which of the group's topics is «Qayerga»'s. */
+export const CABINET_CHOICES: CabinetChoice[] = [
+  { key: 'only', label: 'Faqat kabinetga', fields: { topic_slot: 0, to_cabinet: true } },
+  { key: 'group', label: 'Faqat guruhga', fields: { to_cabinet: false } },
+  { key: 'both', label: 'Kabinet va guruhga', fields: { to_cabinet: true } },
+]
+
+/** The choice a post is on now. A template post never set here (to_cabinet null) follows
+ *  its template's switch, and shows what that gives — as the bot's menu does. */
+export function cabinetChoiceOf(slot: TopicSlot, toCabinet: boolean | null, templateCabinet?: boolean | null): CabinetKey {
+  if (slot === 0) return 'only'
+  return (toCabinet ?? !!templateCabinet) ? 'both' : 'group'
 }
 
-/** The choice a post is on now, or null (the cabinet with a topic no choice names, e.g. 2-mavzu). */
-export function cabinetChoiceOf(choices: CabinetChoice[], kind: PostKind, slot: TopicSlot, toCabinet: boolean | null): CabinetKey | null {
-  if (slot === 0) return 'only'
-  if (kind === 'template' && toCabinet === null) return 'follow'
-  if (!toCabinet) return 'off'
-  return choices.find(c => c.fields.to_cabinet === true && c.fields.topic_slot === slot && c.key !== 'only')?.key ?? null
-}
+/** Where a NEW post goes until it is set otherwise (user, 2026-11-13: «по дефолту все
+ *  существующие и новые будут идти к боту кабинета») — the bot's own default
+ *  (cabinet_push.new_post_place): «Kabinet va guruhga» in the announcements topic. Not
+ *  «Faqat kabinetga» (the owner's choice, 2026-11-13): only a third of a group's pilgrims
+ *  use the pilgrim bot, so the group keeps getting every post. */
+export const NEW_POST_PLACE: Pick<PostFields, 'topic_slot' | 'to_cabinet'> = { topic_slot: 1, to_cabinet: true }
 
 /** The list mark of a post that does NOT go where a new post goes (the announcements
  *  topic) — the bot's own rule, so the few exceptions are what the eye finds. */
