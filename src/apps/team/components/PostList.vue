@@ -131,7 +131,7 @@ import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
 import { errorText, posts as postsApi, type BulkResult, type Post, type PostFields, type PostKind, type Trip } from '../api'
 import {
-  cabinetChoices, dayDate, daysBetween, effectiveTime, fmtDate, fmtDelay, mediaInfo, parseDate, plainText,
+  CABINET_CHOICES, dayDate, daysBetween, effectiveTime, fmtDate, fmtDelay, mediaInfo, parseDate, plainText,
   pollOptions, today, topicLabel, topicMark, tripTopics,
 } from '../format'
 import { useSelection } from '../selection'
@@ -244,7 +244,7 @@ const topicChoices = computed(() => {
 })
 
 /** «Kabinetga» for the ticked posts — the post form's own choices (owner, 2026-11-11). */
-const cabinetMenu = computed(() => cabinetChoices(props.kind, props.trip ?? null, props.templateCabinet))
+const cabinetMenu = CABINET_CHOICES
 
 function report(r: BulkResult, verb: string) {
   if (r.done.length) toast.success(`${r.done.length} ta post ${verb}`)
