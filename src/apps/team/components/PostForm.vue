@@ -174,7 +174,7 @@ watch(() => props.open, async (v) => {
   const t = p?.scheduled_time ?? '09:00'
   form.scheduled_time = t.length > 5 && !t.endsWith(':00') ? t.slice(0, 8) : t.slice(0, 5)
   form.message_text = p?.message_text ?? ''
-  // a new post: «Faqat kabinetga», the bot's own default (user, 2026-11-13)
+  // a new post: «Kabinet va guruhga» in the announcements topic, the bot's own default (2026-11-13)
   form.topic_slot = p ? p.topic_slot : NEW_POST_PLACE.topic_slot!
   form.pin_message = p?.pin_message ?? false
   form.is_active = p?.is_active ?? true

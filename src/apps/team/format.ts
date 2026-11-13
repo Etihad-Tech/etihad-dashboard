@@ -128,8 +128,11 @@ export function cabinetChoiceOf(slot: TopicSlot, toCabinet: boolean | null, temp
 }
 
 /** Where a NEW post goes until it is set otherwise (user, 2026-11-13: «по дефолту все
- *  существующие и новые будут идти к боту кабинета») — the bot's own default. */
-export const NEW_POST_PLACE = CABINET_CHOICES[0]!.fields
+ *  существующие и новые будут идти к боту кабинета») — the bot's own default
+ *  (cabinet_push.new_post_place): «Kabinet va guruhga» in the announcements topic. Not
+ *  «Faqat kabinetga» (the owner's choice, 2026-11-13): only a third of a group's pilgrims
+ *  use the pilgrim bot, so the group keeps getting every post. */
+export const NEW_POST_PLACE: Pick<PostFields, 'topic_slot' | 'to_cabinet'> = { topic_slot: 1, to_cabinet: true }
 
 /** The list mark of a post that does NOT go where a new post goes (the announcements
  *  topic) — the bot's own rule, so the few exceptions are what the eye finds. */
