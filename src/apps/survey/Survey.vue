@@ -91,10 +91,8 @@
                         :size="13" :class="{ 'sn-spin': crmStatus.tone === 'busy' }" />
                      <span>{{ crmStatus.text }}</span>
                   </div>
-                  <!-- A group bound to a CRM group has the CRM's list alone (owner,
-                       2026-11-10): no sheet, no typing, no clearing. -->
-                  <div v-if="!openGroupObj.crm_linked || isAdmin" class="sn-gtools">
-                     <button v-if="!openGroupObj.crm_linked" type="button" class="sn-btn sn-btn-soft" @click="openImport">
+                  <div class="sn-gtools">
+                     <button type="button" class="sn-btn sn-btn-soft" @click="openImport">
                         <Icon name="plus" :size="14" /> Qo'shish
                      </button>
                      <!-- The whole list at once — the sheet went into the wrong group.
@@ -143,7 +141,7 @@
                         :aria-expanded="unit.open" @click="toggleUnit(unit)">
                         +{{ unit.members.length }}<Icon name="chevron" :size="12" />
                      </button>
-                     <button v-if="!openGroupObj.crm_linked" type="button" class="sn-iconbtn sn-prow-x" :disabled="p.survey_status === 'saved'"
+                     <button type="button" class="sn-iconbtn sn-prow-x" :disabled="p.survey_status === 'saved'"
                         :title="p.survey_status === 'saved' ? SAVED_NO_DELETE : 'Ro\'yxatdan o\'chirish'"
                         @click="removePilgrim(p)"><Icon name="x" :size="14" /></button>
                   </div>
@@ -252,7 +250,7 @@
                         :disabled="isSaved && k !== 'boldi'" :aria-pressed="current.call_status === k"
                         @click="setStatus(k)">{{ l }}</button>
                   </div>
-                  <button v-if="!isSaved && !currentLocked" type="button" class="sn-link sn-link-danger sn-callrow-del"
+                  <button v-if="!isSaved" type="button" class="sn-link sn-link-danger sn-callrow-del"
                      @click="removePilgrim(current)">Ro'yxatdan o'chirish</button>
                </div>
 
@@ -1175,7 +1173,7 @@ const crmStatus = computed<{ tone: string; text: string } | null>(() => {
 })
 
 function openImport() {
-   if (!openGroupObj.value || openGroupObj.value.crm_linked) return
+   if (!openGroupObj.value) return
    closeImport()
    importFor.value = openGroupObj.value.chat_id
    if (importMode.value === 'manual') nextTick(() => newNameEl.value?.focus())
@@ -1406,13 +1404,13 @@ async function removePilgrim(p: any) {
 /** «Tozalash» removes every pilgrim of the group without a saved survey — the whole
  *  group, not the search-filtered view. */
 function deletableOf(chatId: number) {
-   if (isLocked(chatId)) return 0
    return queue.value.filter((p) => p.chat_id === chatId && p.survey_status !== 'saved').length
 }
 
 const isAdmin = computed(() => auth.role === 'admin')
-/** Bound to a CRM group: the list is the CRM's alone (owner, 2026-11-10) — nobody is
- *  imported, typed in, removed or moved in or out by hand; the server refuses too. */
+/** Bound to a CRM group: its people come from the CRM (owner, 2026-11-10) — nobody is
+ *  moved in or out by hand; the server refuses too. A sheet and a typed name still go
+ *  in (owner, 2026-11-13). */
 function isLocked(chatId: number | null | undefined): boolean {
    return !!groups.value.find((g) => g.chat_id === chatId)?.crm_linked
 }
