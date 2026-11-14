@@ -66,6 +66,7 @@ import {
    // Etihad Jamoasi
    faSquarePollHorizontal, faImage, faPaperclip, faThumbtack, faBolt,
    faLocationArrow, faRotateLeft, faBoxArchive, faUserPlus, faBold, faItalic,
+   faIdCard,
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(
@@ -82,7 +83,7 @@ library.add(
    faSliders, faChevronLeft, faChevronDown, faLanguage,
    faSquarePollHorizontal, faImage, faPaperclip, faThumbtack, faBolt,
    faLocationArrow, faRotateLeft, faBoxArchive, faUserPlus, faBold, faItalic,
-   faStar,
+   faStar, faIdCard,
 )
 
 const app = createApp(App)
