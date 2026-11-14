@@ -167,6 +167,27 @@ export function mediaInfo(post: Pick<Post, 'media_path' | 'media_type'>): { icon
   return { icon: MEDIA_ICON[type] || 'paperclip', label: MEDIA_LABEL[type] || 'Fayl', count }
 }
 
+/** The media of a row that names only its first file's kind and how many files there are. */
+export function mediaOf(type: string | null, count: number): { icon: string; label: string; count: number } | null {
+  if (!count) return null
+  const t = type || 'document'
+  return { icon: MEDIA_ICON[t] || 'paperclip', label: MEDIA_LABEL[t] || 'Fayl', count }
+}
+
+/** A post's text in full, its lines kept: the HTML the bot sends, without its tags. */
+export function plainBlock(html: string): string {
+  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/** «14 noy, 09:05» — a moment in the reader's own clock (the server sends UTC). */
+export function fmtMoment(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${fmtDate(d)}, ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 /** A post's text as one plain line: the HTML the bot sends, without its tags. */
 export function plainText(html: string): string {
   return html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
