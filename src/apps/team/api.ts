@@ -159,3 +159,33 @@ export const questions = {
 }
 
 export const exportSheet = async (path: string) => { await api.post(`/api/export/${path}`) }
+
+// ── «Shaxsiy kabinet»: what went to the pilgrim cabinet bot (user, 2026-11-14) ──────
+/** One post the pilgrim bot was handed and still has: a trip's post, or a mass post
+ *  («Ommaviy post · Faqat kabinetga») that went to every cabinet user. */
+export interface CabinetItem {
+  kind: 'post' | 'broadcast'
+  id: number
+  trip_id: string | null
+  trip_name: string | null
+  day_number: number | null
+  /** Telegram HTML, as the bot sent it. */
+  text: string
+  media_type: string | null
+  media_count: number
+  /** The trip's group got it too; deleting it here leaves the group's copy. */
+  also_group: boolean
+  /** When the pilgrim bot took it, UTC. */
+  sent_at: string
+}
+
+/** The pilgrim bot's count of what it deleted. `known` false: it no longer remembered
+ *  the post (restarted) — only the cabinet's list dropped it. `deleting`: a mass post,
+ *  still being deleted. */
+export interface CabinetRecall { known: boolean; chats: number; deleted: number; failed: number; deleting: boolean }
+
+export const cabinet = {
+  sent: async () => (await api.get<{ connected: boolean; items: CabinetItem[] }>('/api/cabinet/sent')).data,
+  remove: async (kind: CabinetItem['kind'], id: number) =>
+    (await api.post<CabinetRecall>(`/api/cabinet/sent/${kind}/${id}/delete`)).data,
+}
