@@ -108,6 +108,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   { title: 'Etihad Jamoasi', items: [
     { to: '/team/trips', label: 'Safarlar', icon: 'plane-arrival' },
     { to: '/team/templates', label: 'Post shablonlari', icon: 'clone' },
+    { to: '/team/kabinet', label: 'Shaxsiy kabinet', icon: 'id-card' },
     { to: '/team/polls', label: "So'rovnomalar", icon: 'list-ul' },
     { to: '/team/export', label: 'Eksport', icon: 'file-export' },
   ] },

@@ -152,6 +152,13 @@ const router = createRouter({
       name: 'TeamTemplateDetail',
       component: () => import('../apps/team/views/templates/TemplateDetail.vue'),
     },
+    // «Shaxsiy kabinet» (user, 2026-11-14): what the pilgrim cabinet bot was sent, each
+    // one deleted from there.
+    {
+      path: '/team/kabinet',
+      name: 'TeamCabinet',
+      component: () => import('../apps/team/views/Cabinet.vue'),
+    },
     {
       path: '/team/polls',
       name: 'TeamPolls',
