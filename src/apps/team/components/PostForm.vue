@@ -30,8 +30,26 @@
             </template>
           </div>
           <textarea id="pf-text" ref="textBox" v-model="form.message_text" rows="7" class="input" required></textarea>
-          <div v-if="isPoll" class="flex flex-wrap gap-1.5 mt-2">
+          <div v-if="isPoll && !showResults" class="flex flex-wrap gap-1.5 mt-2">
             <span v-for="o in options" :key="o" class="chip chip-gray">{{ o }}</span>
+          </div>
+          <div v-if="showResults && results" class="mt-2 rounded-lg border border-gray-200 divide-y divide-gray-100">
+            <div class="flex items-center gap-2 px-3 h-9">
+              <span class="text-sm font-medium text-gray-900">Javoblar</span>
+              <span class="text-xs text-gray-500 tabular-nums">{{ results.total }} ta</span>
+            </div>
+            <div v-for="(o, i) in results.options" :key="i" class="px-3 py-2">
+              <div class="flex items-baseline gap-2 text-sm">
+                <span class="flex-1 min-w-0 break-words text-gray-800">{{ o.text }}</span>
+                <span class="shrink-0 text-xs text-gray-500 tabular-nums">{{ o.count }}<template v-if="results.total"> · {{ share(o.count) }}%</template></span>
+              </div>
+              <div class="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                <div class="h-full rounded-full bg-emerald-500" :style="{ width: share(o.count) + '%' }"></div>
+              </div>
+              <p v-if="o.voters.length" class="mt-1.5 text-xs leading-relaxed text-gray-600 break-words">
+                <template v-for="(v, k) in o.voters" :key="k">{{ v.name || '—' }}<span v-if="v.username" class="text-gray-400"> @{{ v.username }}</span><template v-if="k < o.voters.length - 1">, </template></template>
+              </p>
+            </div>
           </div>
           <p v-if="media" class="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500">
             <font-awesome-icon :icon="media.icon" class="w-3.5 h-3.5 text-gray-400" />
@@ -113,7 +131,7 @@ import BaseModal from '../../../components/BaseModal.vue'
 import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
-import { errorText, posts as postsApi, type Post, type PostButton, type PostFields, type PostKind, type TopicSlot, type Trip } from '../api'
+import { errorText, posts as postsApi, type PollResults, type Post, type PostButton, type PostFields, type PostKind, type TopicSlot, type Trip } from '../api'
 import { CABINET_CHOICES, NEW_POST_PLACE, cabinetChoiceOf, dayDate, fmtDate, fmtDelay, mediaInfo, pollOptions, topicLabel, tripTopics } from '../format'
 
 // Every setting of one post on one screen (owner, 2026-11-10) — the bot spreads them over
@@ -182,6 +200,14 @@ watch(() => props.open, async (v) => {
   toCabinet.value = !p ? NEW_POST_PLACE.to_cabinet! : props.kind === 'trip' ? !!p.to_cabinet : p.to_cabinet
   buttons.value = []
   savedButtons.value = '[]'
+  results.value = null
+  if (p && props.kind === 'trip' && pollOptions(p).length) {
+    try {
+      const r = await postsApi.pollResults(p.id)
+      // Another post opened meanwhile: these answers are not its own.
+      if (props.open && props.post?.id === p.id) results.value = r
+    } catch { /* the options still show */ }
+  }
   if (p && !pollOptions(p).length) {
     try {
       buttons.value = (await postsApi.buttons(props.kind, p.id)).map(b => ({ position: b.position, name: b.name, link: b.link || '' }))
@@ -194,6 +220,14 @@ const title = computed(() => (props.post ? `${props.post.day_number}-kun · ${pr
 const locked = computed(() => !!props.post?.is_sent)
 const options = computed(() => (props.post ? pollOptions(props.post) : []))
 const isPoll = computed(() => options.value.length > 0)
+// Who answered what (owner, 2026-11-24): a sent poll, or one already answered, shows the
+// answers by name in place of the bare options.
+const results = ref<PollResults | null>(null)
+const showResults = computed(() => !!results.value && (!!props.post?.is_sent || results.value.total > 0))
+function share(count: number) {
+  const total = results.value?.total || 0
+  return total ? Math.round((count * 100) / total) : 0
+}
 const media = computed(() => (props.post ? mediaInfo(props.post) : null))
 const cabinetOnly = computed(() => form.topic_slot === 0)
 

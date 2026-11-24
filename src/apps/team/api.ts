@@ -50,6 +50,12 @@ export interface Post {
 
 export interface PostButton { position: number; name: string; link: string | null; is_skip?: boolean }
 
+/** A group poll's answers by name — for us only, the group never sees them (Turon #141). */
+export interface PollResults {
+  total: number
+  options: { text: string; count: number; voters: { name: string | null; username: string | null; voted_at: string }[] }[]
+}
+
 export interface Template {
   id: number
   name: string
@@ -138,6 +144,7 @@ export const posts = {
   saveButtons: async (kind: PostKind, id: number, buttons: PostButton[]) =>
     (await api.post<PostButton[]>(`${base(kind)}/${id}/buttons`, buttons)).data,
   sendNow: async (id: number) => (await api.post<Post>(`/api/posts/${id}/send-now`)).data,
+  pollResults: async (id: number) => (await api.get<PollResults>(`/api/posts/${id}/poll-results`)).data,
 }
 
 // ── templates ────────────────────────────────────────────────────────────────────
