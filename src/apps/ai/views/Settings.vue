@@ -19,6 +19,30 @@
           </button>
         </div>
       </div>
+
+      <div class="card p-5 space-y-4">
+        <h2 class="section-title">Ertalabki namoz vaqtlari</h2>
+        <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <label class="flex items-center gap-3 h-9 text-sm text-gray-700 cursor-pointer">
+            <ToggleSwitch v-model="prayerEnabled" :disabled="!prayerLoaded" />
+            Har kuni guruhlarga yuborish
+          </label>
+          <div>
+            <label class="label" for="prayer-time">Vaqt (Makka)</label>
+            <input id="prayer-time" v-model="prayerTime" type="time" class="input w-32"
+              :disabled="!prayerLoaded" />
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-end gap-3">
+          <span v-if="prayerMessage" class="text-sm" :class="prayerMessageType === 'success' ? 'text-emerald-600' : 'text-rose-600'">
+            {{ prayerMessage }}
+          </span>
+          <button class="btn btn-primary" :disabled="prayerSaving || !prayerLoaded || !prayerTime" @click="savePrayer">
+            {{ prayerSaving ? 'Saqlanmoqda...' : 'Saqlash' }}
+          </button>
+        </div>
+      </div>
     </div>
   </AppShell>
 </template>
@@ -26,7 +50,50 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import AppShell from '../../../components/AppShell.vue'
+import ToggleSwitch from '../../../components/ToggleSwitch.vue'
 import api from '../../../api'
+
+// The morning prayer-times post the bot sends to every group in Saudi (bot
+// services/prayer_post.py). The time is on the Makka clock.
+const prayerEnabled = ref(true)
+const prayerTime = ref('')
+const prayerLoaded = ref(false)
+const prayerSaving = ref(false)
+const prayerMessage = ref('')
+const prayerMessageType = ref<'success' | 'error'>('success')
+
+async function loadPrayer() {
+  try {
+    const { data } = await api.get('/prayer-post')
+    prayerEnabled.value = data.is_enabled
+    prayerTime.value = data.post_time
+    prayerLoaded.value = true
+  } catch {
+    prayerMessage.value = 'Yuklab bo\'lmadi'
+    prayerMessageType.value = 'error'
+  }
+}
+
+async function savePrayer() {
+  prayerSaving.value = true
+  prayerMessage.value = ''
+  try {
+    const { data } = await api.put('/prayer-post', {
+      is_enabled: prayerEnabled.value,
+      post_time: prayerTime.value,
+    })
+    prayerEnabled.value = data.is_enabled
+    prayerTime.value = data.post_time
+    prayerMessage.value = 'Saqlandi'
+    prayerMessageType.value = 'success'
+    setTimeout(() => (prayerMessage.value = ''), 3000)
+  } catch {
+    prayerMessage.value = 'Xatolik yuz berdi'
+    prayerMessageType.value = 'error'
+  } finally {
+    prayerSaving.value = false
+  }
+}
 
 const promptContent = ref('')
 const saving = ref(false)
@@ -64,5 +131,8 @@ async function savePrompt() {
   }
 }
 
-onMounted(loadPrompt)
+onMounted(() => {
+  loadPrompt()
+  loadPrayer()
+})
 </script>
