@@ -1859,23 +1859,33 @@ const commitPhone = () => commitField('phone', editingPhone.value, () => { editi
 
 /** Move this pilgrim to another group. Never to NO group — a pilgrim outside a group has
  *  no trip, no ellikboshi and nowhere in this panel to be seen. */
+// Every answer below lands on the pilgrim the request was FOR, held before the await —
+// never on `current`, which is whoever is open when the answer arrives. The specialist
+// goes on to the next person while the last one is still saving; writing the save onto
+// `current` showed that next person «Saqlangan», with the last one's ball and every
+// answer locked, while the server had saved nothing of theirs (owner, 24.11.2026).
+const isOpen = (p: any) => current.value?.id === p.id
+
 async function assignGroup() {
-   if (!current.value || !pickedGroup.value) return
+   const p = current.value
+   const target = pickedGroup.value
+   if (!p || !target) return
    try {
-      await api.put(`/survey/pilgrims/${current.value.id}`, { chat_id: pickedGroup.value })
-      current.value.chat_id = pickedGroup.value
+      await api.put(`/survey/pilgrims/${p.id}`, { chat_id: target })
+      p.chat_id = target
       await loadQueue()
    } catch (e: any) {
-      pickedGroup.value = current.value.chat_id ?? null
+      if (isOpen(p)) pickedGroup.value = p.chat_id ?? null
       toast.error(errText(e, "Guruh o'zgartirilmadi"))
    }
 }
 
 async function setStatus(k: string) {
-   if (!current.value) return
+   const p = current.value
+   if (!p) return
    try {
-      await api.put(`/survey/pilgrims/${current.value.id}`, { call_status: k })
-      current.value.call_status = k
+      await api.put(`/survey/pilgrims/${p.id}`, { call_status: k })
+      p.call_status = k
       await loadQueue()
    } catch (e: any) {
       toast.error(errText(e, "Holat saqlanmadi"))
@@ -1883,7 +1893,8 @@ async function setStatus(k: string) {
 }
 
 async function save() {
-   if (!current.value) return
+   const cur = current.value
+   if (!cur) return
    // The reasons first — the server refuses the save without them anyway, and here the
    // specialist is taken to the first one still empty.
    if (missingReasons.value.length) {
@@ -1899,23 +1910,33 @@ async function save() {
       // Taken before the save: the people ticked for the same answers, as they stand.
       const also = peerChoices.value.filter((p) => alsoIds.has(p.id))
       const payload = draftPayload()
-      const { data } = await api.post(`/survey/${current.value.id}/save`)
-      isSaved.value = true
-      savedScore.value = data.ell_score
-      // The server marks the call done at save; the screen says the same.
-      current.value.survey_status = 'saved'
-      current.value.call_status = 'boldi'
-      draftState.value = ''
+      const { data } = await api.post(`/survey/${cur.id}/save`)
+      // The server marks the call done at save; the list says the same.
+      cur.survey_status = 'saved'
+      cur.call_status = 'boldi'
+      if (isOpen(cur)) {
+         isSaved.value = true
+         savedScore.value = data.ell_score
+         draftState.value = ''
+      }
       // Each of them through the same two calls as a survey of their own — the server
       // scores and snapshots each one by that person (seller, hotels).
       const failed: string[] = []
       for (const p of also) {
          try {
             await api.put(`/survey/${p.id}/draft`, payload)
-            await api.post(`/survey/${p.id}/save`)
+            const { data: pd } = await api.post(`/survey/${p.id}/save`)
+            p.survey_status = 'saved'
+            p.call_status = 'boldi'
+            // Opened meanwhile: it IS saved now, so its screen locks too.
+            if (isOpen(p)) {
+               isSaved.value = true
+               savedScore.value = pd.ell_score
+               draftState.value = ''
+            }
          } catch { failed.push(p.full_name) }
       }
-      alsoIds.clear()
+      if (isOpen(cur)) alsoIds.clear()
       const more = also.length - failed.length
       toast.success((data.ell_score === null
          ? "Saqlandi — Q1 to'liq emas, ellikboshi o'rtachasiga kirmaydi"
@@ -1925,7 +1946,7 @@ async function save() {
       await Promise.all([loadQueue(), loadGroups()])
    } catch (e: any) {
       const missing = e?.response?.data?.detail?.missing_reasons
-      if (Array.isArray(missing) && missing.length) focusReason(missing[0])
+      if (Array.isArray(missing) && missing.length && isOpen(cur)) focusReason(missing[0])
       toast.error(errText(e, 'Saqlanmadi'))
    } finally { saving.value = false }
 }
