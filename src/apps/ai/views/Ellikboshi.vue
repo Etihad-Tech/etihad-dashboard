@@ -39,6 +39,35 @@
           <p v-if="poolError" class="error-text">{{ poolError }}</p>
         </div>
 
+        <!-- «Ellikboshi to'g'risida ma'lumot» (owner, 27.11.2026): text + photo per leader.
+             The bot posts it ONCE to a group he is assigned to, and the pilgrim cabinet
+             shows it under «Ellikboshim». -->
+        <div v-if="pool.length" class="card divide-y divide-gray-100">
+          <div class="flex items-center gap-2 px-4 py-3">
+            <span class="section-title">Ma'lumot</span>
+            <span class="chip chip-gray">{{ filledCount }} / {{ pool.length }}</span>
+          </div>
+          <div v-for="e in pool" :key="e.id" class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <div class="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center shrink-0">
+                <img v-if="thumbs[e.id]" :src="thumbs[e.id]" alt="" class="w-full h-full object-cover" />
+                <font-awesome-icon v-else icon="user" class="w-4 h-4 text-gray-300" />
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">
+                  {{ e.name || e.username }}<span v-if="e.name" class="ml-1.5 font-normal text-gray-400">{{ e.username }}</span>
+                </p>
+                <p v-if="e.info_text" class="text-xs text-gray-500 truncate">{{ e.info_text }}</p>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm shrink-0 self-start sm:self-auto"
+              :class="hasInfo(e) ? 'btn-secondary' : 'btn-primary'" @click="openInfo(e)">
+              <font-awesome-icon :icon="hasInfo(e) ? 'pen' : 'plus'" class="w-3 h-3" />
+              {{ hasInfo(e) ? "Ma'lumotni tahrirlash" : "Ellikboshi to'g'risida ma'lumot qo'shish" }}
+            </button>
+          </div>
+        </div>
+
         <!-- Per-group assignment -->
         <div class="flex flex-wrap items-center gap-2">
           <span class="section-title">Guruhlar</span>
@@ -100,17 +129,55 @@
         </div>
       </template>
     </div>
+
+    <BaseModal :open="!!editing" :title="editing ? (editing.name || editing.username) : ''" @close="closeInfo">
+      <div class="flex items-center gap-4">
+        <div class="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden flex items-center justify-center shrink-0">
+          <img v-if="form.previewUrl" :src="form.previewUrl" alt="" class="w-full h-full object-cover" />
+          <font-awesome-icon v-else icon="user" class="w-8 h-8 text-gray-300" />
+        </div>
+        <div class="flex flex-col items-start gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" :disabled="form.reading" @click="fileEl?.click()">
+            <font-awesome-icon icon="image" class="w-3 h-3" />
+            {{ form.previewUrl ? 'Rasmni almashtirish' : "Rasm qo'shish" }}
+          </button>
+          <button v-if="form.previewUrl" type="button" class="btn btn-ghost btn-sm" @click="dropPhoto">
+            <font-awesome-icon icon="trash" class="w-3 h-3" />
+            Rasmni o'chirish
+          </button>
+        </div>
+        <input ref="fileEl" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onPhoto" />
+      </div>
+      <div>
+        <label class="label">Ma'lumot</label>
+        <textarea v-model="form.text" rows="9" class="input resize-y"></textarea>
+        <p class="mt-1 text-xs text-right tabular-nums" :class="textOver ? 'text-rose-600' : 'text-gray-400'">
+          {{ textLen }} / {{ INFO_LIMIT }}
+        </p>
+      </div>
+      <p v-if="form.error" class="error-text">{{ form.error }}</p>
+      <template #footer>
+        <button type="button" class="btn btn-ghost" @click="closeInfo">Bekor qilish</button>
+        <button type="button" class="btn btn-primary" :disabled="form.saving || form.reading || textOver" @click="saveInfo">
+          Saqlash
+        </button>
+      </template>
+    </BaseModal>
   </AppShell>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import AppShell from '../../../components/AppShell.vue'
+import BaseModal from '../../../components/BaseModal.vue'
 import api from '../../../api'
 import { useConfirm } from '../../../composables/useConfirm'
 import { useToast } from '../../../composables/useToast'
 
-interface Ellik { id: number; username: string; name: string | null; is_active: boolean }
+interface Ellik {
+  id: number; username: string; name: string | null; is_active: boolean
+  info_text: string; has_photo: boolean; info_updated_at: string | null
+}
 // ellikboshi_username is the LEGACY single-leader field, kept as the fallback for a
 // group nobody has re-assigned; the two city columns are the assignment (owner,
 // 2026-08-16). Migration 041 backfilled both from the legacy one, so on the morning
@@ -278,5 +345,148 @@ async function onAssign(g: Grp, city: City | 'both', event: Event) {
   }
 }
 
-onMounted(loadAll)
+// ── «Ellikboshi to'g'risida ma'lumot» ──────────────────────────────────────────────
+// Telegram's caption limit, counted the way Telegram counts (an emoji is two): the text
+// goes UNDER the photo in one message, so it has to fit there.
+const INFO_LIMIT = 1024
+// The photo is shrunk here before it is sent — a phone picture is several MB, and
+// Telegram shows a group photo at 1280 px anyway.
+const MAX_SIDE = 1280
+
+const utf16Len = (s: string) => s.length
+const hasInfo = (e: Ellik) => !!(e.info_text || e.has_photo)
+const filledCount = computed(() => pool.value.filter(hasInfo).length)
+
+// Photos are behind the login, so an <img src> cannot fetch them: each is read once as
+// a blob and shown from an object URL.
+const thumbs = ref<Record<number, string>>({})
+function setThumb(id: number, url: string | null) {
+  const old = thumbs.value[id]
+  if (old) URL.revokeObjectURL(old)
+  const next = { ...thumbs.value }
+  if (url) next[id] = url
+  else delete next[id]
+  thumbs.value = next
+}
+async function loadThumbs() {
+  await Promise.all(pool.value.filter(e => e.has_photo && !thumbs.value[e.id]).map(async (e) => {
+    try {
+      const { data } = await api.get(`/ellikboshilar/${e.id}/photo`, { responseType: 'blob' })
+      setThumb(e.id, URL.createObjectURL(data))
+    } catch { /* no picture shown — the row still works */ }
+  }))
+}
+onBeforeUnmount(() => Object.values(thumbs.value).forEach(u => URL.revokeObjectURL(u)))
+
+const editing = ref<Ellik | null>(null)
+const fileEl = ref<HTMLInputElement | null>(null)
+const form = reactive({
+  text: '',
+  previewUrl: '' as string,
+  newPhoto: null as { b64: string; blob: Blob } | null,
+  removePhoto: false,
+  reading: false,
+  saving: false,
+  error: '',
+})
+const textLen = computed(() => utf16Len(form.text.trim()))
+const textOver = computed(() => textLen.value > INFO_LIMIT)
+
+function openInfo(e: Ellik) {
+  editing.value = e
+  form.text = e.info_text || ''
+  form.previewUrl = thumbs.value[e.id] || ''
+  form.newPhoto = null
+  form.removePhoto = false
+  form.error = ''
+}
+function dropPreview() {
+  // Only a URL made for THIS dialog is ours to revoke; the row thumbnail stays.
+  if (form.newPhoto && form.previewUrl) URL.revokeObjectURL(form.previewUrl)
+}
+function closeInfo() {
+  if (form.saving) return
+  dropPreview()
+  editing.value = null
+}
+
+function blobToB64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',')[1] || '')
+    r.onerror = () => reject(r.error)
+    r.readAsDataURL(blob)
+  })
+}
+async function shrink(file: File): Promise<Blob> {
+  const bmp = await createImageBitmap(file)
+  const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bmp.width * scale)
+  canvas.height = Math.round(bmp.height * scale)
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#fff'                     // a transparent PNG must not turn black
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height)
+  bmp.close()
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/jpeg', 0.88))
+}
+async function onPhoto(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  form.reading = true
+  form.error = ''
+  try {
+    const blob = await shrink(file)
+    const b64 = await blobToB64(blob)
+    dropPreview()
+    form.newPhoto = { b64, blob }
+    form.previewUrl = URL.createObjectURL(blob)
+    form.removePhoto = false
+  } catch {
+    form.error = "Rasm o'qilmadi — JPG yoki PNG tanlang"
+  } finally {
+    form.reading = false
+  }
+}
+function dropPhoto() {
+  dropPreview()
+  form.newPhoto = null
+  form.previewUrl = ''
+  form.removePhoto = true
+}
+
+async function saveInfo() {
+  const e = editing.value
+  if (!e || textOver.value) return
+  form.saving = true
+  form.error = ''
+  try {
+    const { data } = await api.put(`/ellikboshilar/${e.id}/info`, {
+      info_text: form.text.trim(),
+      photo_b64: form.newPhoto?.b64 ?? null,
+      photo_mime: form.newPhoto ? 'image/jpeg' : null,
+      remove_photo: form.removePhoto,
+    })
+    const idx = pool.value.findIndex(x => x.id === e.id)
+    if (idx !== -1) pool.value[idx] = data
+    if (form.newPhoto) setThumb(e.id, URL.createObjectURL(form.newPhoto.blob))
+    else if (!data.has_photo) setThumb(e.id, null)
+    dropPreview()
+    editing.value = null
+    toast.success('Saqlandi')
+  } catch (err: any) {
+    form.error = err?.response?.data?.detail || 'Saqlanmadi'
+  } finally {
+    form.saving = false
+  }
+}
+
+onMounted(async () => {
+  await loadAll()
+  loadThumbs()
+})
 </script>
