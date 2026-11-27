@@ -67,6 +67,41 @@
           </button>
         </div>
       </div>
+
+      <div class="card p-5 space-y-4">
+        <h2 class="section-title">Yangi guruh havolalari</h2>
+        <div class="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <label class="flex items-center gap-3 h-9 text-sm text-gray-700 cursor-pointer">
+            <ToggleSwitch v-model="linkEnabled" :disabled="!linkLoaded" />
+            Xodimlar guruhiga yuborish
+          </label>
+          <div class="w-full sm:w-72">
+            <label class="label" for="link-chat">Guruh</label>
+            <select id="link-chat" v-model="linkChat" class="input" :disabled="!linkLoaded">
+              <option :value="null">Tanlanmagan</option>
+              <option v-for="c in linkChoices" :key="c.chat_id" :value="c.chat_id">
+                {{ c.title || c.chat_id }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="link-topic">Mavzu (topic) ID</label>
+            <input id="link-topic" v-model.trim="linkTopic" type="text" inputmode="numeric"
+              placeholder="ixtiyoriy" class="input w-32" :disabled="!linkLoaded || !linkChat"
+              @change="takeTopicLink" />
+          </div>
+        </div>
+        <p v-if="!linkTopicValid" class="error-text">Mavzu ID son bo'lsin</p>
+
+        <div class="flex flex-wrap items-center justify-end gap-3">
+          <span v-if="linkMessage" class="text-sm" :class="linkMessageType === 'success' ? 'text-emerald-600' : 'text-rose-600'">
+            {{ linkMessage }}
+          </span>
+          <button class="btn btn-primary" :disabled="linkSaving || !linkLoaded || !linkTopicValid" @click="saveLink">
+            {{ linkSaving ? 'Saqlanmoqda...' : 'Saqlash' }}
+          </button>
+        </div>
+      </div>
     </div>
   </AppShell>
 </template>
@@ -164,6 +199,81 @@ async function saveLeave() {
   }
 }
 
+// Where the bot posts every new group's invite link (bot services/group_link_post.py):
+// the staff group and, optionally, its topic («Guruhlar ilovasi»). Only groups that are
+// not pilgrim groups are offered; the chosen one becomes a group the bot never answers in.
+interface LinkChat { chat_id: number; title: string | null }
+const linkEnabled = ref(true)
+const linkChat = ref<number | null>(null)
+const linkTopic = ref('')
+const linkChats = ref<LinkChat[]>([])
+const linkSavedChat = ref<LinkChat | null>(null)
+const linkLoaded = ref(false)
+const linkSaving = ref(false)
+const linkMessage = ref('')
+const linkMessageType = ref<'success' | 'error'>('success')
+// A topic's link (t.me/c/<chat>/<topic>) pasted instead of the bare number is understood too.
+const TOPIC_LINK = /t\.me\/c\/(\d+)\/(\d+)/
+const linkTopicValid = computed(() => linkTopic.value === '' || /^[1-9]\d{0,9}$/.test(linkTopic.value))
+const linkChoices = computed(() => {
+  const saved = linkSavedChat.value
+  return saved && !linkChats.value.some((c) => c.chat_id === saved.chat_id)
+    ? [saved, ...linkChats.value]
+    : linkChats.value
+})
+
+function takeTopicLink() {
+  const m = TOPIC_LINK.exec(linkTopic.value)
+  if (!m) return
+  linkTopic.value = m[2]
+  const chat = Number(`-100${m[1]}`)
+  if (linkChoices.value.some((c) => c.chat_id === chat)) linkChat.value = chat
+}
+
+function showLink(data: { is_enabled: boolean; chat_id: number | null; chat_title: string | null; topic_id: number | null }) {
+  linkEnabled.value = data.is_enabled
+  linkChat.value = data.chat_id
+  linkTopic.value = data.topic_id ? String(data.topic_id) : ''
+  linkSavedChat.value = data.chat_id ? { chat_id: data.chat_id, title: data.chat_title } : null
+}
+
+async function loadLink() {
+  try {
+    const [settings, chats] = await Promise.all([
+      api.get('/group-link-post'),
+      api.get('/group-link-post/chats'),
+    ])
+    linkChats.value = chats.data
+    showLink(settings.data)
+    linkLoaded.value = true
+  } catch {
+    linkMessage.value = 'Yuklab bo\'lmadi'
+    linkMessageType.value = 'error'
+  }
+}
+
+async function saveLink() {
+  linkSaving.value = true
+  linkMessage.value = ''
+  try {
+    const { data } = await api.put('/group-link-post', {
+      is_enabled: linkEnabled.value,
+      chat_id: linkChat.value,
+      topic_id: linkChat.value && linkTopic.value ? Number(linkTopic.value) : null,
+    })
+    showLink(data)
+    linkMessage.value = 'Saqlandi'
+    linkMessageType.value = 'success'
+    setTimeout(() => (linkMessage.value = ''), 3000)
+  } catch (e: any) {
+    const detail = e?.response?.data?.detail
+    linkMessage.value = typeof detail === 'string' ? detail : 'Xatolik yuz berdi'
+    linkMessageType.value = 'error'
+  } finally {
+    linkSaving.value = false
+  }
+}
+
 const promptContent = ref('')
 const saving = ref(false)
 const message = ref('')
@@ -204,5 +314,6 @@ onMounted(() => {
   loadPrompt()
   loadPrayer()
   loadLeave()
+  loadLink()
 })
 </script>
