@@ -175,6 +175,8 @@ export interface CabinetItem {
   id: number
   trip_id: string | null
   trip_name: string | null
+  /** The trip's departure day, YYYY-MM-DD; null for a mass post or a trip with no date. */
+  trip_start_date: string | null
   day_number: number | null
   /** Telegram HTML, as the bot sent it. */
   text: string
