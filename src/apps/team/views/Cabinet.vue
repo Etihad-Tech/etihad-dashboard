@@ -19,8 +19,25 @@
       <p v-else-if="loadError" class="card empty text-rose-600">{{ loadError }}</p>
       <div v-else-if="items.length === 0" class="card empty">Kabinetga yuborilgan e'lonlar yo'q</div>
 
-      <div v-else class="card divide-y divide-gray-100">
-        <article v-for="it in items" :key="keyOf(it)" class="px-4 py-3.5">
+      <template v-else>
+      <div v-if="flights.length > 2 || dates.length > 1" class="space-y-2">
+      <div v-if="flights.length > 2" class="seg scroll-x">
+        <button v-for="f in flights" :key="f.value" type="button" class="seg-btn whitespace-nowrap" :class="{ 'seg-btn-on': flight === f.value }"
+          @click="pickFlight(f.value)">
+          {{ f.label }} <span class="ml-1 text-xs tabular-nums text-gray-400">{{ f.count }}</span>
+        </button>
+      </div>
+      <div v-if="dates.length > 1" class="flex items-center gap-1 scroll-x py-0.5">
+        <button type="button" class="filter-chip" :class="{ 'filter-chip-on': day === null }" @click="day = null">Barcha sanalar</button>
+        <button v-for="d in dates" :key="d.iso" type="button" class="filter-chip tabular-nums" :class="{ 'filter-chip-on': day === d.iso }"
+          :title="d.title" @click="day = day === d.iso ? null : d.iso">
+          {{ d.label }} <span class="ml-0.5 opacity-60">{{ d.count }}</span>
+        </button>
+      </div>
+      </div>
+
+      <div class="card divide-y divide-gray-100">
+        <article v-for="it in shown" :key="keyOf(it)" class="px-4 py-3.5">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span v-if="it.kind === 'broadcast'" class="chip chip-violet">Ommaviy post</span>
             <template v-else>
@@ -53,12 +70,13 @@
           </div>
         </article>
       </div>
+      </template>
     </div>
   </AppShell>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppShell from '../../../components/AppShell.vue'
 import { useConfirm } from '../../../composables/useConfirm'
@@ -81,6 +99,74 @@ const busy = ref<string | null>(null)
 const expanded = reactive(new Set<string>())
 
 const keyOf = (it: CabinetItem) => `${it.kind}:${it.id}`
+
+// Filter (user, 2026-11-27): «фильтр по рейсам четверг и суббота и по числам» — the
+// trip's departure day: its weekday (the Payshanba and Shanba flights, as on the
+// Guruhlar cards: getDay() 4 and 6) and the date itself. Only choices that have posts are
+// offered, each with its count; a mass post went to everyone, so it is its own choice.
+type Flight = 'all' | 'payshanba' | 'shanba' | 'other' | 'nodate' | 'broadcast'
+const FLIGHT_LABEL: Record<Flight, string> = {
+  all: 'Hammasi', payshanba: 'Payshanba', shanba: 'Shanba', other: 'Boshqa kunlar',
+  nodate: 'Sanasiz', broadcast: 'Ommaviy',
+}
+const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
+
+/** The date parts read as written, so the weekday is never shifted by the timezone. */
+function startDay(it: CabinetItem): Date | null {
+  const [y, m, d] = (it.trip_start_date || '').split('-').map(Number)
+  return y && m && d ? new Date(y, m - 1, d) : null
+}
+
+function flightOf(it: CabinetItem): Exclude<Flight, 'all'> {
+  if (it.kind === 'broadcast') return 'broadcast'
+  const d = startDay(it)
+  if (!d) return 'nodate'
+  return d.getDay() === 4 ? 'payshanba' : d.getDay() === 6 ? 'shanba' : 'other'
+}
+
+const flight = ref<Flight>('all')
+const day = ref<string | null>(null)
+
+const flights = computed(() => {
+  const count: Partial<Record<Flight, number>> = { all: items.value.length }
+  for (const it of items.value) count[flightOf(it)] = (count[flightOf(it)] || 0) + 1
+  return (Object.keys(FLIGHT_LABEL) as Flight[])
+    .filter(f => f === 'all' || count[f])
+    .map(f => ({ value: f, label: FLIGHT_LABEL[f], count: count[f] || 0 }))
+})
+
+const inFlight = computed(() =>
+  flight.value === 'all' ? items.value : items.value.filter(it => flightOf(it) === flight.value))
+
+const dates = computed(() => {
+  const count = new Map<string, number>()
+  for (const it of inFlight.value) {
+    if (startDay(it)) count.set(it.trip_start_date!, (count.get(it.trip_start_date!) || 0) + 1)
+  }
+  const p = (n: number) => String(n).padStart(2, '0')
+  return [...count.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([iso, n]) => {
+      const d = new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
+      return {
+        iso, count: n,
+        label: `${p(d.getDate())}.${p(d.getMonth() + 1)}`,
+        title: `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}, ${WEEKDAYS[d.getDay()]}`,
+      }
+    })
+})
+
+const shown = computed(() =>
+  day.value === null ? inFlight.value : inFlight.value.filter(it => it.trip_start_date === day.value))
+
+function pickFlight(f: Flight) {
+  flight.value = f
+  day.value = null
+}
+
+// A choice whose last post was just taken out of the cabinet is no longer offered.
+watch(flights, fs => { if (!fs.some(f => f.value === flight.value)) pickFlight('all') })
+watch(dates, ds => { if (day.value !== null && !ds.some(d => d.iso === day.value)) day.value = null })
 
 async function load() {
   loading.value = true
