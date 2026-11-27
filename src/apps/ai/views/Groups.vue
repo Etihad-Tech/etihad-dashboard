@@ -38,6 +38,10 @@
               <font-awesome-icon :icon="g.bot_silent ? 'toggle-off' : 'toggle-on'" class="w-3.5 h-3.5" />
               {{ g.bot_silent ? 'Bot jim' : 'Bot faol' }}
             </button>
+            <span v-if="g.bot_left_at" class="chip chip-gray">
+              <font-awesome-icon icon="right-from-bracket" class="w-3 h-3" />
+              Bot chiqdi {{ fmtLeft(g.bot_left_at) }}
+            </span>
           </div>
 
           <!-- CRM BINDING. «This chat is CRM group 006» — the row the pilgrim cabinet's
@@ -265,6 +269,8 @@ interface Grp {
   hotel_madina: string
   hotel_jidda: string
   bot_silent: boolean
+  // When the bot left the chat after the trip (bot group_leave); null = it is in.
+  bot_left_at: string | null
   // The forum topic the bot works in (message_thread_id), '' = not bound.
   bot_topic_id: number | string
   // The CRM binding («this chat is CRM group 006») and the join link the bot minted
@@ -717,6 +723,7 @@ async function load() {
         hotel_madina: g.hotel_madina || '',
         hotel_jidda: g.hotel_jidda || '',
         bot_silent: !!g.bot_silent,
+        bot_left_at: g.bot_left_at ?? null,
         bot_topic_id: g.bot_topic_id ?? '',
         crm_link: g.crm_link ?? null,
         invite_link: g.invite_link ?? null,
@@ -774,6 +781,12 @@ function bindForm(id: number): BindForm {
  *  season number was never set. */
 function crmLabel(link: CrmLink): string {
   return link.season_no != null ? String(link.season_no).padStart(3, '0') : `#${link.group_index}`
+}
+
+/** dd.mm of the day the bot left the chat. */
+function fmtLeft(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 /** Who confirmed the binding and when — the bot writes the tapping user, this
