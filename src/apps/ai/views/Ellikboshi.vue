@@ -47,6 +47,23 @@
             <span class="section-title">Ma'lumot</span>
             <span class="chip chip-gray">{{ filledCount }} / {{ pool.length }}</span>
           </div>
+          <!-- The timer (owner, 27.11.2026): how long after the assignment the bot posts
+               the card to the group. -->
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 text-sm text-gray-700">
+            <span>Guruhga yuborish: tayinlangandan</span>
+            <span class="inline-flex items-center gap-2">
+              <input v-model.number="delay.h" type="number" min="0" :max="DELAY_MAX_H" aria-label="Soat"
+                class="input input-sm w-16 tabular-nums" :disabled="!delay.loaded" />
+              <span>soat</span>
+              <input v-model.number="delay.m" type="number" min="0" max="59" aria-label="Daqiqa"
+                class="input input-sm w-16 tabular-nums" :disabled="!delay.loaded" />
+              <span>daqiqa keyin</span>
+            </span>
+            <button type="button" class="btn btn-primary btn-sm" :disabled="!delayDirty || !delayValid || delay.saving" @click="saveDelay">
+              {{ delay.saving ? 'Saqlanmoqda...' : 'Saqlash' }}
+            </button>
+            <p v-if="delayInvalidText" class="error-text w-full">{{ delayInvalidText }}</p>
+          </div>
           <div v-for="e in pool" :key="e.id" class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
             <div class="flex items-center gap-3 min-w-0 flex-1">
               <div class="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center shrink-0">
@@ -268,6 +285,52 @@ async function loadAll() {
     groups.value = []
   } finally {
     loading.value = false
+  }
+  loadDelay()
+}
+
+// The timer above the cards (owner, 27.11.2026: «в самом верху добавь поле таймера там
+// введется время и после этого инфа отправляется»): hours and minutes after the
+// assignment; the API keeps it in whole minutes, 1 minute to 7 days.
+const DELAY_MAX_H = 7 * 24
+const delay = reactive({ h: 0 as number | '', m: 5 as number | '', saved: 5, loaded: false, saving: false })
+const delayMinutes = computed(() => {
+  const h = delay.h === '' ? 0 : delay.h
+  const m = delay.m === '' ? 0 : delay.m
+  return Number.isInteger(h) && Number.isInteger(m) && h >= 0 && m >= 0 && m <= 59 ? h * 60 + m : NaN
+})
+const delayValid = computed(() => delayMinutes.value >= 1 && delayMinutes.value <= DELAY_MAX_H * 60)
+const delayDirty = computed(() => delay.loaded && delayMinutes.value !== delay.saved)
+const delayInvalidText = computed(() =>
+  delay.loaded && delayDirty.value && !delayValid.value ? "Vaqt 1 daqiqadan 7 kungacha bo'lsin" : '')
+
+function showDelay(minutes: number) {
+  delay.saved = minutes
+  delay.h = Math.floor(minutes / 60)
+  delay.m = minutes % 60
+}
+
+async function loadDelay() {
+  try {
+    const { data } = await api.get('/ellikboshilar/intro-delay')
+    showDelay(data.delay_minutes)
+    delay.loaded = true
+  } catch {
+    delay.loaded = false
+  }
+}
+
+async function saveDelay() {
+  if (!delayValid.value) return
+  delay.saving = true
+  try {
+    const { data } = await api.put('/ellikboshilar/intro-delay', { delay_minutes: delayMinutes.value })
+    showDelay(data.delay_minutes)
+    toast.success('Saqlandi')
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Saqlanmadi')
+  } finally {
+    delay.saving = false
   }
 }
 
